@@ -1,7 +1,7 @@
 # Copyright (C) Pavel Grebnev 2026
 # Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.22.1)
 
 set(SERVER_CLI_ROOT ${CMAKE_SOURCE_DIR}/ServerCli)
 
