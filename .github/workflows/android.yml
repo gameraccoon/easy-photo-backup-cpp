@@ -50,9 +50,11 @@ jobs:
     #     echo RELEASE_KEY_ALIAS=${{ secrets.TEST_APK_SIGNING_KEY_ALIAS }} >> ~/.gradle/gradle.properties
     #     echo RELEASE_KEY_PASSWORD=${{ secrets.TEST_APK_SIGNING_KEY_PASSWORD }} >> ~/.gradle/gradle.properties
 
-    - name: Build with Gradle
-      run: ./gradlew build
-      working-directory: platforms/android
+    - uses: burrunan/gradle-cache-action@v3
+      name: Build with Gradle
+      with:
+        arguments: build
+        build-root-directory: platforms/android
 
     # - name: Sign the Apk
     #   run: ./gradlew assembleRelease
