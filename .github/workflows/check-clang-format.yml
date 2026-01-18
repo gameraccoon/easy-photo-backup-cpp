@@ -1,0 +1,40 @@
+name: Ubuntu - check clang-format
+
+on:
+  push:
+    paths:
+      - .github/workflows/check-clang-format.yml
+      - ClientCli/src
+      - ClientShared/include
+      - ClientShared/src
+      - CommonShared/include
+      - CommonShared/src
+      - ServerCli/src
+      - ServerShared/include
+      - ServerShared/src
+      - platforms/android/app/src/main/cpp
+      - .clang-format
+  workflow_dispatch:
+jobs:
+  run-clang-format:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path:
+          - 'ClientCli/src'
+          - 'ClientShared/include'
+          - 'ClientShared/src'
+          - 'CommonShared/include'
+          - 'CommonShared/src'
+          - 'ServerCli/src'
+          - 'ServerShared/include'
+          - 'ServerShared/src'
+          - 'platforms/android/app/src/main/cpp'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run clang-format style check
+        uses: jidicula/clang-format-action@v4.13.0
+        with:
+          clang-format-version: '18'
+          check-path: ${{ matrix.path }}
+          exclude-regex: '.*\.generated\..*'
