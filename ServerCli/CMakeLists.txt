@@ -3,15 +3,15 @@
 
 cmake_minimum_required(VERSION 3.22.1)
 
-set(SERVER_CLI_ROOT ${CMAKE_SOURCE_DIR}/ServerCli)
+set(SERVER_CLI_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
 set(SERVER_CLI_SRC_DIR ${SERVER_CLI_ROOT}/src)
 
 add_executable(ServerCli)
 
 target_include_directories(ServerCli PRIVATE
-	CommonShared/include
-	ClientShared/include
+	${MAIN_ROOT}/CommonShared/include
+	${MAIN_ROOT}/ServerShared/include
 )
 
 target_sources(ServerCli PRIVATE

@@ -3,12 +3,13 @@
 
 cmake_minimum_required(VERSION 3.22.1)
 
-set (CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 20)
+set(MAIN_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
 project(EasyPhotoBackup)
 
-include(CommonShared/CMakeLists.txt)
-include(ClientShared/CMakeLists.txt)
-include(ServerShared/CMakeLists.txt)
-include(ClientCli/CMakeLists.txt)
-include(ServerCli/CMakeLists.txt)
+include(${MAIN_ROOT}/CommonShared/CMakeLists.txt)
+include(${MAIN_ROOT}/ClientShared/CMakeLists.txt)
+include(${MAIN_ROOT}/ServerShared/CMakeLists.txt)
+include(${MAIN_ROOT}/ClientCli/CMakeLists.txt)
+include(${MAIN_ROOT}/ServerCli/CMakeLists.txt)

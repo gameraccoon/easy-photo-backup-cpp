@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project("EasyPhotoBackupFfi")
+project(EasyPhotoBackupFfi)
+
+set(MAIN_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../../..)
+
+include(${MAIN_ROOT}/CommonShared/CMakeLists.txt)
+include(${MAIN_ROOT}/ClientShared/CMakeLists.txt)
 
 # In this top level CMakeLists.txt, ${CMAKE_PROJECT_NAME} is used to define
 # the target library name; in the sub-module's CMakeLists.txt, ${PROJECT_NAME}
@@ -14,7 +19,18 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
 	ffi_bindings.cpp
 )
 
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+	${MAIN_ROOT}/CommonShared/include
+	${MAIN_ROOT}/ClientShared/include
+)
+
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+	ffi_bindings.cpp
+)
+
 target_link_libraries(${CMAKE_PROJECT_NAME}
 	android
 	log
+	CommonShared
+	ClientShared
 )

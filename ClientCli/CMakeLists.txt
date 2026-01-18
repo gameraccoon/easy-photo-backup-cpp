@@ -3,15 +3,15 @@
 
 cmake_minimum_required(VERSION 3.22.1)
 
-set(CLIENT_CLI_ROOT ${CMAKE_SOURCE_DIR}/ClientCli)
+set(CLIENT_CLI_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
 set(CLIENT_CLI_SRC_DIR ${CLIENT_CLI_ROOT}/src)
 
 add_executable(ClientCli)
 
 target_include_directories(ClientCli PRIVATE
-	CommonShared/include
-	ClientShared/include
+	${MAIN_ROOT}/CommonShared/include
+	${MAIN_ROOT}/ClientShared/include
 )
 
 target_sources(ClientCli PRIVATE

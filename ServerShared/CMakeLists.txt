@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.22.1)
 
-set(SERVER_SHARED_ROOT ${CMAKE_SOURCE_DIR}/ServerShared)
+set(SERVER_SHARED_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
 set(SERVER_SHARED_INCLUDE_BASE_DIR ${SERVER_SHARED_ROOT}/include)
 set(SERVER_SHARED_INCLUDE_DIR ${SERVER_SHARED_INCLUDE_BASE_DIR}/server_shared)
@@ -12,7 +12,8 @@ set(SERVER_SHARED_SRC_DIR ${SERVER_SHARED_ROOT}/src)
 add_library(ServerShared STATIC)
 
 target_include_directories(ServerShared PRIVATE
-	CommonShared/include
+	${MAIN_ROOT}/CommonShared/include
+	${SERVER_SHARED_INCLUDE_BASE_DIR}
 )
 
 target_sources(ServerShared
@@ -20,10 +21,5 @@ target_sources(ServerShared
 		${SERVER_SHARED_SRC_DIR}/example/example.cpp
 
 	PUBLIC
-    FILE_SET headers
-    TYPE HEADERS
-    BASE_DIRS
-		${SERVER_SHARED_INCLUDE_BASE_DIR}
-    FILES
 		${SERVER_SHARED_INCLUDE_DIR}/example/example.h
 )
