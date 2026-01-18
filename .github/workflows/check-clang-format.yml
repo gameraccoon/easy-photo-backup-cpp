@@ -4,37 +4,26 @@ on:
   push:
     paths:
       - .github/workflows/check-clang-format.yml
-      - ClientCli/src
-      - ClientShared/include
-      - ClientShared/src
-      - CommonShared/include
-      - CommonShared/src
-      - ServerCli/src
-      - ServerShared/include
-      - ServerShared/src
-      - platforms/android/app/src/main/cpp
+      - ClientCli/src/**
+      - ClientShared/include/**
+      - ClientShared/src/**
+      - CommonShared/include/**
+      - CommonShared/src/**
+      - ServerCli/src/**
+      - ServerShared/include/**
+      - ServerShared/src/**
+      - platforms/android/app/src/main/cpp/**
       - .clang-format
+      - tools/validate/**
   workflow_dispatch:
 jobs:
-  run-clang-format:
+  clang-format-checking:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        path:
-          - 'ClientCli/src'
-          - 'ClientShared/include'
-          - 'ClientShared/src'
-          - 'CommonShared/include'
-          - 'CommonShared/src'
-          - 'ServerCli/src'
-          - 'ServerShared/include'
-          - 'ServerShared/src'
-          - 'platforms/android/app/src/main/cpp'
     steps:
-      - uses: actions/checkout@v4
-      - name: Run clang-format style check
-        uses: jidicula/clang-format-action@v4.13.0
-        with:
-          clang-format-version: '18'
-          check-path: ${{ matrix.path }}
-          exclude-regex: '.*\.generated\..*'
+      - uses: actions/checkout@v6
+      - name: Install clang-format
+        run: sudo apt install clang-format
+      - name: Apply formating script
+        run: tools/validate/reformat.sh
+      - name: Fail if any files changed, print the changes
+        run: git diff-files -p --exit-code
