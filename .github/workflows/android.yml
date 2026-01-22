@@ -27,7 +27,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
       with:
-        submodules: true
+        submodules: recursive
         lfs: true
 
     - name: set up JDK 17

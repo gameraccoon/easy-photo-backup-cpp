@@ -13,6 +13,7 @@ add_library(CommonShared STATIC)
 
 target_include_directories(CommonShared PRIVATE
 	${COMMON_SHARED_INCLUDE_BASE_DIR}
+	${MAIN_ROOT}/deps/mbedtls/include
 )
 
 target_sources(CommonShared
@@ -21,4 +22,9 @@ target_sources(CommonShared
 
 	PUBLIC
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h
+)
+
+target_link_libraries(CommonShared
+	PRIVATE
+		mbedtls
 )
