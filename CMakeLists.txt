@@ -19,8 +19,6 @@ set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE INTERNAL "")
 set(INSTALL_MBEDTLS_HEADERS OFF CACHE INTERNAL "")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DMBEDTLS_CONFIG_FILE=\\\"mbedtls_config.h\\\"")
 
-add_subdirectory(${MAIN_ROOT}/deps/mbedtls)
-
 include(${MAIN_ROOT}/CommonShared/CMakeLists.txt)
 include(${MAIN_ROOT}/ClientShared/CMakeLists.txt)
 include(${MAIN_ROOT}/ServerShared/CMakeLists.txt)

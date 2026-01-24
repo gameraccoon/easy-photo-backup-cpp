@@ -9,6 +9,8 @@ set(COMMON_SHARED_INCLUDE_BASE_DIR ${COMMON_SHARED_ROOT}/include)
 set(COMMON_SHARED_INCLUDE_DIR ${COMMON_SHARED_INCLUDE_BASE_DIR}/common_shared)
 set(COMMON_SHARED_SRC_DIR ${COMMON_SHARED_ROOT}/src)
 
+add_subdirectory(${COMMON_SHARED_ROOT}/deps/mbedtls ${COMMON_SHARED_ROOT}/build/mdebtls)
+
 add_library(CommonShared STATIC)
 
 target_include_directories(CommonShared PRIVATE

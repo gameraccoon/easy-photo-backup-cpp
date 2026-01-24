@@ -1,3 +1,3 @@
 [submodule "deps/mbedtls"]
-	path = deps/mbedtls
+	path = CommonShared/deps/mbedtls
 	url = git@github.com:Mbed-TLS/mbedtls.git
