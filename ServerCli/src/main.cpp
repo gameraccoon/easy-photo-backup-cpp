@@ -33,7 +33,7 @@ int main()
 		static_cast<std::byte>(15),
 	} };
 
-	NsdServer::ListenResult result = NsdServer::listen("0.0.0.0", NsdServer::AddressType::IpV4, 5354, "_easy-photo-backup._tcp", 2134, extraData);
+	NsdServer::ListenResult result = NsdServer::listen("0.0.0.0", NsdUtils::AddressType::IpV4, 5354, "_easy-photo-backup._tcp", 2134, extraData);
 	if (result.has_value())
 	{
 		debug::log::printDebug(std::format("NSD server error: '{}'", *result));

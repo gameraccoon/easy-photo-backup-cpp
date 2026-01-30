@@ -8,21 +8,17 @@
 #include <string>
 #include <vector>
 
+#include "common_shared/nsd/utils.h"
+
 namespace NsdServer
 {
-	enum class AddressType
-	{
-		IpV4,
-		IpV6,
-	};
-
 	using ListenResult = std::optional<std::string>;
 
 	ListenResult listen(
 		const char* interfaceAddressStr,
-		AddressType addressType,
+		NsdUtils::AddressType addressType,
 		uint16_t port,
-		const char* serviceId,
+		const char* serviceIdentifier,
 		uint16_t advertizedPort,
 		const std::vector<std::byte>& extraData
 	);

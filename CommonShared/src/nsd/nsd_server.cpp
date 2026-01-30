@@ -19,41 +19,10 @@
 #include <ranges>
 #include <string>
 
+#include "common_shared/nsd/utils_internal.h"
+
 namespace NsdServer
 {
-	[[noreturn]] static void unreachable()
-	{
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-		__assume(false);
-#else // GCC, Clang
-		__builtin_unreachable();
-#endif
-	}
-
-	static int addressTypeToFamily(const AddressType type)
-	{
-		switch (type)
-		{
-		case AddressType::IpV4:
-			return AF_INET;
-		case AddressType::IpV6:
-			return AF_INET6;
-		}
-		unreachable();
-	}
-
-	static const char* addressTypeToStr(const AddressType type)
-	{
-		switch (type)
-		{
-		case AddressType::IpV4:
-			return "IPv4";
-		case AddressType::IpV6:
-			return "IPv6";
-		}
-		unreachable();
-	}
-
 	static uint16_t checksum16(const std::span<std::byte>& data)
 	{
 		// this is a very trivial checksum, eventually we want crc16 here
@@ -81,113 +50,37 @@ namespace NsdServer
 		}
 	}
 
-	static ListenResult bindSocket(const int socketToBind, const char* interfaceAddressStr, const AddressType addressType, const uint16_t port)
-	{
-		const int addressFamily = addressTypeToFamily(addressType);
-
-		if (addressType == AddressType::IpV4)
-		{
-			sockaddr_in address;
-			if (interfaceAddressStr != nullptr)
-			{
-				const int errCode = inet_pton(addressFamily, interfaceAddressStr, &address.sin_addr);
-				switch (errCode)
-				{
-				case -1:
-					return std::format("Not supported address type provided: '{}', error code {} '{}'.", interfaceAddressStr, errno, strerror(errno));
-				case 0:
-					return std::format("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
-				default:
-					break;
-				}
-			}
-			else
-			{
-				address.sin_addr.s_addr = INADDR_ANY;
-			}
-
-			address.sin_family = addressFamily;
-			address.sin_port = htons(port);
-
-			const int errCode = bind(socketToBind, std::bit_cast<const sockaddr*>(&address), sizeof(address));
-			if (errCode == -1)
-			{
-				return std::format("Cannot bind the socket, error code {} '{}'.", errno, strerror(errno));
-			}
-		}
-		else
-		{
-			sockaddr_in6 address;
-			if (interfaceAddressStr != nullptr)
-			{
-				const int errCode = inet_pton(addressFamily, interfaceAddressStr, &address.sin6_addr);
-				switch (errCode)
-				{
-				case -1:
-					return std::format("Not supported address type provided: '{}'.", interfaceAddressStr);
-				case 0:
-					return std::format("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
-				default:
-					break;
-				}
-			}
-			else
-			{
-				address.sin6_addr = IN6ADDR_ANY_INIT;
-			}
-
-			address.sin6_family = addressFamily;
-			address.sin6_port = htons(port);
-
-			const int errCode = bind(socketToBind, std::bit_cast<const sockaddr*>(&address), sizeof(address));
-			if (errCode == -1)
-			{
-				return std::format("Cannot bind the socket, error code {} '{}'.", errno, strerror(errno));
-			}
-		}
-		return std::nullopt;
-	}
-
 	ListenResult listen(
 		const char* interfaceAddressStr,
-		const AddressType addressType,
+		const NsdUtils::AddressType addressType,
 		const uint16_t port,
-		const char* serviceId,
+		const char* serviceIdentifier,
 		const uint16_t advertizedPort,
 		const std::vector<std::byte>& extraData
 	)
 	{
-		if (serviceId == nullptr)
+		using namespace NsdInternalUtils;
+
+		if (serviceIdentifier == nullptr)
 		{
-			return "serviceId can't be nullptr";
+			return "service identifier can't be nullptr";
 		}
 
-		const int nsdSocket = socket(addressTypeToFamily(addressType), SOCK_DGRAM, 0);
-		if (nsdSocket == -1)
+		std::variant<int, std::string> result = createAndBindSocket(
+			SocketType::NsdListen,
+			interfaceAddressStr,
+			addressType,
+			port
+		);
+
+		if (std::holds_alternative<std::string>(result))
 		{
-			return std::format("Error when creating socket, error code {} '{}'.", errno, strerror(errno));
+			return std::get<std::string>(result);
 		}
 
-		constexpr int flagTrue = 1;
-		int errCode = setsockopt(nsdSocket, SOL_SOCKET, SO_REUSEADDR, &flagTrue, sizeof(flagTrue));
-		if (errCode == -1)
-		{
-			return std::format("Cannot set SO_REUSEADDR to the UDP socket, error code {} '{}'.", errno, strerror(errno));
-		}
+		const AutoclosingSocket socket = AutoclosingSocket(std::get<int>(std::move(result)));
 
-		errCode = setsockopt(nsdSocket, SOL_SOCKET, SO_REUSEPORT, &flagTrue, sizeof(flagTrue));
-		if (errCode == -1)
-		{
-			return std::format("Cannot set SO_REUSEPORT to the UDP socket, error code {} '{}'.", errno, strerror(errno));
-		}
-
-		const ListenResult result = bindSocket(nsdSocket, interfaceAddressStr, addressType, port);
-		if (result.has_value())
-		{
-			return result;
-		}
-
-		const std::string expectedPacket = std::format("aloha:{}\n", serviceId);
+		const std::string expectedPacket = std::format("aloha:{}\n", serviceIdentifier);
 		if (expectedPacket.size() > 1024)
 		{
 			return std::format("Service ID is too long, maximum size is 1017 bytes, the ID length was {} bytes instead.", expectedPacket.size());
@@ -217,7 +110,7 @@ namespace NsdServer
 		ssize_t messageLength;
 		sockaddr clientAddr;
 		socklen_t clientAddrLen = sizeof(clientAddr);
-		while ((messageLength = recvfrom(nsdSocket, buf, BUFFER_SIZE, 0, &clientAddr, &clientAddrLen)) != -1)
+		while ((messageLength = recvfrom(socket, buf, BUFFER_SIZE, 0, &clientAddr, &clientAddrLen)) != -1)
 		{
 			if (messageLength != expectedPacket.size())
 			{
@@ -230,7 +123,7 @@ namespace NsdServer
 			}
 
 			{
-				const ssize_t sentSize = sendto(nsdSocket, response.data(), responseSize, 0, &clientAddr, clientAddrLen);
+				const ssize_t sentSize = sendto(socket, response.data(), responseSize, 0, &clientAddr, clientAddrLen);
 				if (sentSize == -1)
 				{
 					return std::format("Failed to send response to UDP socket, error code {} '{}'.", errno, strerror(errno));
