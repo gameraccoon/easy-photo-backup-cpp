@@ -21,9 +21,11 @@ target_include_directories(CommonShared PRIVATE
 target_sources(CommonShared
 	PRIVATE
 		${COMMON_SHARED_SRC_DIR}/debug/log.cpp
+		${COMMON_SHARED_SRC_DIR}/nsd/nsd_server.cpp
 
 	PUBLIC
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h
+		${COMMON_SHARED_INCLUDE_DIR}/nsd/nsd_server.h
 )
 
 target_link_libraries(CommonShared
