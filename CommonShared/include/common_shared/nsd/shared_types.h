@@ -3,11 +3,11 @@
 
 #pragma once
 
-namespace NsdUtils
+namespace NsdTypes
 {
 	enum class AddressType
 	{
 		IpV4,
 		IpV6,
 	};
-} // namespace NsdUtils
+} // namespace NsdTypes

@@ -52,7 +52,7 @@ namespace NsdServer
 
 	ListenResult listen(
 		const char* interfaceAddressStr,
-		const NsdUtils::AddressType addressType,
+		const NsdTypes::AddressType addressType,
 		const uint16_t port,
 		const char* serviceIdentifier,
 		const uint16_t advertizedPort,
@@ -66,19 +66,19 @@ namespace NsdServer
 			return "service identifier can't be nullptr";
 		}
 
-		std::variant<int, std::string> result = createAndBindSocket(
-			SocketType::NsdListen,
-			interfaceAddressStr,
-			addressType,
-			port
-		);
-
-		if (std::holds_alternative<std::string>(result))
+		std::variant<int, std::string> createSocketResult = createSocket(SocketType::NsdListen, addressType);
+		if (std::holds_alternative<std::string>(createSocketResult))
 		{
-			return std::get<std::string>(result);
+			return std::get<std::string>(createSocketResult);
 		}
 
-		const AutoclosingSocket socket = AutoclosingSocket(std::get<int>(std::move(result)));
+		const AutoclosingSocket socket = AutoclosingSocket(std::get<int>(std::move(createSocketResult)));
+
+		const std::optional<std::string> bindSocketResult = bindSocket(socket, interfaceAddressStr, addressType, port);
+		if (bindSocketResult.has_value())
+		{
+			return bindSocketResult;
+		}
 
 		const std::string expectedPacket = std::format("aloha:{}\n", serviceIdentifier);
 		if (expectedPacket.size() > 1024)
@@ -122,12 +122,10 @@ namespace NsdServer
 				continue;
 			}
 
+			const ssize_t sentSize = sendto(socket, response.data(), responseSize, 0, &clientAddr, clientAddrLen);
+			if (sentSize == -1)
 			{
-				const ssize_t sentSize = sendto(socket, response.data(), responseSize, 0, &clientAddr, clientAddrLen);
-				if (sentSize == -1)
-				{
-					return std::format("Failed to send response to UDP socket, error code {} '{}'.", errno, strerror(errno));
-				}
+				return std::format("Failed to send response to UDP socket, error code {} '{}'.", errno, strerror(errno));
 			}
 		}
 

@@ -13,6 +13,8 @@
 #include <unistd.h>
 #endif
 
+#include <algorithm>
+#include <climits>
 #include <cstring>
 #include <format>
 
@@ -27,31 +29,78 @@ namespace NsdInternalUtils
 #endif
 	}
 
-	static int addressTypeToFamily(const NsdUtils::AddressType type)
+	static int addressTypeToFamily(const NsdTypes::AddressType type)
 	{
 		switch (type)
 		{
-		case NsdUtils::AddressType::IpV4:
+		case NsdTypes::AddressType::IpV4:
 			return AF_INET;
-		case NsdUtils::AddressType::IpV6:
+		case NsdTypes::AddressType::IpV6:
 			return AF_INET6;
 		}
 		unreachable();
 	}
 
-	static const char* addressTypeToStr(const NsdUtils::AddressType type)
+	static const char* addressTypeToStr(const NsdTypes::AddressType type)
 	{
 		switch (type)
 		{
-		case NsdUtils::AddressType::IpV4:
+		case NsdTypes::AddressType::IpV4:
 			return "IPv4";
-		case NsdUtils::AddressType::IpV6:
+		case NsdTypes::AddressType::IpV6:
 			return "IPv6";
 		}
 		unreachable();
 	}
 
-	std::variant<int, std::string> createAndBindSocket(const SocketType type, const char* const interfaceAddressStr, const NsdUtils::AddressType addressType, const uint16_t port)
+	static std::optional<int> parseInt(const char* str)
+	{
+		char* end;
+		errno = 0;
+		const long l = std::strtol(str, &end, 10);
+		if ((errno == ERANGE && l == LONG_MAX) || l > INT_MAX)
+		{
+			return std::nullopt;
+		}
+		if ((errno == ERANGE && l == LONG_MIN) || l < INT_MIN)
+		{
+			return std::nullopt;
+		}
+		if (*str == '\0' || *end != '\0')
+		{
+			return std::nullopt;
+		}
+		return static_cast<int>(l);
+	}
+
+	std::optional<std::string> parseAddress(const void* const addr, const size_t addrLen, std::string& outIp, uint16_t& outPort)
+	{
+		std::string addressString;
+		char name[INET6_ADDRSTRLEN];
+
+		char portStr[10];
+		if (getnameinfo(static_cast<const sockaddr*>(addr), addrLen, name, sizeof(name), portStr, sizeof(portStr), NI_NUMERICHOST | NI_NUMERICSERV) == -1)
+		{
+			return std::format("Can't convert socket address to string, error code {} '{}'", errno, strerror(errno));
+		}
+
+		// processing short IPv6 addresses (end with %)
+		const auto it = std::find(name, name + INET6_ADDRSTRLEN, '%');
+		if (it != name + INET6_ADDRSTRLEN)
+		{
+			outIp = std::string(name, it);
+		}
+		else
+		{
+			outIp = name;
+		}
+
+		outPort = parseInt(portStr).value_or(0);
+
+		return std::nullopt;
+	}
+
+	std::variant<int, std::string> createSocket(const SocketType type, const NsdTypes::AddressType addressType)
 	{
 		const int addressFamily = addressTypeToFamily(addressType);
 
@@ -89,7 +138,14 @@ namespace NsdInternalUtils
 		}
 		}
 
-		if (addressType == NsdUtils::AddressType::IpV4)
+		return newSocket;
+	}
+
+	std::optional<std::string> bindSocket(const int socket, const char* const interfaceAddressStr, const NsdTypes::AddressType addressType, const uint16_t port)
+	{
+		const int addressFamily = addressTypeToFamily(addressType);
+
+		if (addressType == NsdTypes::AddressType::IpV4)
 		{
 			sockaddr_in address;
 			if (interfaceAddressStr != nullptr)
@@ -113,7 +169,7 @@ namespace NsdInternalUtils
 			address.sin_family = addressFamily;
 			address.sin_port = htons(port);
 
-			const int errCode = bind(newSocket, std::bit_cast<const sockaddr*>(&address), sizeof(address));
+			const int errCode = bind(socket, std::bit_cast<const sockaddr*>(&address), sizeof(address));
 			if (errCode == -1)
 			{
 				return std::format("Cannot bind the socket, error code {} '{}'.", errno, strerror(errno));
@@ -143,14 +199,14 @@ namespace NsdInternalUtils
 			address.sin6_family = addressFamily;
 			address.sin6_port = htons(port);
 
-			const int errCode = bind(newSocket, std::bit_cast<const sockaddr*>(&address), sizeof(address));
+			const int errCode = bind(socket, std::bit_cast<const sockaddr*>(&address), sizeof(address));
 			if (errCode == -1)
 			{
 				return std::format("Cannot bind the socket, error code {} '{}'.", errno, strerror(errno));
 			}
 		}
 
-		return newSocket;
+		return std::nullopt;
 	}
 
 	void closeSocket(const int socket)

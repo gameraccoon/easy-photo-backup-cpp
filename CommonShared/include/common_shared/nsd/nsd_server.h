@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "common_shared/nsd/utils.h"
+#include "common_shared/nsd/shared_types.h"
 
 namespace NsdServer
 {
@@ -16,7 +16,7 @@ namespace NsdServer
 
 	ListenResult listen(
 		const char* interfaceAddressStr,
-		NsdUtils::AddressType addressType,
+		NsdTypes::AddressType addressType,
 		uint16_t port,
 		const char* serviceIdentifier,
 		uint16_t advertizedPort,

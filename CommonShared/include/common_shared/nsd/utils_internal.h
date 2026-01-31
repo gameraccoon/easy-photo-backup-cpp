@@ -4,11 +4,12 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <variant>
 
-#include "common_shared/nsd/utils.h"
+#include "common_shared/nsd/shared_types.h"
 
 namespace NsdInternalUtils
 {
@@ -18,8 +19,11 @@ namespace NsdInternalUtils
 		Broadcast,
 	};
 
+	std::optional<std::string> parseAddress(const void* addr, size_t addrLen, std::string& outIp, uint16_t& outPort);
+
 	[[nodiscard]]
-	std::variant<int, std::string> createAndBindSocket(SocketType type, const char* interfaceAddressStr, NsdUtils::AddressType addressType, uint16_t port);
+	std::variant<int, std::string> createSocket(SocketType type, NsdTypes::AddressType addressType);
+	std::optional<std::string> bindSocket(int socket, const char* interfaceAddressStr, NsdTypes::AddressType addressType, uint16_t port);
 	void closeSocket(int socket);
 
 	class AutoclosingSocket
