@@ -68,7 +68,7 @@ namespace NsdClient
 	struct NetworkAddress
 	{
 		sockaddr addr;
-		socklen_t addrLen;
+		socklen_t addrLen = sizeof(sockaddr);
 
 		bool operator==(const NetworkAddress& other) const noexcept
 		{
@@ -186,7 +186,7 @@ namespace NsdClient
 
 		constexpr size_t BUFFER_SIZE = 1024;
 		char buffer[BUFFER_SIZE];
-		NetworkAddress netAddress;
+		NetworkAddress netAddress{};
 		std::vector<std::byte> extraData;
 		std::string nameBuffer;
 
