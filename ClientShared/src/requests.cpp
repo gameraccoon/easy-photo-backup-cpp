@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cstring>
 #include <format>
+#include <span>
 
 #include "common_shared/network/protocol.h"
 #include "common_shared/serialization/number_serialization.h"
