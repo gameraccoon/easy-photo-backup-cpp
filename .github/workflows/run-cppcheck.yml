@@ -1,9 +1,9 @@
-name: Ubuntu - check clang-format
+name: Ubuntu - run cppcheck
 
 on:
   push:
     paths:
-      - .github/workflows/check-cppcheck.yml
+      - .github/workflows/run-cppcheck.yml
       - ClientCli/src/**
       - ClientShared/include/**
       - ClientShared/src/**
