@@ -20,31 +20,19 @@
 #include <cstring>
 #include <format>
 
+#include "common_shared/serialization/number_serialization.h"
+
 namespace NsdClient
 {
-	static uint16_t readBigEndianUint16(const char byte1, const char byte2)
-	{
-		if constexpr (std::endian::native == std::endian::little)
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			return (static_cast<uint16_t>(byte1) << 8) | static_cast<uint16_t>(byte2);
-		}
-		else
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			return static_cast<uint16_t>(byte1) | (static_cast<uint16_t>(byte2) << 8);
-		}
-	}
-
 	static std::string buildNsdQuery(const char* serviceIdentifier)
 	{
 		return std::format("aloha:{}\n", serviceIdentifier);
 	}
 
-	std::optional<std::string> broadcastNdsUdpRequest(const int socket, const NsdTypes::AddressType addressType, const std::string_view query, const uint16_t port)
+	static std::optional<std::string> broadcastNdsUdpRequest(const int socket, const Network::AddressType addressType, const std::string_view query, const uint16_t port)
 	{
 		ssize_t sentSize;
-		if (addressType == NsdTypes::AddressType::IpV4)
+		if (addressType == Network::AddressType::IpV4)
 		{
 			sockaddr_in address;
 			address.sin_addr.s_addr = INADDR_BROADCAST;
@@ -65,18 +53,18 @@ namespace NsdClient
 		return std::nullopt;
 	}
 
-	struct NetworkAddress
+	struct NetworkAddressKey
 	{
 		sockaddr addr;
 		socklen_t addrLen = sizeof(sockaddr);
 
-		bool operator==(const NetworkAddress& other) const noexcept
+		bool operator==(const NetworkAddressKey& other) const noexcept
 		{
 			return addrLen == other.addrLen && std::memcmp(&addr, &other.addr, addrLen) == 0;
 		}
 	};
 
-	bool processUdpRequestAnswer(const int socket, char* const inOutBuffer, const size_t bufferSize, NetworkAddress& outNetAddress, uint16_t& outPort, std::vector<std::byte>& outExtraData)
+	static bool processUdpRequestAnswer(const int socket, std::byte* const inOutBuffer, const size_t bufferSize, NetworkAddressKey& outNetAddress, uint16_t& outPort, std::vector<std::byte>& outExtraData)
 	{
 		// for the simplicity sake, we use UDP to communicate back as well
 		// this can miss packets sometimes, but it's fine for our use case
@@ -93,23 +81,20 @@ namespace NsdClient
 		}
 
 		// the only supported protocol version for now is 1
-		if (inOutBuffer[0] != 0x01)
+		if (inOutBuffer[0] != std::byte(0x01))
 		{
 			return false;
 		}
 
-		const size_t extraDataLen = readBigEndianUint16(inOutBuffer[1], inOutBuffer[2]);
+		const size_t extraDataLen = Serialization::readUint16(inOutBuffer[1], inOutBuffer[2]);
 
 		if (messageLength != 1 + 2 + 2 + extraDataLen + 2)
 		{
 			return false;
 		}
 
-		outPort = readBigEndianUint16(inOutBuffer[3], inOutBuffer[4]);
-		const uint16_t receivedChecksum = readBigEndianUint16(
-			inOutBuffer[5 + extraDataLen],
-			inOutBuffer[6 + extraDataLen]
-		);
+		outPort = Serialization::readUint16(inOutBuffer[3], inOutBuffer[4]);
+		const uint16_t receivedChecksum = Serialization::readUint16(inOutBuffer[5 + extraDataLen], inOutBuffer[6 + extraDataLen]);
 
 		const uint16_t actualChecksum = NsdInternalUtils::checksum16v1(std::span(
 			std::bit_cast<std::byte*>(inOutBuffer + 3),
@@ -131,44 +116,42 @@ namespace NsdClient
 		return true;
 	}
 
-	ListenResult startServiceDiscoveryThread(
+	ListenResult processServiceDiscoveryThread(
 		const char* serviceIdentifier,
 		const uint16_t broadcastPort,
-		const NsdTypes::AddressType addressType,
+		const Network::AddressType addressType,
 		const float broadcastPeriodSec,
 		const std::function<void(DiscoveryResult&&)>& resultFunction,
 		const std::atomic_bool& stopSignalReceiver
 	)
 	{
-		using namespace NsdInternalUtils;
-
 		if (serviceIdentifier == nullptr)
 		{
 			return "service identifier can't be nullptr";
 		}
 
-		std::variant<int, std::string> createSocketResult = createSocket(SocketType::Broadcast, addressType);
+		std::variant<int, std::string> createSocketResult = Network::createSocket(Network::SocketType::Udp, addressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
 		{
 			return std::get<std::string>(createSocketResult);
 		}
 
-		const AutoclosingSocket socket = AutoclosingSocket(std::get<int>(std::move(createSocketResult)));
+		const Network::AutoclosingSocket socket = Network::AutoclosingSocket(std::get<int>(std::move(createSocketResult)));
 
-		const std::optional<std::string> bindSocketResult = bindSocket(socket, nullptr, addressType, 0);
-		if (bindSocketResult.has_value())
+		if (auto result = Network::setSocketOption(socket, SO_BROADCAST); result.has_value())
 		{
-			return bindSocketResult;
+			return result;
 		}
 
 		// 200 milliseconds means that 5 times per second we will check if the stop signal has been received
-		timeval socketTimeout;
-		socketTimeout.tv_sec = 0;
-		socketTimeout.tv_usec = 200000;
-		const int errCode = setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, &socketTimeout, sizeof(socketTimeout));
-		if (errCode == -1)
+		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, 0, 200000); result.has_value())
 		{
-			return std::format("Cannot set SO_RCVTIMEO to the UDP socket, error code {} '{}'.", errno, strerror(errno));
+			return result;
+		}
+
+		if (const auto result = Network::bindSocket(socket, nullptr, addressType, 0); result.has_value())
+		{
+			return result;
 		}
 
 		// the std::vector solution is optimized for up to 8 servers, but up to 100 should be fine
@@ -177,18 +160,17 @@ namespace NsdClient
 		// we count generations based on our send timer
 		// we don't care about when we sent the broadcast that got the server to us
 		constexpr int GENERATIONS_TO_MISS_TO_REMOVE = 2;
-		std::array<std::vector<NetworkAddress>, GENERATIONS_TO_MISS_TO_REMOVE> discoveryGenerations;
+		std::array<std::vector<NetworkAddressKey>, GENERATIONS_TO_MISS_TO_REMOVE> discoveryGenerations;
 
-		std::vector<NetworkAddress> onlineServers;
-		std::vector<NetworkAddress> serversToRemove;
+		std::vector<NetworkAddressKey> onlineServers;
+		std::vector<NetworkAddressKey> serversToRemove;
 
 		const std::string query = buildNsdQuery(serviceIdentifier);
 
 		constexpr size_t BUFFER_SIZE = 1024;
-		char buffer[BUFFER_SIZE];
-		NetworkAddress netAddress{};
+		std::byte buffer[BUFFER_SIZE];
+		NetworkAddressKey netAddress{};
 		std::vector<std::byte> extraData;
-		std::string nameBuffer;
 
 		// set the time in the past, enough to trigger the broadcast immediately
 		const std::chrono::duration broadcastPeriod = std::chrono::round<std::chrono::nanoseconds>(std::chrono::duration<float>(broadcastPeriodSec));
@@ -203,18 +185,15 @@ namespace NsdClient
 
 			if (std::chrono::steady_clock::now() > lastBroadcastTime + broadcastPeriod)
 			{
+				if (const auto result = broadcastNdsUdpRequest(socket, addressType, query, broadcastPort); result.has_value())
 				{
-					const std::optional<std::string> result = broadcastNdsUdpRequest(socket, addressType, query, broadcastPort);
-					if (result.has_value())
-					{
-						return result;
-					}
+					return result;
 				}
 				lastBroadcastTime = std::chrono::steady_clock::now();
 
 				// remove servers that are no longer online
 				serversToRemove.clear();
-				for (const NetworkAddress& server : onlineServers)
+				for (const NetworkAddressKey& server : onlineServers)
 				{
 					bool found = false;
 					for (size_t i = 0; i < GENERATIONS_TO_MISS_TO_REMOVE; ++i)
@@ -242,16 +221,13 @@ namespace NsdClient
 					}
 				}
 
-				for (const NetworkAddress& server : serversToRemove)
+				for (const NetworkAddressKey& server : serversToRemove)
 				{
-					uint16_t port;
-					if (!parseAddress(&server.addr, server.addrLen, nameBuffer, port).has_value())
+					auto result = Network::parseAddress(&server.addr, server.addrLen);
+					if (std::holds_alternative<Network::NetworkAddress>(result))
 					{
 						resultFunction(DiscoveryResult{
-							.address = ServiceAddress{
-								.ip = "test",
-								.port = 90,
-							},
+							.address = std::move(std::get<Network::NetworkAddress>(result)),
 							.extraData = std::vector<std::byte>{},
 							.state = DiscoveryState::Removed,
 						});
@@ -273,13 +249,14 @@ namespace NsdClient
 				if (std::ranges::find(onlineServers, netAddress) == onlineServers.end())
 				{
 					onlineServers.push_back(netAddress);
-					uint16_t port1;
-					if (!parseAddress(&netAddress.addr, netAddress.addrLen, nameBuffer, port1).has_value())
+					auto result = Network::parseAddress(&netAddress.addr, netAddress.addrLen);
+					if (std::holds_alternative<Network::NetworkAddress>(result))
 					{
 						resultFunction(DiscoveryResult{
-							.address = ServiceAddress{
-								.ip = nameBuffer,
+							.address = Network::NetworkAddress{
+								.ip = std::get<Network::NetworkAddress>(result).ip,
 								.port = port,
+								.addressType = std::get<Network::NetworkAddress>(result).addressType,
 							},
 							.extraData = extraData,
 							.state = DiscoveryState::Added,

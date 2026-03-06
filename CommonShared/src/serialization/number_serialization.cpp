@@ -31,6 +31,22 @@ namespace Serialization
 		}
 	}
 
+	void writeUint16(std::byte& outByte1, std::byte& outByte2, uint16_t value)
+	{
+		if constexpr (std::endian::native == std::endian::little)
+		{
+			// ReSharper disable once CppDFAUnreachableCode
+			outByte1 = static_cast<std::byte>((value >> 8) & 0xff);
+			outByte2 = static_cast<std::byte>(value & 0xff);
+		}
+		else
+		{
+			// ReSharper disable once CppDFAUnreachableCode
+			outByte1 = static_cast<std::byte>(value & 0xff);
+			outByte2 = static_cast<std::byte>((value >> 8) & 0xff);
+		}
+	}
+
 	uint16_t readUint16(std::byte byte1, std::byte byte2)
 	{
 		if constexpr (std::endian::native == std::endian::little)

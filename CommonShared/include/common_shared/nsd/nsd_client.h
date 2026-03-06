@@ -8,7 +8,7 @@
 #include <optional>
 #include <string>
 
-#include "common_shared/nsd/shared_types.h"
+#include "common_shared/network/utils.h"
 
 namespace NsdClient
 {
@@ -20,23 +20,17 @@ namespace NsdClient
 		Removed,
 	};
 
-	struct ServiceAddress
-	{
-		std::string ip;
-		uint16_t port;
-	};
-
 	struct DiscoveryResult
 	{
-		ServiceAddress address;
+		Network::NetworkAddress address;
 		std::vector<std::byte> extraData;
 		DiscoveryState state;
 	};
 
-	ListenResult startServiceDiscoveryThread(
+	ListenResult processServiceDiscoveryThread(
 		const char* serviceIdentifier,
 		uint16_t broadcastPort,
-		NsdTypes::AddressType addressType,
+		Network::AddressType addressType,
 		float broadcastPeriodSec,
 		const std::function<void(DiscoveryResult&&)>& resultFunction,
 		const std::atomic_bool& stopSignalReceiver

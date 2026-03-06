@@ -1,0 +1,319 @@
+// Copyright (C) Pavel Grebnev 2026
+// Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
+
+#include "common_shared/network/utils.h"
+
+#if _WIN32
+#include <winsock32.h>
+#else
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
+
+#include <algorithm>
+#include <bit>
+#include <climits>
+#include <cstring>
+#include <format>
+
+namespace Network
+{
+	[[noreturn]] static void unreachable()
+	{
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+		__assume(false);
+#else // GCC, Clang
+		__builtin_unreachable();
+#endif
+	}
+
+	static int addressTypeToFamily(const AddressType type)
+	{
+		switch (type)
+		{
+		case AddressType::IpV4:
+			return AF_INET;
+		case AddressType::IpV6:
+			return AF_INET6;
+		}
+		unreachable();
+	}
+
+	static const char* addressTypeToStr(const AddressType type)
+	{
+		switch (type)
+		{
+		case AddressType::IpV4:
+			return "IPv4";
+		case AddressType::IpV6:
+			return "IPv6";
+		}
+		unreachable();
+	}
+
+	static std::optional<int> parseInt(const char* str)
+	{
+		char* end;
+		errno = 0;
+		const long l = std::strtol(str, &end, 10);
+		if ((errno == ERANGE && l == LONG_MAX) || l > INT_MAX)
+		{
+			return std::nullopt;
+		}
+		if ((errno == ERANGE && l == LONG_MIN) || l < INT_MIN)
+		{
+			return std::nullopt;
+		}
+		if (*str == '\0' || *end != '\0')
+		{
+			return std::nullopt;
+		}
+		return static_cast<int>(l);
+	}
+
+	std::variant<NetworkAddress, std::string> parseAddress(const void* const addr, const size_t addrLen)
+	{
+		char name[INET6_ADDRSTRLEN];
+
+		char portStr[10];
+		if (getnameinfo(static_cast<const sockaddr*>(addr), addrLen, name, sizeof(name), portStr, sizeof(portStr), NI_NUMERICHOST | NI_NUMERICSERV) == -1)
+		{
+			return std::format("Can't convert socket address to string, error code {} '{}'", errno, strerror(errno));
+		}
+
+		NetworkAddress resultAddress;
+
+		// processing short IPv6 addresses (end with %)
+		const auto it = std::find(name, name + INET6_ADDRSTRLEN, '%');
+		if (it != name + INET6_ADDRSTRLEN)
+		{
+			resultAddress.ip = std::string(name, it);
+		}
+		else
+		{
+			resultAddress.ip = name;
+		}
+
+		resultAddress.port = parseInt(portStr).value_or(0);
+
+		resultAddress.addressType = static_cast<const sockaddr*>(addr)->sa_family == AF_INET6 ? AddressType::IpV6 : AddressType::IpV4;
+
+		return resultAddress;
+	}
+
+	std::variant<int, std::string> createSocket(const SocketType type, const AddressType addressType)
+	{
+		const int addressFamily = addressTypeToFamily(addressType);
+
+		int socketType = SOCK_DGRAM;
+		switch (type)
+		{
+		case SocketType::Tcp:
+			socketType = SOCK_STREAM;
+			break;
+		case SocketType::Udp:
+			socketType = SOCK_DGRAM;
+			break;
+		}
+
+		const int newSocket = socket(addressFamily, socketType, 0);
+		if (newSocket == -1)
+		{
+			return std::format("Error when creating socket, error code {} '{}'.", errno, strerror(errno));
+		}
+
+		return newSocket;
+	}
+
+	std::optional<std::string> setSocketOption(const int socket, const int optionName)
+	{
+		constexpr int flagTrue = 1;
+		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, &flagTrue, sizeof(flagTrue)); errCode == -1)
+		{
+			return std::format("Cannot set option {} to the UDP socket, error code {} '{}'.", optionName, errno, strerror(errno));
+		}
+		return std::nullopt;
+	}
+
+	std::optional<std::string> setSocketTimeout(int socket, const int optionName, int seconds, int microseconds)
+	{
+		timeval socketTimeout;
+		socketTimeout.tv_sec = seconds;
+		socketTimeout.tv_usec = microseconds;
+		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, &socketTimeout, sizeof(socketTimeout)); errCode == -1)
+		{
+			return std::format("Cannot set option {} to the UDP socket, error code {} '{}'.", optionName, errno, strerror(errno));
+		}
+		return std::nullopt;
+	}
+
+	std::variant<uint16_t, std::string> getSocketPort(int socket)
+	{
+		sockaddr address;
+		socklen_t addrlen = sizeof(address);
+		if (getsockname(socket, static_cast<sockaddr*>(&address), &addrlen) != 0)
+		{
+			return std::format("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
+		}
+
+		if (address.sa_family == AF_INET)
+		{
+			if (sizeof(sockaddr_in) != addrlen)
+			{
+				return std::format("Unexpected IPv4 address size {}", addrlen);
+			}
+
+			return ntohs(std::bit_cast<sockaddr_in*>(&address)->sin_port);
+		}
+		else if (address.sa_family == AF_INET6)
+		{
+			if (sizeof(sockaddr_in6) != addrlen)
+			{
+				return std::format("Unexpected IPv6 address size {}", addrlen);
+			}
+
+			return ntohs(std::bit_cast<sockaddr_in6*>(&address)->sin6_port);
+		}
+
+		return std::format("Unknown address family {}", address.sa_family);
+	}
+
+	std::variant<NetworkAddress, std::string> getSocketAddress(int socket)
+	{
+		sockaddr address;
+		socklen_t addrlen = sizeof(address);
+		if (getsockname(socket, static_cast<sockaddr*>(&address), &addrlen) != 0)
+		{
+			return std::format("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
+		}
+
+		return parseAddress(&address, addrlen);
+	}
+
+	std::optional<std::string> bindSocket(const int socket, const char* const interfaceAddressStr, const AddressType addressType, const uint16_t port)
+	{
+		const int addressFamily = addressTypeToFamily(addressType);
+
+		auto innerBind = [](auto& address, int socket) -> std::optional<std::string> {
+			const int errCode = bind(socket, std::bit_cast<const sockaddr*>(&address), sizeof(address));
+			if (errCode == -1)
+			{
+				return std::format("Cannot bind the socket, error code {} '{}'.", errno, strerror(errno));
+			}
+			return std::nullopt;
+		};
+
+		if (addressType == AddressType::IpV4)
+		{
+			sockaddr_in address;
+			if (interfaceAddressStr != nullptr)
+			{
+				const int errCode = inet_pton(addressFamily, interfaceAddressStr, &address.sin_addr);
+				switch (errCode)
+				{
+				case -1:
+					return std::format("Not supported address type provided: '{}', error code {} '{}'.", interfaceAddressStr, errno, strerror(errno));
+				case 0:
+					return std::format("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
+				default:
+					break;
+				}
+			}
+			else
+			{
+				address.sin_addr.s_addr = INADDR_ANY;
+			}
+
+			address.sin_family = addressFamily;
+			address.sin_port = htons(port);
+
+			return innerBind(address, socket);
+		}
+		else
+		{
+			sockaddr_in6 address;
+			if (interfaceAddressStr != nullptr)
+			{
+				const int errCode = inet_pton(addressFamily, interfaceAddressStr, &address.sin6_addr);
+				switch (errCode)
+				{
+				case -1:
+					return std::format("Not supported address type provided: '{}'.", interfaceAddressStr);
+				case 0:
+					return std::format("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
+				default:
+					break;
+				}
+			}
+			else
+			{
+				address.sin6_addr = IN6ADDR_ANY_INIT;
+			}
+
+			address.sin6_family = addressFamily;
+			address.sin6_port = htons(port);
+
+			return innerBind(address, socket);
+		}
+
+		return std::nullopt;
+	}
+
+	std::optional<std::string> connectToServer(const int socket, const char* const address, const AddressType addressType, const uint16_t port)
+	{
+		auto innerConnect = [](auto& addr, int socket, const char* address, uint16_t port) -> std::optional<std::string> {
+			if (int result = connect(socket, (sockaddr*)&addr, sizeof(addr)); result == -1)
+			{
+				return std::format("Cannot connect to the address {}:{}, error code {} '{}'.", address, port, errno, strerror(errno));
+			}
+
+			return std::nullopt;
+		};
+
+		if (addressType == AddressType::IpV4)
+		{
+			sockaddr_in addr;
+			addr.sin_family = AF_INET;
+			addr.sin_port = htons(port);
+			const int errCode = inet_pton(AF_INET, address, &addr.sin_addr);
+			switch (errCode)
+			{
+			case -1:
+				return std::format("Not supported address type provided: '{}'.", address);
+			case 0:
+				return std::format("Address '{}' is not supported for address family {}.", address, addressTypeToStr(addressType));
+			default:
+				break;
+			}
+
+			return innerConnect(addr, socket, address, port);
+		}
+		else
+		{
+			sockaddr_in6 addr;
+			addr.sin6_family = AF_INET6;
+			addr.sin6_port = htons(port);
+			const int errCode = inet_pton(AF_INET, address, &addr.sin6_addr);
+			switch (errCode)
+			{
+			case -1:
+				return std::format("Not supported address type provided: '{}'.", address);
+			case 0:
+				return std::format("Address '{}' is not supported for address family {}.", address, addressTypeToStr(addressType));
+			default:
+				break;
+			}
+
+			return innerConnect(addr, socket, address, port);
+		}
+	}
+
+	void closeSocket(const int socket)
+	{
+		shutdown(socket, SHUT_RDWR);
+		close(socket);
+	}
+} // namespace Network

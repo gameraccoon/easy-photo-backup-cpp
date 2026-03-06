@@ -4,22 +4,35 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
-#include "common_shared/nsd/shared_types.h"
+#include "common_shared/network/utils.h"
 
 namespace NsdServer
 {
-	using ListenResult = std::optional<std::string>;
+	struct SetupError
+	{
+		std::string error;
+	};
+
+	struct SocketError
+	{
+		std::string error;
+	};
+
+	using ListenResult = std::variant<SetupError, SocketError>;
+
+	std::variant<int, std::string> openNsdSocket(const Network::AddressType addressType);
 
 	ListenResult listen(
+		int socket,
 		const char* interfaceAddressStr,
-		NsdTypes::AddressType addressType,
+		Network::AddressType addressType,
 		uint16_t port,
 		const char* serviceIdentifier,
 		uint16_t advertizedPort,
 		const std::vector<std::byte>& extraData
 	);
-}
+} // namespace NsdServer

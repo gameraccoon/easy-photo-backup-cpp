@@ -13,96 +13,80 @@
 #include <unistd.h>
 #endif
 
-#include <bit>
 #include <cstring>
 #include <format>
-#include <ranges>
 #include <string>
 
+#include "common_shared/network/utils.h"
 #include "common_shared/nsd/utils_internal.h"
+#include "common_shared/serialization/number_serialization.h"
 
 namespace NsdServer
 {
-	static uint16_t checksum16(const std::span<std::byte>& data)
+	std::variant<int, std::string> openNsdSocket(const Network::AddressType addressType)
 	{
-		// this is a very trivial checksum, eventually we want crc16 here
-		uint16_t checksum = 0;
-		for (uint16_t i = 0; i < data.size(); ++i)
+		std::variant<int, std::string> createSocketResult = createSocket(Network::SocketType::Udp, addressType);
+		if (std::holds_alternative<std::string>(createSocketResult))
 		{
-			checksum ^= static_cast<uint16_t>(data[i]) << ((i & 0x1) * 8);
+			return std::get<std::string>(createSocketResult);
 		}
-		return checksum;
-	}
 
-	static void writeBigEndian(std::vector<std::byte>& outVec, const uint16_t value)
-	{
-		if constexpr (std::endian::native == std::endian::little)
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			outVec.push_back(static_cast<std::byte>((value & 0xff00) >> 8));
-			outVec.push_back(static_cast<std::byte>(value & 0xff));
-		}
-		else
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			outVec.push_back(static_cast<std::byte>(value & 0xff));
-			outVec.push_back(static_cast<std::byte>((value & 0xff00) >> 8));
-		}
+		return std::get<int>(createSocketResult);
 	}
 
 	ListenResult listen(
+		const int socket,
 		const char* interfaceAddressStr,
-		const NsdTypes::AddressType addressType,
+		const Network::AddressType addressType,
 		const uint16_t port,
 		const char* serviceIdentifier,
 		const uint16_t advertizedPort,
 		const std::vector<std::byte>& extraData
 	)
 	{
-		using namespace NsdInternalUtils;
-
 		if (serviceIdentifier == nullptr)
 		{
-			return "service identifier can't be nullptr";
+			return SetupError{ "service identifier can't be nullptr" };
 		}
 
-		std::variant<int, std::string> createSocketResult = createSocket(SocketType::NsdListen, addressType);
-		if (std::holds_alternative<std::string>(createSocketResult))
+		if (auto result = Network::setSocketOption(socket, SO_REUSEADDR); result.has_value())
 		{
-			return std::get<std::string>(createSocketResult);
+			return SetupError{ *result };
 		}
 
-		const AutoclosingSocket socket = AutoclosingSocket(std::get<int>(std::move(createSocketResult)));
-
-		const std::optional<std::string> bindSocketResult = bindSocket(socket, interfaceAddressStr, addressType, port);
-		if (bindSocketResult.has_value())
+		if (auto result = Network::setSocketOption(socket, SO_REUSEPORT); result.has_value())
 		{
-			return bindSocketResult;
+			return SetupError{ *result };
+		}
+
+		if (auto result = Network::bindSocket(socket, interfaceAddressStr, addressType, port); result.has_value())
+		{
+			return SetupError{ *result };
 		}
 
 		const std::string expectedPacket = std::format("aloha:{}\n", serviceIdentifier);
 		if (expectedPacket.size() > 1024)
 		{
-			return std::format("Service ID is too long, maximum size is 1017 bytes, the ID length was {} bytes instead.", expectedPacket.size());
+			return SetupError{ std::format("Service ID is too long, maximum size is 1017 bytes, the ID length was {} bytes instead.", expectedPacket.size()) };
 		}
 
 		const size_t responseSize = 1 + 2 + 2 + extraData.size() + 2;
 		if (responseSize > std::numeric_limits<uint16_t>::max())
 		{
-			return std::format("Response size is too big, maximum size is 65535 bytes, the data size was {} bytes instead.", responseSize);
+			return SetupError{ std::format("Response size is too big, maximum size is 65535 bytes, the data size was {} bytes instead.", responseSize) };
 		}
 
 		std::vector<std::byte> response;
 		response.reserve(responseSize);
-		response.push_back(static_cast<std::byte>(0x01)); // protocol version
-		writeBigEndian(response, static_cast<uint16_t>(extraData.size())); // size of extra data
-		writeBigEndian(response, advertizedPort); // port
+		Serialization::appendByte(response, std::byte(0x01)); // protocol version
+		Serialization::appendUint16(response, static_cast<uint16_t>(extraData.size())); // size of extra data
+		Serialization::appendUint16(response, advertizedPort); // port
 		std::ranges::copy(extraData, std::back_inserter(response)); // extra data
-		writeBigEndian(response, checksum16(std::span(response.begin() + 3, response.end()))); // checksum
+		Serialization::appendUint16(response, NsdInternalUtils::checksum16v1(std::span(response.begin() + 3, response.end()))); // checksum
 
 		if (response.size() != responseSize)
 		{
-			return std::format("The actual size of response is {} bytes, expected {} bytes.", response.size(), responseSize);
+			return SetupError{ std::format("The actual size of response is {} bytes, expected {} bytes.", response.size(), responseSize) };
 		}
 
 		constexpr size_t BUFFER_SIZE = 1024;
@@ -122,13 +106,12 @@ namespace NsdServer
 				continue;
 			}
 
-			const ssize_t sentSize = sendto(socket, response.data(), responseSize, 0, &clientAddr, clientAddrLen);
-			if (sentSize == -1)
+			if (const ssize_t sentSize = sendto(socket, response.data(), responseSize, 0, &clientAddr, clientAddrLen); sentSize == -1)
 			{
-				return std::format("Failed to send response to UDP socket, error code {} '{}'.", errno, strerror(errno));
+				return SocketError{ std::format("Failed to send response to UDP socket, error code {} '{}'.", errno, strerror(errno)) };
 			}
 		}
 
-		return std::format("Failed to receive from UDP socket, error code {} '{}'.", errno, strerror(errno));
+		return SocketError{ std::format("Failed to receive from UDP socket, error code {} '{}'.", errno, strerror(errno)) };
 	}
 } // namespace NsdServer

@@ -21,6 +21,7 @@ target_include_directories(CommonShared PRIVATE
 target_sources(CommonShared
 	PRIVATE
 		${COMMON_SHARED_SRC_DIR}/debug/log.cpp
+		${COMMON_SHARED_SRC_DIR}/network/utils.cpp
 		${COMMON_SHARED_SRC_DIR}/nsd/nsd_client.cpp
 		${COMMON_SHARED_SRC_DIR}/nsd/nsd_server.cpp
 		${COMMON_SHARED_SRC_DIR}/nsd/utils_internal.cpp
@@ -29,9 +30,10 @@ target_sources(CommonShared
 
 	PUBLIC
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h
+		${COMMON_SHARED_INCLUDE_DIR}/network/utils.h
+		${COMMON_SHARED_INCLUDE_DIR}/network/protocol.h
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/nsd_client.h
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/nsd_server.h
-		${COMMON_SHARED_INCLUDE_DIR}/nsd/shared_types.h
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/number_serialization.h
 )
 
