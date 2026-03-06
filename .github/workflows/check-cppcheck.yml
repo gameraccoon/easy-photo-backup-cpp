@@ -1,0 +1,27 @@
+name: Ubuntu - check clang-format
+
+on:
+  push:
+    paths:
+      - .github/workflows/check-cppcheck.yml
+      - ClientCli/src/**
+      - ClientShared/include/**
+      - ClientShared/src/**
+      - CommonShared/include/**
+      - CommonShared/src/**
+      - ServerCli/src/**
+      - ServerShared/include/**
+      - ServerShared/src/**
+      - platforms/android/app/src/main/cpp/**
+      - .clang-format
+      - tools/validate/**
+  workflow_dispatch:
+jobs:
+  clang-format-checking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install cppcheck
+        run: sudo apt install cppcheck
+      - name: Run cppcheck (fail if return code is not zero)
+        run: tools/validate/cppcheck.sh
