@@ -59,21 +59,44 @@ namespace TcpServer
 			return;
 		}
 
-		if (Serialization::readUint16(buffer[0], buffer[1]) != std::optional(Protocol::NetworkProtocolVersion))
+		// GetProtocolVersion is a special case that doesn't require version match
+		// this is to allow newer and older clients to request the version of the server
+		// this request guaranteed to not change between versions
+		if (buffer[2] == static_cast<std::byte>(Protocol::RequestId::GetProtocolVersion))
 		{
-			// it is assumed that the server is updated rarely while the client is updated often
-			// therefore the server doesn't need to support older client versions
-
-			// TODO: should answer to the client with a special request answer
-			reportDebugError("Old client version tried to connect");
+			RequestAnswers::sendRequestAnswer(
+				socket,
+				RequestAnswers::GetProtocolVersion{
+					.protocolVersion = Protocol::NetworkProtocolVersion,
+				}
+			);
 			return;
 		}
 
-		auto request = Requests::parseRequest(static_cast<std::byte>(buffer[2]), std::span(std::bit_cast<std::byte*>(buffer.data() + 3), std::bit_cast<std::byte*>(buffer.data() + readBytes)));
+		const uint16_t protocolVerstion = Serialization::readUint16(buffer[0], buffer[1]);
+		if (protocolVerstion != std::optional(Protocol::NetworkProtocolVersion))
+		{
+			// it is assumed that the server is updated rarely while the client is updated often
+			// therefore the server doesn't need to support older client versions
+			reportDebugError("An old client version tried to connect: {}", protocolVerstion);
+			RequestAnswers::sendRequestAnswer(
+				socket,
+				RequestAnswers::UnsupportedProtocolVersion{
+					.firstSupportedProtocolVersion = Protocol::NetworkProtocolVersion,
+				}
+			);
+			return;
+		}
+
+		auto request = Requests::parseRequest(buffer[2], std::span(std::bit_cast<std::byte*>(buffer.data() + 3), std::bit_cast<std::byte*>(buffer.data() + readBytes)));
 
 		std::visit(
 			VisitLambda{
 				[](const Requests::RequestReadError&&) {},
+				[](const Requests::GetProtocolVersion&&) {
+					// should be already handled above
+					reportFatalReleaseError("unreachable code");
+				},
 				[socket](const Requests::GetServerName&&) {
 					RequestAnswers::sendRequestAnswer(
 						socket,

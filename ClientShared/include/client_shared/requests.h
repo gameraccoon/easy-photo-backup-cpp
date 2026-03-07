@@ -14,7 +14,9 @@ namespace Requests
 {
 	using namespace Protocol::Requests;
 
-	using Request = std::variant<GetServerName>;
+	using Request = std::variant<
+		GetProtocolVersion,
+		GetServerName>;
 
 	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, int port, Request&& request);
 }

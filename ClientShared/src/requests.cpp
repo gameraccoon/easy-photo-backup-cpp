@@ -24,33 +24,86 @@
 
 namespace Requests
 {
-	static RequestAnswers::RequestAnswer readRequestAnswer(Protocol::RequestId request, std::byte answerId, const std::span<std::byte>& answerData)
+	static Protocol::RequestId prepareRequest(Request&& request, std::span<std::byte> outData, size_t& outBytesWritten, bool& outExpectsAnswer)
+	{
+		return std::visit(
+			VisitLambda{
+				[&outExpectsAnswer, &outData, &outBytesWritten](Requests::GetProtocolVersion&&) -> Protocol::RequestId {
+					// make sure this logic does not change, as this answer is supposed to be the same across all versions
+					// in order for it to work
+					outExpectsAnswer = true;
+					outBytesWritten = 0;
+					return Protocol::RequestId::GetProtocolVersion;
+				},
+				[&outExpectsAnswer, &outData, &outBytesWritten](Requests::GetServerName&&) -> Protocol::RequestId {
+					outExpectsAnswer = true;
+					outBytesWritten = 0;
+					return Protocol::RequestId::GetServerName;
+				},
+			},
+			std::move(request)
+		);
+	}
+
+	static RequestAnswers::RequestAnswer readRequestAnswer(Protocol::RequestId request, std::byte answerId, const std::span<std::byte> answerData)
 	{
 		using namespace RequestAnswers;
 
+		if (answerId == static_cast<std::byte>(Protocol::RequestAnswerId::UnsupportedProtocolVersion))
+		{
+			// make sure this logic does not change as this answer is supposed to be the same for all versions
+			// in order for it to work
+			if (answerData.size() < 2)
+			{
+				reportDebugError("No version provided in UnsupportedProtocolVersion answer");
+				return RequestAnswers::Error{ "No version provided in UnsupportedProtocolVersion answer" };
+			}
+
+			return RequestAnswers::UnsupportedProtocolVersion{
+				.firstSupportedProtocolVersion = Serialization::readUint16(answerData[0], answerData[1]),
+			};
+		}
+
 		switch (request)
 		{
+		case Protocol::RequestId::GetProtocolVersion: {
+			if (answerId == static_cast<std::byte>(Protocol::RequestAnswerId::GetProtocolVersion))
+			{
+				// make sure this logic does not change as this answer is supposed to be the same for all versions
+				// in order for it to work
+				if (answerData.size() < 2)
+				{
+					reportDebugError("No version provided in GetProtocolVersion answer");
+					return RequestAnswers::Error{ "No version provided in GetProtocolVersion answer" };
+				}
+
+				return RequestAnswers::GetProtocolVersion{
+					.protocolVersion = Serialization::readUint16(answerData[0], answerData[1]),
+				};
+			}
+			break;
+		}
 		case Protocol::RequestId::GetServerName: {
-			if (answerId == static_cast<std::byte>(Protocol::RequestAnswerId::AnswerGetServerName))
+			if (answerId == static_cast<std::byte>(Protocol::RequestAnswerId::GetServerName))
 			{
 				if (answerData.size() < 1)
 				{
-					reportDebugError("No size provided in AnswerGetServerName");
-					return RequestAnswers::Error{ "No size provided in AnswerGetServerName" };
+					reportDebugError("No size provided in GetServerName answer");
+					return RequestAnswers::Error{ "No size provided in GetServerName answer" };
 				}
 
 				const size_t nameSize = static_cast<size_t>(answerData[0]);
 
 				if (answerData.size() != nameSize + 1)
 				{
-					reportDebugError("Unexpected answer size for AnswerGetServerName {} for name size {}", answerData.size(), nameSize);
-					return RequestAnswers::Error{ std::format("Unexpected answer size for AnswerGetServerName {} for name size {}", answerData.size(), nameSize) };
+					reportDebugError("Unexpected answer size for GetServerName answer {} for name size {}", answerData.size(), nameSize);
+					return RequestAnswers::Error{ std::format("Unexpected answer size for GetServerName answer {} for name size {}", answerData.size(), nameSize) };
 				}
 
 				if (nameSize > Protocol::MaxServerNameSize)
 				{
-					reportDebugError("Too long server name in AnswerGetServerName: {}", nameSize);
-					return RequestAnswers::Error{ std::format("Too long server name in AnswerGetServerName: {}", nameSize) };
+					reportDebugError("Too long server name in GetServerName answer: {}", nameSize);
+					return RequestAnswers::Error{ std::format("Too long server name in GetServerName answer: {}", nameSize) };
 				}
 				RequestAnswers::GetServerName answer;
 				answer.serverName.reserve(answerData.size());
@@ -100,28 +153,13 @@ namespace Requests
 
 		constexpr size_t MAX_MESSAGE_SIZE = 1024;
 		std::array<std::byte, MAX_MESSAGE_SIZE> buffer;
-		size_t messageSize = 3;
+		size_t messageSize = 0;
 		bool expectsAnswer = false;
-		std::optional<Protocol::RequestId> requestId;
-
-		std::visit(
-			VisitLambda{
-				[&expectsAnswer, &requestId](Requests::GetServerName&&) {
-					requestId = Protocol::RequestId::GetServerName;
-					expectsAnswer = true;
-				},
-			},
-			std::move(request)
-		);
-
-		if (!requestId.has_value())
-		{
-			reportReleaseError("No request id provided, can't send the request");
-			return RequestAnswers::LogicalError{ "No request id provided, can't send the request" };
-		}
+		const Protocol::RequestId requestId = prepareRequest(std::move(request), std::span(buffer.data() + 3, buffer.size() - 3), messageSize, expectsAnswer);
 
 		Serialization::writeUint16(buffer[0], buffer[1], Protocol::NetworkProtocolVersion);
-		buffer[2] = static_cast<std::byte>(*requestId);
+		buffer[2] = static_cast<std::byte>(requestId);
+		messageSize += 3;
 
 		if (messageSize > MAX_MESSAGE_SIZE)
 		{
@@ -143,7 +181,7 @@ namespace Requests
 				return RequestAnswers::Error{ *result };
 			}
 
-			return readRequestAnswer(*requestId, buffer[0], std::span<std::byte>{ buffer.data() + 1, messageSize - 1 });
+			return readRequestAnswer(requestId, buffer[0], std::span<std::byte>{ buffer.data() + 1, messageSize - 1 });
 		}
 
 		return RequestAnswers::ExpectedNoAnswer{};

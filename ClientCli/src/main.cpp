@@ -101,17 +101,20 @@ int main()
 
 	std::visit(
 		VisitLambda{
-			[](RequestAnswers::GetServerName&& answerGetServerName) {
-				Debug::Log::printDebug(answerGetServerName.serverName);
+			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
+				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
 			},
-			[](RequestAnswers::ExpectedNoAnswer) {
-				Debug::Log::printDebug("logical error");
+			[](RequestAnswers::GetServerName&& getServerName) {
+				Debug::Log::printDebug(getServerName.serverName);
 			},
 			[](RequestAnswers::Error&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);
 			},
 			[](RequestAnswers::LogicalError&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);
+			},
+			[](auto&&) {
+				Debug::Log::printDebug("logical error, unexpected answer");
 			},
 		},
 		std::move(answer)

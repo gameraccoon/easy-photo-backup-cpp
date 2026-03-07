@@ -74,6 +74,13 @@ namespace Debug::Assert
 		} \
 	} while (0)
 
+#define reportFatalReleaseError(...) \
+	do \
+	{ \
+		Debug::Assert::logAssertHelper("false", __FILE__, __LINE__, __VA_ARGS__); \
+		Debug::Assert::gGlobalFatalAssertHandler(); \
+	} while (0)
+
 #define assertFatalRelease(cond, ...) \
 	do { \
 		if (static_cast<bool>(cond) == false) [[unlikely]] \

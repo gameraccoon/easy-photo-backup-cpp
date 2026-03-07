@@ -16,7 +16,10 @@ namespace Requests
 		std::string err;
 	};
 
-	using RequestVariant = std::variant<RequestReadError, GetServerName>;
+	using RequestVariant = std::variant<
+		RequestReadError,
+		GetProtocolVersion,
+		GetServerName>;
 
 	RequestVariant parseRequest(std::byte requestId, const std::span<std::byte>& requestData);
 } // namespace Requests

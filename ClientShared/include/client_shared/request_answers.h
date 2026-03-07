@@ -27,5 +27,11 @@ namespace RequestAnswers
 	{
 	};
 
-	using RequestAnswer = std::variant<Error, LogicalError, ExpectedNoAnswer, GetServerName>;
+	using RequestAnswer = std::variant<
+		Error,
+		LogicalError,
+		ExpectedNoAnswer,
+		UnsupportedProtocolVersion,
+		GetProtocolVersion,
+		GetServerName>;
 } // namespace RequestAnswers

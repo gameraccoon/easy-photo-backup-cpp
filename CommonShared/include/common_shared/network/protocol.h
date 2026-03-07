@@ -13,18 +13,33 @@ namespace Protocol
 
 	enum class RequestId : uint8_t
 	{
-		GetServerName = 0,
+		// make sure GetProtocolVersion does not change the ID or data
+		// as it should remain the same across all versions in order for it to work
+		GetProtocolVersion = 0,
+		GetServerName = 1,
 	};
 
 	enum class RequestAnswerId : uint8_t
 	{
-		AnswerGetServerName = 0,
+		// make sure UnsupportedProtocolVersion does not change the ID or data
+		// as it should remain the same across all versions in order for it to work
+		UnsupportedProtocolVersion = 0,
+		// make sure GetProtocolVersion does not change the ID or data
+		// as it should remain the same across all versions in order for it to work
+		GetProtocolVersion = 1,
+		GetServerName = 2,
 	};
 
 	constexpr uint16_t MaxServerNameSize = 32;
 
 	namespace Requests
 	{
+		// make sure GetProtocolVersion does not change the ID or data
+		// as it should remain the same across all versions in order for it to work
+		struct GetProtocolVersion
+		{
+		};
+
 		struct GetServerName
 		{
 		};
@@ -32,6 +47,20 @@ namespace Protocol
 
 	namespace RequestAnswers
 	{
+		// make sure UnsupportedProtocolVersion does not change the ID or data
+		// as it should remain the same across all versions in order for it to work
+		struct UnsupportedProtocolVersion
+		{
+			uint16_t firstSupportedProtocolVersion = 0;
+		};
+
+		// make sure GetProtocolVersion does not change the ID or data
+		// as it should remain the same across all versions in order for it to work
+		struct GetProtocolVersion
+		{
+			uint16_t protocolVersion = 0;
+		};
+
 		struct GetServerName
 		{
 			std::string serverName;
