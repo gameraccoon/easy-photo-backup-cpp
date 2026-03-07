@@ -5,15 +5,15 @@
 #include <string>
 #include <variant>
 
+#include "common_shared/network/protocol.h"
+
 namespace Requests
 {
+	using namespace Protocol::Requests;
+
 	struct RequestReadError
 	{
 		std::string err;
-	};
-
-	struct GetServerName
-	{
 	};
 
 	using RequestVariant = std::variant<RequestReadError, GetServerName>;

@@ -5,14 +5,13 @@
 #include <string>
 #include <variant>
 
+#include "common_shared/network/protocol.h"
+
 namespace RequestAnswers
 {
-	struct AnswerGetServerName
-	{
-		std::string serverName;
-	};
+	using namespace Protocol::RequestAnswers;
 
-	using RequestAnswer = std::variant<AnswerGetServerName>;
+	using RequestAnswer = std::variant<GetServerName>;
 
 	std::optional<std::string> sendRequestAnswer(int socket, RequestAnswer&& requestAnswer);
 } // namespace RequestAnswers

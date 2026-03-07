@@ -6,8 +6,12 @@
 #include <string>
 #include <variant>
 
+#include "common_shared/network/protocol.h"
+
 namespace RequestAnswers
 {
+	using namespace Protocol::RequestAnswers;
+
 	struct Error
 	{
 		std::string errorMessage;
@@ -23,10 +27,5 @@ namespace RequestAnswers
 	{
 	};
 
-	struct AnswerGetServerName
-	{
-		std::string name;
-	};
-
-	using RequestAnswer = std::variant<Error, LogicalError, ExpectedNoAnswer, AnswerGetServerName>;
+	using RequestAnswer = std::variant<Error, LogicalError, ExpectedNoAnswer, GetServerName>;
 } // namespace RequestAnswers

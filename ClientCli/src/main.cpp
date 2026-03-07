@@ -97,12 +97,12 @@ int main()
 		break;
 	}
 
-	RequestAnswers::RequestAnswer answer = Requests::sendAndProcessRequest(foundServer.ip.data(), foundServer.addressType, foundServer.port, Requests::RequestGetServerName{});
+	RequestAnswers::RequestAnswer answer = Requests::sendAndProcessRequest(foundServer.ip.data(), foundServer.addressType, foundServer.port, Requests::GetServerName{});
 
 	std::visit(
 		VisitLambda{
-			[](RequestAnswers::AnswerGetServerName&& answerGetServerName) {
-				Debug::Log::printDebug(answerGetServerName.name);
+			[](RequestAnswers::GetServerName&& answerGetServerName) {
+				Debug::Log::printDebug(answerGetServerName.serverName);
 			},
 			[](RequestAnswers::ExpectedNoAnswer) {
 				Debug::Log::printDebug("logical error");

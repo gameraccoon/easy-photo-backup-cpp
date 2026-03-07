@@ -5,17 +5,16 @@
 
 #include <variant>
 
+#include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
 
 #include "client_shared/request_answers.h"
 
 namespace Requests
 {
-	struct RequestGetServerName
-	{
-	};
+	using namespace Protocol::Requests;
 
-	using Request = std::variant<RequestGetServerName>;
+	using Request = std::variant<GetServerName>;
 
 	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, int port, Request&& request);
 }

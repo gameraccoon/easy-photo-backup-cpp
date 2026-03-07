@@ -19,20 +19,19 @@
 #include <span>
 
 #include "common_shared/debug/assert.h"
-#include "common_shared/network/protocol.h"
 #include "common_shared/serialization/number_serialization.h"
 #include "common_shared/template_utils.h"
 
 namespace Requests
 {
-	static RequestAnswers::RequestAnswer readRequestAnswer(Protocol::Request request, std::byte answerId, const std::span<std::byte>& answerData)
+	static RequestAnswers::RequestAnswer readRequestAnswer(Protocol::RequestId request, std::byte answerId, const std::span<std::byte>& answerData)
 	{
 		using namespace RequestAnswers;
 
 		switch (request)
 		{
-		case Protocol::Request::GetServerName: {
-			if (answerId == static_cast<std::byte>(Protocol::RequestAnswer::AnswerGetServerName))
+		case Protocol::RequestId::GetServerName: {
+			if (answerId == static_cast<std::byte>(Protocol::RequestAnswerId::AnswerGetServerName))
 			{
 				if (answerData.size() < 1)
 				{
@@ -53,9 +52,9 @@ namespace Requests
 					reportDebugError("Too long server name in AnswerGetServerName: {}", nameSize);
 					return RequestAnswers::Error{ std::format("Too long server name in AnswerGetServerName: {}", nameSize) };
 				}
-				RequestAnswers::AnswerGetServerName answer;
-				answer.name.reserve(answerData.size());
-				std::copy(std::bit_cast<char*>(answerData.data() + 1), std::bit_cast<char*>(answerData.data() + nameSize + 1), std::back_inserter(answer.name));
+				RequestAnswers::GetServerName answer;
+				answer.serverName.reserve(answerData.size());
+				std::copy(std::bit_cast<char*>(answerData.data() + 1), std::bit_cast<char*>(answerData.data() + nameSize + 1), std::back_inserter(answer.serverName));
 				return answer;
 			}
 			break;
@@ -103,12 +102,12 @@ namespace Requests
 		std::array<std::byte, MAX_MESSAGE_SIZE> buffer;
 		size_t messageSize = 3;
 		bool expectsAnswer = false;
-		std::optional<Protocol::Request> requestId;
+		std::optional<Protocol::RequestId> requestId;
 
 		std::visit(
 			VisitLambda{
-				[&expectsAnswer, &requestId](Requests::RequestGetServerName&&) {
-					requestId = Protocol::Request::GetServerName;
+				[&expectsAnswer, &requestId](Requests::GetServerName&&) {
+					requestId = Protocol::RequestId::GetServerName;
 					expectsAnswer = true;
 				},
 			},

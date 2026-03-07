@@ -77,7 +77,7 @@ namespace TcpServer
 				[socket](const Requests::GetServerName&&) {
 					RequestAnswers::sendRequestAnswer(
 						socket,
-						RequestAnswers::AnswerGetServerName{
+						RequestAnswers::GetServerName{
 							.serverName = std::string("test server"),
 						}
 					);

@@ -17,7 +17,6 @@
 #include <format>
 #include <optional>
 
-#include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
 #include "common_shared/template_utils.h"
 
@@ -27,10 +26,10 @@ namespace RequestAnswers
 	{
 		return std::visit(
 			VisitLambda{
-				[socket](AnswerGetServerName&& response) -> std::optional<std::string> {
+				[socket](GetServerName&& response) -> std::optional<std::string> {
 					std::array<std::byte, Protocol::MaxServerNameSize + 2> buffer;
 					const size_t nameSize = std::min(response.serverName.size(), static_cast<size_t>(Protocol::MaxServerNameSize));
-					buffer[0] = static_cast<std::byte>(Protocol::RequestAnswer::AnswerGetServerName);
+					buffer[0] = static_cast<std::byte>(Protocol::RequestAnswerId::AnswerGetServerName);
 					buffer[1] = static_cast<std::byte>(nameSize);
 					std::copy(std::bit_cast<std::byte*>(response.serverName.data()), std::bit_cast<std::byte*>(response.serverName.data() + nameSize), buffer.data() + 2);
 					size_t messageSize = nameSize + 2;
