@@ -9,7 +9,9 @@ namespace debug::log
 {
 	void printDebug(const std::string_view text)
 	{
-		std::cout << text << std::endl
-				  << std::flush;
+		std::cout
+			<< text
+			<< '\n'
+			<< std::flush;
 	}
 } // namespace debug::log
