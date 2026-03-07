@@ -20,6 +20,7 @@ target_include_directories(CommonShared PRIVATE
 
 target_sources(CommonShared
 	PRIVATE
+		${COMMON_SHARED_SRC_DIR}/debug/assert.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/log.cpp
 		${COMMON_SHARED_SRC_DIR}/network/utils.cpp
 		${COMMON_SHARED_SRC_DIR}/nsd/nsd_client.cpp
@@ -29,6 +30,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/utils_internal.h
 
 	PUBLIC
+		${COMMON_SHARED_INCLUDE_DIR}/debug/assert.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h
 		${COMMON_SHARED_INCLUDE_DIR}/network/utils.h
 		${COMMON_SHARED_INCLUDE_DIR}/network/protocol.h

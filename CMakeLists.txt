@@ -8,6 +8,13 @@ set(MAIN_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
 project(EasyPhotoBackup)
 
+option(DEBUG_CHECKS "Enable debug checks and assertions" ON)
+
+# definitions
+if(DEBUG_CHECKS)
+	add_definitions(-DDEBUG_CHECKS)
+endif(DEBUG_CHECKS)
+
 # mbedtls options
 set(ENABLE_TESTING OFF CACHE INTERNAL "")
 set(ENABLE_PROGRAMS OFF CACHE INTERNAL "")
