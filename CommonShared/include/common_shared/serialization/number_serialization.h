@@ -13,4 +13,6 @@ namespace Serialization
 	void appendUint16(std::vector<std::byte>& inOutStream, uint16_t value);
 	void writeUint16(std::byte& outByte1, std::byte& outByte2, uint16_t value);
 	uint16_t readUint16(std::byte byte1, std::byte byte2);
+
+	int asd2();
 } // namespace Serialization

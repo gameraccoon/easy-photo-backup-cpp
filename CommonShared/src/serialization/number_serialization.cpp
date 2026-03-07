@@ -60,4 +60,6 @@ namespace Serialization
 			return static_cast<uint16_t>(byte1) | (static_cast<uint16_t>(byte2) << 8);
 		}
 	}
+
+	int asd2() { return 2; }
 } // namespace Serialization

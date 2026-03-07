@@ -19,6 +19,7 @@
 
 #include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
+#include "common_shared/serialization/string_serialization.h"
 #include "common_shared/template_utils.h"
 
 namespace RequestAnswers
