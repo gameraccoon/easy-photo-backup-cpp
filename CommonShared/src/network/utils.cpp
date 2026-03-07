@@ -311,6 +311,27 @@ namespace Network
 		}
 	}
 
+	std::optional<std::string> send(int socket, std::span<std::byte> data)
+	{
+		const ssize_t sentSize = ::send(socket, data.data(), data.size(), 0);
+		if (sentSize == -1)
+		{
+			return std::format("Failed to send data to socket, error code {} '{}'.", errno, strerror(errno));
+		}
+
+		if (sentSize == 0)
+		{
+			return std::string("Sent size was zero, this is unexpected");
+		}
+
+		if (sentSize != static_cast<ssize_t>(data.size()))
+		{
+			return std::format("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
+		}
+
+		return std::nullopt;
+	}
+
 	void closeSocket(const int socket)
 	{
 		shutdown(socket, SHUT_RDWR);

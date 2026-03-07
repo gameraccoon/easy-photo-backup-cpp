@@ -119,25 +119,9 @@ namespace Requests
 			return RequestAnswers::LogicalError{ std::format("Logical error, message size is bigger than MAX_MESSAGE_SIZE: {}", messageSize) };
 		}
 
-		const ssize_t sentSize = send(socket, buffer, messageSize, 0);
-		if (sentSize == -1)
+		if (auto result = Network::send(socket, std::span(buffer, messageSize)); result.has_value())
 		{
-			return RequestAnswers::Error{ std::format("Failed to send response to TCP socket, error code {} '{}'.", errno, strerror(errno)) };
-		}
-
-		if (sentSize == 0)
-		{
-			return RequestAnswers::LogicalError{ "Sent size was zero, this is unexpected" };
-		}
-
-		if (sentSize < messageSize)
-		{
-			return RequestAnswers::LogicalError{ std::format("Sent size was less than the message size, this is not expected. Expected: {}, ent: {}", messageSize, sentSize) };
-		}
-
-		if (sentSize > messageSize)
-		{
-			return RequestAnswers::LogicalError{ std::format("Sent size was greater than the message size, this is not expected. Expected: {}, ent: {}", messageSize, sentSize) };
+			return RequestAnswers::Error{ *result };
 		}
 
 		if (expectsAnswer)

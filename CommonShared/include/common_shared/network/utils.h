@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <variant>
 
@@ -39,6 +40,7 @@ namespace Network
 	std::variant<NetworkAddress, std::string> getSocketAddress(int socket);
 	std::optional<std::string> bindSocket(int socket, const char* interfaceAddressStr, AddressType addressType, uint16_t port);
 	std::optional<std::string> connectToServer(int socket, const char* address, AddressType addressType, uint16_t port);
+	std::optional<std::string> send(int socket, std::span<std::byte> data);
 	void closeSocket(int socket);
 
 	class AutoclosingSocket

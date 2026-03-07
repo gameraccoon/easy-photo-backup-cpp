@@ -18,6 +18,7 @@
 #include <optional>
 
 #include "common_shared/network/protocol.h"
+#include "common_shared/network/utils.h"
 #include "common_shared/template_utils.h"
 
 namespace RequestAnswers
@@ -34,16 +35,9 @@ namespace RequestAnswers
 					std::copy(std::bit_cast<std::byte*>(response.serverName.data()), std::bit_cast<std::byte*>(response.serverName.data() + nameSize), buffer.data() + 2);
 					size_t messageSize = nameSize + 2;
 
-					const ssize_t sentSize = send(socket, buffer.data(), messageSize, 0);
-
-					if (sentSize == -1)
+					if (auto result = Network::send(socket, std::span(buffer.data(), messageSize)); result.has_value())
 					{
-						return std::format("Failed to send response to TCP socket, error code {} '{}'.", errno, strerror(errno));
-					}
-
-					if (sentSize != messageSize)
-					{
-						return std::format("Incorrect number of bytes sent, expected {}, sent {}'.", messageSize, sentSize);
+						return *result;
 					}
 					return std::nullopt;
 				},
