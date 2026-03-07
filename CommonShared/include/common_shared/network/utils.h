@@ -41,6 +41,8 @@ namespace Network
 	std::optional<std::string> bindSocket(int socket, const char* interfaceAddressStr, AddressType addressType, uint16_t port);
 	std::optional<std::string> connectToServer(int socket, const char* address, AddressType addressType, uint16_t port);
 	std::optional<std::string> send(int socket, std::span<std::byte> data);
+	// if the result is std::nullopt, receivedBytes is guaranteed to be greater than 0 and less than outData.size()
+	std::optional<std::string> recv(int socket, std::span<std::byte> outData, size_t& receivedBytes);
 	void closeSocket(int socket);
 
 	class AutoclosingSocket

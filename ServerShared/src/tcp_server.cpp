@@ -43,23 +43,15 @@ namespace TcpServer
 		}
 
 		constexpr size_t BUFFER_SIZE = 1024;
-		std::byte buffer[BUFFER_SIZE] = {};
-		const int readBytes = recv(socket, buffer, sizeof(buffer), 0);
-		if (readBytes == -1)
+		std::array<std::byte, BUFFER_SIZE> buffer;
+		size_t readBytes = 0;
+		if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())
 		{
-			// we assume the client dropped the connection or we reached the timeout
-			// no need to report
 			return;
 		}
 
 		// each request needs to be at least three bytes (protocol version (2) and request ID (1))
 		if (readBytes < 3)
-		{
-			return;
-		}
-
-		// this should never happen, however let's check just in case
-		if (readBytes >= BUFFER_SIZE)
 		{
 			return;
 		}
@@ -71,7 +63,7 @@ namespace TcpServer
 			return;
 		}
 
-		auto request = Requests::parseRequest(static_cast<std::byte>(buffer[2]), std::span(std::bit_cast<std::byte*>(buffer + 3), std::bit_cast<std::byte*>(buffer + readBytes)));
+		auto request = Requests::parseRequest(static_cast<std::byte>(buffer[2]), std::span(std::bit_cast<std::byte*>(buffer.data() + 3), std::bit_cast<std::byte*>(buffer.data() + readBytes)));
 
 		std::visit(
 			VisitLambda{

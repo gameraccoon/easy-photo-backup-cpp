@@ -19,6 +19,8 @@
 #include <cstring>
 #include <format>
 
+#include "common_shared/debug/assert.h"
+
 namespace Network
 {
 	[[noreturn]] static void unreachable()
@@ -324,11 +326,43 @@ namespace Network
 			return std::string("Sent size was zero, this is unexpected");
 		}
 
+		assertFatalRelease(sentSize <= static_cast<ssize_t>(data.size()), "send wrote more bytes than the size of the buffer. This should never happen and may signal about a vulnerability. We have to crash so signal about the severity of this.");
+
 		if (sentSize != static_cast<ssize_t>(data.size()))
 		{
 			return std::format("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
 		}
 
+		return std::nullopt;
+	}
+
+	std::optional<std::string> recv(int socket, std::span<std::byte> outData, size_t& receivedBytes)
+	{
+		const ssize_t messageSize = ::recv(socket, outData.data(), outData.size(), 0);
+		if (messageSize == -1)
+		{
+			return std::format("Failed to read response from TCP socket, error code {} '{}'.", errno, strerror(errno));
+		}
+
+		if (messageSize < 0)
+		{
+			return std::format("Received message size was less than -1, this is not expected: {}", messageSize);
+		}
+
+		if (messageSize == 0)
+		{
+			return std::string("Received message size was zero, possibly reached the timeout");
+		}
+
+		assertFatalRelease(messageSize <= static_cast<size_t>(outData.size()), "recv wrote more bytes than the size of the buffer. This should never happen and may result in buffer overflow vulnerability. We have to crash.");
+
+		if (messageSize > outData.size())
+		{
+			// we should have crashed already in the assert above, but just in case treat it as an error
+			return std::string{};
+		}
+
+		receivedBytes = static_cast<size_t>(messageSize);
 		return std::nullopt;
 	}
 

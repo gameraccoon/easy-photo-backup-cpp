@@ -91,7 +91,7 @@ namespace Requests
 		}
 
 		constexpr size_t MAX_MESSAGE_SIZE = 1024;
-		std::byte buffer[MAX_MESSAGE_SIZE];
+		std::array<std::byte, MAX_MESSAGE_SIZE> buffer;
 		size_t messageSize = 3;
 		bool expectsAnswer = false;
 		std::optional<Protocol::Request> requestId;
@@ -119,7 +119,7 @@ namespace Requests
 			return RequestAnswers::LogicalError{ std::format("Logical error, message size is bigger than MAX_MESSAGE_SIZE: {}", messageSize) };
 		}
 
-		if (auto result = Network::send(socket, std::span(buffer, messageSize)); result.has_value())
+		if (auto result = Network::send(socket, std::span(buffer.data(), messageSize)); result.has_value())
 		{
 			return RequestAnswers::Error{ *result };
 		}
@@ -128,23 +128,12 @@ namespace Requests
 		{
 			// we assume that the message wasn't fragmented, as we don't know what size should it be
 			// and can't yet process it in parts
-			messageSize = recv(socket, buffer, MAX_MESSAGE_SIZE, 0);
-			if (messageSize == -1)
+			if (auto result = Network::recv(socket, buffer, messageSize); result.has_value())
 			{
-				return RequestAnswers::Error{ std::format("Failed to read response from TCP socket, error code {} '{}'.", errno, strerror(errno)) };
+				return RequestAnswers::Error{ *result };
 			}
 
-			if (messageSize == 0)
-			{
-				return RequestAnswers::Error{ "Received message size was zero, possibly reached the timeout" };
-			}
-
-			if (messageSize > MAX_MESSAGE_SIZE)
-			{
-				return RequestAnswers::LogicalError{ std::format("Received message size was greater than the max message size, this is not expected: {}", messageSize) };
-			}
-
-			return readRequestAnswer(*requestId, buffer[0], std::span<std::byte>{ buffer + 1, messageSize - 1 });
+			return readRequestAnswer(*requestId, buffer[0], std::span<std::byte>{ buffer.data() + 1, messageSize - 1 });
 		}
 
 		return RequestAnswers::ExpectedNoAnswer{};
