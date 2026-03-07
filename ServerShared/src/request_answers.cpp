@@ -54,7 +54,9 @@ namespace RequestAnswers
 					std::copy(std::bit_cast<std::byte*>(response.serverName.data()), std::bit_cast<std::byte*>(response.serverName.data() + nameSize), buffer.data() + 2);
 					const size_t messageSize = nameSize + 2;
 
+					Serialization::asd1();
 					Serialization::asd2();
+
 					return Network::send(socket, std::span(buffer.data(), messageSize));
 				},
 			},
