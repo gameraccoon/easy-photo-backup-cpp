@@ -3,7 +3,7 @@
 
 #include "common_shared/blabla/asdf.h"
 
-namespace Serialization
+namespace foo
 {
 	int asd1() { return 1; }
-} // namespace Serialization
+} // namespace foo

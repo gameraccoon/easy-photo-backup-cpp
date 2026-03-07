@@ -3,7 +3,7 @@
 
 #pragma once
 
-namespace Serialization
+namespace foo
 {
 	int asd1();
-} // namespace Serialization
+} // namespace foo
