@@ -33,7 +33,7 @@ namespace NsdClient
 	static std::optional<std::string> broadcastNdsUdpRequest(const int socket, const Network::AddressType addressType, const std::string_view query, const uint16_t port)
 	{
 		ssize_t sentSize;
-		if (addressType == Network::AddressType::IpV4)
+		if (addressType == Network::AddressType::IpV4) [[likely]]
 		{
 			sockaddr_in address;
 			address.sin_addr.s_addr = INADDR_BROADCAST;
@@ -47,7 +47,7 @@ namespace NsdClient
 			return std::format("IPV6 broadcast (multicast) is somewhat complicated, it isn't implemented for now. Add when needed");
 		}
 
-		if (sentSize == -1)
+		if (sentSize == -1) [[unlikely]]
 		{
 			return std::format("Failed to send NSD broadcast to UDP socket, error code {} '{}'.", errno, strerror(errno));
 		}
@@ -74,26 +74,26 @@ namespace NsdClient
 		// for the simplicity sake, we use UDP to communicate back as well
 		// this can miss packets sometimes, but it's fine for our use case
 		const int messageLength = recvfrom(socket, inOutBuffer, bufferSize, 0, &outNetAddress.addr, &outNetAddress.addrLen);
-		if (messageLength == -1)
+		if (messageLength == -1) [[unlikely]]
 		{
 			// either failure or timeout, we don't destinguish them right now
 			return false;
 		}
 
-		if (messageLength < 1 + 2 + 2 + 0 + 2)
+		if (messageLength < 1 + 2 + 2 + 0 + 2) [[unlikely]]
 		{
 			return false;
 		}
 
 		// the only supported protocol version for now is 1
-		if (inOutBuffer[0] != std::byte(0x01))
+		if (inOutBuffer[0] != std::byte(0x01)) [[unlikely]]
 		{
 			return false;
 		}
 
 		const size_t extraDataLen = Serialization::readUint16(inOutBuffer[1], inOutBuffer[2]);
 
-		if (messageLength != 1 + 2 + 2 + extraDataLen + 2)
+		if (messageLength != 1 + 2 + 2 + extraDataLen + 2) [[unlikely]]
 		{
 			return false;
 		}
@@ -106,7 +106,7 @@ namespace NsdClient
 			std::bit_cast<std::byte*>(inOutBuffer + (3 + 2 + extraDataLen))
 		));
 
-		if (receivedChecksum != actualChecksum)
+		if (receivedChecksum != actualChecksum) [[unlikely]]
 		{
 			return false;
 		}
@@ -195,7 +195,7 @@ namespace NsdClient
 
 			if (std::chrono::steady_clock::now() > lastBroadcastTime + broadcastPeriod)
 			{
-				if (const auto result = broadcastNdsUdpRequest(socket, addressType, query, broadcastPort); result.has_value())
+				if (const auto result = broadcastNdsUdpRequest(socket, addressType, query, broadcastPort); result.has_value()) [[unlikely]]
 				{
 					return result;
 				}
