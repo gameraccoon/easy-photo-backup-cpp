@@ -1,0 +1,36 @@
+name: Build
+
+on:
+  push:
+    branches: '*'
+    paths-ignore:
+    - README.md
+    - LICENSE
+    - CONTRIBUTING.md
+    - .gitignore
+    - '.github/**'
+    - '!.github/workflows/build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-build
+      cancel-in-progress: true
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+        lfs: true
+
+    - name: Create build directory
+      run: mkdir build
+
+    - name: Run CMake
+      run: cmake ..
+      working-directory: build
+
+    - name: Run Make
+      run: make
+      working-directory: build
