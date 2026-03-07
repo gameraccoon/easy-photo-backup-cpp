@@ -5,7 +5,7 @@
 
 #include <string_view>
 
-namespace debug::log
+namespace Debug::Log
 {
 	void printDebug(std::string_view text);
-} // namespace debug::log
+} // namespace Debug::Log

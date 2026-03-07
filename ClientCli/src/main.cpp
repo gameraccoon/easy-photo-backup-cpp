@@ -42,7 +42,7 @@ int main()
 							idString.push_back(static_cast<int>(b) + '0');
 						}
 
-						debug::log::printDebug(std::format("Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port));
+						Debug::Log::printDebug(std::format("Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port));
 						{
 							std::unique_lock lock(serversMutex);
 							servers.push_back(event.address);
@@ -51,7 +51,7 @@ int main()
 					}
 					else
 					{
-						debug::log::printDebug("Server removed");
+						Debug::Log::printDebug("Server removed");
 						{
 							std::unique_lock lock(serversMutex);
 							auto it = std::find_if(
@@ -75,11 +75,11 @@ int main()
 
 		if (result.has_value())
 		{
-			debug::log::printDebug(std::format("NSD client error: '{}'", *result));
+			Debug::Log::printDebug(std::format("NSD client error: '{}'", *result));
 		}
 		else
 		{
-			debug::log::printDebug("NSD client stopped without errors");
+			Debug::Log::printDebug("NSD client stopped without errors");
 		}
 	});
 
@@ -102,16 +102,16 @@ int main()
 	std::visit(
 		VisitLambda{
 			[](RequestAnswers::AnswerGetServerName&& answerGetServerName) {
-				debug::log::printDebug(answerGetServerName.name);
+				Debug::Log::printDebug(answerGetServerName.name);
 			},
 			[](RequestAnswers::ExpectedNoAnswer) {
-				debug::log::printDebug("logical error");
+				Debug::Log::printDebug("logical error");
 			},
 			[](RequestAnswers::Error&& answerReadError) {
-				debug::log::printDebug(answerReadError.errorMessage);
+				Debug::Log::printDebug(answerReadError.errorMessage);
 			},
 			[](RequestAnswers::LogicalError&& answerReadError) {
-				debug::log::printDebug(answerReadError.errorMessage);
+				Debug::Log::printDebug(answerReadError.errorMessage);
 			},
 		},
 		std::move(answer)

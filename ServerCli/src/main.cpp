@@ -16,7 +16,7 @@ int main()
 
 	if (std::holds_alternative<std::string>(openSocketResult))
 	{
-		debug::log::printDebug(std::get<std::string>(openSocketResult));
+		Debug::Log::printDebug(std::get<std::string>(openSocketResult));
 		return 0;
 	}
 
@@ -40,7 +40,7 @@ int main()
 
 	if (auto status = portFuture.wait_for(std::chrono::seconds(3)); status != std::future_status::ready)
 	{
-		debug::log::printDebug("Didn't receive the server port in time");
+		Debug::Log::printDebug("Didn't receive the server port in time");
 		return 0;
 	}
 
@@ -71,20 +71,20 @@ int main()
 
 		if (std::holds_alternative<NsdServer::SetupError>(result))
 		{
-			debug::log::printDebug(std::format("NSD server setup error: '{}'", std::get<NsdServer::SetupError>(result).error));
+			Debug::Log::printDebug(std::format("NSD server setup error: '{}'", std::get<NsdServer::SetupError>(result).error));
 		}
 		else
 		{
 			// if we didn't stop intentionally
 			if (nsdCloseSocketFlag.load(std::memory_order::acquire) == false)
 			{
-				debug::log::printDebug(std::format("NSD server error: '{}'", std::get<NsdServer::SocketError>(result).error));
+				Debug::Log::printDebug(std::format("NSD server error: '{}'", std::get<NsdServer::SocketError>(result).error));
 				nsdCloseSocketFlag.store(true, std::memory_order::release);
 				Network::closeSocket(socket);
 			}
 			else
 			{
-				debug::log::printDebug("NSD server stopped without errors");
+				Debug::Log::printDebug("NSD server stopped without errors");
 			}
 		}
 	});

@@ -5,7 +5,7 @@
 
 #include <iostream>
 
-namespace debug::log
+namespace Debug::Log
 {
 	void printDebug(const std::string_view text)
 	{
@@ -14,4 +14,4 @@ namespace debug::log
 			<< '\n'
 			<< std::flush;
 	}
-} // namespace debug::log
+} // namespace Debug::Log
