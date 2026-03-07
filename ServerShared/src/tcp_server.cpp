@@ -17,6 +17,7 @@
 #include <format>
 #include <thread>
 
+#include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
@@ -34,11 +35,13 @@ namespace TcpServer
 		// we may rethink this value if we are going to allow opening this service be accessed through direct connections over web
 		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, 0, 100000); result.has_value())
 		{
+			reportDebugError("Could not set SO_RCVTIMEO to a connection socket");
 			return;
 		}
 
 		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, 0, 100000); result.has_value())
 		{
+			reportDebugError("Could not set SO_SNDTIMEO to a connection socket");
 			return;
 		}
 
@@ -60,6 +63,9 @@ namespace TcpServer
 		{
 			// it is assumed that the server is updated rarely while the client is updated often
 			// therefore the server doesn't need to support older client versions
+
+			// TODO: should answer to the client with a special request answer
+			reportDebugError("Old client version tried to connect");
 			return;
 		}
 
@@ -92,22 +98,26 @@ namespace TcpServer
 
 		if (auto result = Network::setSocketOption(socket, SO_REUSEADDR); result.has_value())
 		{
+			reportDebugError("Could not set SO_REUSEADDR on the server TCP socket");
 			return result;
 		}
 
 		if (auto result = Network::setSocketOption(socket, SO_REUSEPORT); result.has_value())
 		{
+			reportDebugError("Could not set SO_REUSEPORT on the server TCP socket");
 			return result;
 		}
 
 		if (auto result = Network::bindSocket(socket, interfaceAddressStr, addressType, 0); result.has_value())
 		{
+			reportDebugError("Could not bind a server TCP socket");
 			return result;
 		}
 
 		auto socketPortResult = Network::getSocketPort(socket);
 		if (std::holds_alternative<std::string>(socketPortResult))
 		{
+			reportDebugError("Could not get server port from the cocket");
 			return std::get<std::string>(socketPortResult);
 		}
 
@@ -116,6 +126,7 @@ namespace TcpServer
 		constexpr int MAX_QUEUED_REQUESTS = 4;
 		if (const int result = listen(socket, MAX_QUEUED_REQUESTS); result == -1)
 		{
+			reportDebugError("Could not start listening to TCP socket, error code {} '{}'.", errno, strerror(errno));
 			return std::format("Could not start listening to TCP socket, error code {} '{}'.", errno, strerror(errno));
 		}
 

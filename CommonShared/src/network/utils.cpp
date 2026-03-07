@@ -83,6 +83,7 @@ namespace Network
 		char portStr[10];
 		if (getnameinfo(static_cast<const sockaddr*>(addr), addrLen, name, sizeof(name), portStr, sizeof(portStr), NI_NUMERICHOST | NI_NUMERICSERV) == -1)
 		{
+			reportDebugError("Can't convert socket address to string, error code {} '{}'", errno, strerror(errno));
 			return std::format("Can't convert socket address to string, error code {} '{}'", errno, strerror(errno));
 		}
 
@@ -124,6 +125,7 @@ namespace Network
 		const int newSocket = socket(addressFamily, socketType, 0);
 		if (newSocket == -1)
 		{
+			reportDebugError("Error when creating socket, error code {} '{}'.", errno, strerror(errno));
 			return std::format("Error when creating socket, error code {} '{}'.", errno, strerror(errno));
 		}
 
@@ -135,7 +137,8 @@ namespace Network
 		constexpr int flagTrue = 1;
 		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, &flagTrue, sizeof(flagTrue)); errCode == -1)
 		{
-			return std::format("Cannot set option {} to the UDP socket, error code {} '{}'.", optionName, errno, strerror(errno));
+			reportDebugError("Cannot set option {} to the socket, error code {} '{}'.", optionName, errno, strerror(errno));
+			return std::format("Cannot set option {} to the socket, error code {} '{}'.", optionName, errno, strerror(errno));
 		}
 		return std::nullopt;
 	}
@@ -147,7 +150,8 @@ namespace Network
 		socketTimeout.tv_usec = microseconds;
 		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, &socketTimeout, sizeof(socketTimeout)); errCode == -1)
 		{
-			return std::format("Cannot set option {} to the UDP socket, error code {} '{}'.", optionName, errno, strerror(errno));
+			reportDebugError("Cannot set option {} to the socket, error code {} '{}'.", optionName, errno, strerror(errno));
+			return std::format("Cannot set option {} to the socket, error code {} '{}'.", optionName, errno, strerror(errno));
 		}
 		return std::nullopt;
 	}
@@ -158,6 +162,7 @@ namespace Network
 		socklen_t addrlen = sizeof(address);
 		if (getsockname(socket, static_cast<sockaddr*>(&address), &addrlen) != 0)
 		{
+			reportDebugError("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
 			return std::format("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
 		}
 
@@ -165,6 +170,7 @@ namespace Network
 		{
 			if (sizeof(sockaddr_in) != addrlen)
 			{
+				reportDebugError("Unexpected IPv4 address size {}", addrlen);
 				return std::format("Unexpected IPv4 address size {}", addrlen);
 			}
 
@@ -174,12 +180,14 @@ namespace Network
 		{
 			if (sizeof(sockaddr_in6) != addrlen)
 			{
+				reportDebugError("Unexpected IPv6 address size {}", addrlen);
 				return std::format("Unexpected IPv6 address size {}", addrlen);
 			}
 
 			return ntohs(std::bit_cast<sockaddr_in6*>(&address)->sin6_port);
 		}
 
+		reportDebugError("Unknown address family {}", address.sa_family);
 		return std::format("Unknown address family {}", address.sa_family);
 	}
 
@@ -189,6 +197,7 @@ namespace Network
 		socklen_t addrlen = sizeof(address);
 		if (getsockname(socket, static_cast<sockaddr*>(&address), &addrlen) != 0)
 		{
+			reportDebugError("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
 			return std::format("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
 		}
 
@@ -203,7 +212,8 @@ namespace Network
 			const int errCode = bind(socket, std::bit_cast<const sockaddr*>(&address), sizeof(address));
 			if (errCode == -1)
 			{
-				return std::format("Cannot bind the socket, error code {} '{}'.", errno, strerror(errno));
+				reportDebugError("Cannot bind socket, error code {} '{}'.", errno, strerror(errno));
+				return std::format("Cannot bind socket, error code {} '{}'.", errno, strerror(errno));
 			}
 			return std::nullopt;
 		};
@@ -217,8 +227,10 @@ namespace Network
 				switch (errCode)
 				{
 				case -1:
+					reportDebugError("Not supported address type provided: '{}', error code {} '{}'.", interfaceAddressStr, errno, strerror(errno));
 					return std::format("Not supported address type provided: '{}', error code {} '{}'.", interfaceAddressStr, errno, strerror(errno));
 				case 0:
+					reportDebugError("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
 					return std::format("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
 				default:
 					break;
@@ -243,8 +255,10 @@ namespace Network
 				switch (errCode)
 				{
 				case -1:
+					reportDebugError("Not supported address type provided: '{}'.", interfaceAddressStr);
 					return std::format("Not supported address type provided: '{}'.", interfaceAddressStr);
 				case 0:
+					reportDebugError("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
 					return std::format("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
 				default:
 					break;
@@ -284,8 +298,10 @@ namespace Network
 			switch (errCode)
 			{
 			case -1:
+				reportDebugError("Not supported address type provided: '{}'.", address);
 				return std::format("Not supported address type provided: '{}'.", address);
 			case 0:
+				reportDebugError("Address '{}' is not supported for address family {}.", address, addressTypeToStr(addressType));
 				return std::format("Address '{}' is not supported for address family {}.", address, addressTypeToStr(addressType));
 			default:
 				break;
@@ -302,8 +318,10 @@ namespace Network
 			switch (errCode)
 			{
 			case -1:
+				reportDebugError("Not supported address type provided: '{}'.", address);
 				return std::format("Not supported address type provided: '{}'.", address);
 			case 0:
+				reportDebugError("Address '{}' is not supported for address family {}.", address, addressTypeToStr(addressType));
 				return std::format("Address '{}' is not supported for address family {}.", address, addressTypeToStr(addressType));
 			default:
 				break;
@@ -323,6 +341,7 @@ namespace Network
 
 		if (sentSize == 0)
 		{
+			reportDebugError("Sent size was zero, this is unexpected");
 			return std::string("Sent size was zero, this is unexpected");
 		}
 
@@ -330,6 +349,7 @@ namespace Network
 
 		if (sentSize != static_cast<ssize_t>(data.size()))
 		{
+			reportDebugError("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
 			return std::format("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
 		}
 
@@ -346,6 +366,7 @@ namespace Network
 
 		if (messageSize < 0)
 		{
+			reportDebugError("Received message size was less than -1, this is not expected: {}", messageSize);
 			return std::format("Received message size was less than -1, this is not expected: {}", messageSize);
 		}
 

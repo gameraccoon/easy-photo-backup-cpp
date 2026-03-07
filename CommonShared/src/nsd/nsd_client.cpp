@@ -20,6 +20,7 @@
 #include <cstring>
 #include <format>
 
+#include "common_shared/debug/assert.h"
 #include "common_shared/serialization/number_serialization.h"
 
 namespace NsdClient
@@ -42,6 +43,7 @@ namespace NsdClient
 		}
 		else
 		{
+			reportDebugError("Not implemented");
 			return std::format("IPV6 broadcast (multicast) is somewhat complicated, it isn't implemented for now. Add when needed");
 		}
 
@@ -49,6 +51,9 @@ namespace NsdClient
 		{
 			return std::format("Failed to send NSD broadcast to UDP socket, error code {} '{}'.", errno, strerror(errno));
 		}
+
+		debugAssert(sentSize >= 0, "Sent size can't be less than -1 {}", sentSize);
+		debugAssert(sentSize == query.size(), "Sent size was not the same as query size {} and {}", sentSize, query.size());
 
 		return std::nullopt;
 	}
@@ -127,12 +132,14 @@ namespace NsdClient
 	{
 		if (serviceIdentifier == nullptr)
 		{
+			reportDebugError("Tried to send NSD request with empty service identifier");
 			return "service identifier can't be nullptr";
 		}
 
 		std::variant<int, std::string> createSocketResult = Network::createSocket(Network::SocketType::Udp, addressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
 		{
+			reportDebugError("Could not create NSD client socket");
 			return std::get<std::string>(createSocketResult);
 		}
 
@@ -140,17 +147,20 @@ namespace NsdClient
 
 		if (auto result = Network::setSocketOption(socket, SO_BROADCAST); result.has_value())
 		{
+			reportDebugError("Could not set SO_BROADCAST flag to NSD client socket");
 			return result;
 		}
 
 		// 200 milliseconds means that 5 times per second we will check if the stop signal has been received
 		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, 0, 200000); result.has_value())
 		{
+			reportDebugError("Could not set SO_RCVTIMEO to NSD client socket");
 			return result;
 		}
 
 		if (const auto result = Network::bindSocket(socket, nullptr, addressType, 0); result.has_value())
 		{
+			reportDebugError("Could not bind NSD client socket");
 			return result;
 		}
 
@@ -235,6 +245,7 @@ namespace NsdClient
 				}
 
 				std::rotate(discoveryGenerations.data(), discoveryGenerations.data() + (GENERATIONS_TO_MISS_TO_REMOVE - 1), discoveryGenerations.data() + GENERATIONS_TO_MISS_TO_REMOVE);
+				debugAssert(discoveryGenerations.size() < 8, "Too many servers during debugging ({}), is this a bug or are we stress-testing?", discoveryGenerations.size());
 				discoveryGenerations[0].clear();
 			}
 

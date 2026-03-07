@@ -5,6 +5,7 @@
 
 #include <format>
 
+#include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
 
 namespace Requests
@@ -16,6 +17,7 @@ namespace Requests
 		case static_cast<std::byte>(Protocol::Request::GetServerName):
 			return GetServerName{};
 		default:
+			reportDebugError("Unknown request ID {}", static_cast<int>(requestId));
 			return RequestReadError{ std::format("Unknown request ID {}", static_cast<int>(requestId)) };
 		}
 	}

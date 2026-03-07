@@ -18,6 +18,7 @@
 #include <format>
 #include <span>
 
+#include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/serialization/number_serialization.h"
 #include "common_shared/template_utils.h"
@@ -35,6 +36,7 @@ namespace Requests
 			{
 				if (answerData.size() < 1)
 				{
+					reportDebugError("No size provided in AnswerGetServerName");
 					return RequestAnswers::Error{ "No size provided in AnswerGetServerName" };
 				}
 
@@ -42,11 +44,13 @@ namespace Requests
 
 				if (answerData.size() != nameSize + 1)
 				{
+					reportDebugError("Unexpected answer size for AnswerGetServerName {} for name size {}", answerData.size(), nameSize);
 					return RequestAnswers::Error{ std::format("Unexpected answer size for AnswerGetServerName {} for name size {}", answerData.size(), nameSize) };
 				}
 
 				if (nameSize > Protocol::MaxServerNameSize)
 				{
+					reportDebugError("Too long server name in AnswerGetServerName: {}", nameSize);
 					return RequestAnswers::Error{ std::format("Too long server name in AnswerGetServerName: {}", nameSize) };
 				}
 				RequestAnswers::AnswerGetServerName answer;
@@ -58,6 +62,7 @@ namespace Requests
 		}
 		}
 
+		reportDebugError("Unknown answer {} to request {}", static_cast<int>(answerId), static_cast<int>(request));
 		return RequestAnswers::Error{ std::format("Unknown answer {} to request {}", static_cast<int>(answerId), static_cast<int>(request)) };
 	}
 
@@ -66,6 +71,7 @@ namespace Requests
 		std::variant<int, std::string> createSocketResult = Network::createSocket(Network::SocketType::Tcp, serverAddressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
 		{
+			reportDebugError("Could not create a TCP socket to send a request from client");
 			return RequestAnswers::Error{ std::get<std::string>(createSocketResult) };
 		}
 
@@ -73,15 +79,18 @@ namespace Requests
 
 		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, 1, 0); result.has_value())
 		{
+			reportDebugError("Could not set SO_RCVTIMEO to a client TCP socket");
 			return RequestAnswers::Error{ *result };
 		}
 		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, 1, 0); result.has_value())
 		{
+			reportDebugError("Could not set SO_SNDTIMEO to a client TCP socket");
 			return RequestAnswers::Error{ *result };
 		}
 
 		if (const auto result = Network::bindSocket(socket, nullptr, serverAddressType, 0); result.has_value())
 		{
+			reportDebugError("Could not bind client TCP socket");
 			return RequestAnswers::Error{ *result };
 		}
 
@@ -108,7 +117,8 @@ namespace Requests
 
 		if (!requestId.has_value())
 		{
-			return RequestAnswers::LogicalError{ "No request id provided, nothing has been sent" };
+			reportReleaseError("No request id provided, can't send the request");
+			return RequestAnswers::LogicalError{ "No request id provided, can't send the request" };
 		}
 
 		Serialization::writeUint16(buffer[0], buffer[1], Protocol::NetworkProtocolVersion);
@@ -116,7 +126,8 @@ namespace Requests
 
 		if (messageSize > MAX_MESSAGE_SIZE)
 		{
-			return RequestAnswers::LogicalError{ std::format("Logical error, message size is bigger than MAX_MESSAGE_SIZE: {}", messageSize) };
+			reportReleaseError("Message size is bigger than MAX_MESSAGE_SIZE: {}", messageSize);
+			return RequestAnswers::LogicalError{ std::format("Message size is bigger than MAX_MESSAGE_SIZE: {}", messageSize) };
 		}
 
 		if (auto result = Network::send(socket, std::span(buffer.data(), messageSize)); result.has_value())

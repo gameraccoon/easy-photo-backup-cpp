@@ -17,6 +17,7 @@
 #include <format>
 #include <string>
 
+#include "common_shared/debug/assert.h"
 #include "common_shared/network/utils.h"
 #include "common_shared/nsd/utils_internal.h"
 #include "common_shared/serialization/number_serialization.h"
@@ -51,28 +52,33 @@ namespace NsdServer
 
 		if (auto result = Network::setSocketOption(socket, SO_REUSEADDR); result.has_value())
 		{
+			reportDebugError("Could not set SO_REUSEADDR flag to NSD server socket");
 			return SetupError{ *result };
 		}
 
 		if (auto result = Network::setSocketOption(socket, SO_REUSEPORT); result.has_value())
 		{
+			reportDebugError("Could not set SO_REUSEPORT flag to NSD server socket");
 			return SetupError{ *result };
 		}
 
 		if (auto result = Network::bindSocket(socket, interfaceAddressStr, addressType, port); result.has_value())
 		{
+			reportDebugError("Could not set bind NSD server socket");
 			return SetupError{ *result };
 		}
 
 		const std::string expectedPacket = std::format("aloha:{}\n", serviceIdentifier);
 		if (expectedPacket.size() > 1024)
 		{
-			return SetupError{ std::format("Service ID is too long, maximum size is 1017 bytes, the ID length was {} bytes instead.", expectedPacket.size()) };
+			reportDebugError("Service ID is too long, max packet size is 1024 bytes, but was {} bytes instead.", expectedPacket.size());
+			return SetupError{ std::format("Service ID is too long, max packet size is 1024 bytes, but was {} bytes instead.", expectedPacket.size()) };
 		}
 
 		const size_t responseSize = 1 + 2 + 2 + extraData.size() + 2;
 		if (responseSize > std::numeric_limits<uint16_t>::max())
 		{
+			reportDebugError("Response size for NSD server is too big: {}", responseSize);
 			return SetupError{ std::format("Response size is too big, maximum size is 65535 bytes, the data size was {} bytes instead.", responseSize) };
 		}
 
