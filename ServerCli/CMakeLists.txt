@@ -20,6 +20,6 @@ target_sources(ServerCli PRIVATE
 
 target_link_libraries(ServerCli
 	PRIVATE
-		CommonShared
 		ServerShared
+		CommonShared
 )

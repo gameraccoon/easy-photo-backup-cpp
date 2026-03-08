@@ -20,6 +20,6 @@ target_sources(ClientCli PRIVATE
 
 target_link_libraries(ClientCli
 	PRIVATE
-		CommonShared
 		ClientShared
+		CommonShared
 )

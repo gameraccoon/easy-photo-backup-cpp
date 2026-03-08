@@ -27,3 +27,8 @@ target_sources(ServerShared
 		${SERVER_SHARED_INCLUDE_DIR}/request_answers.h
 		${SERVER_SHARED_INCLUDE_DIR}/tcp_server.h
 )
+
+target_link_libraries(ServerShared
+	PUBLIC
+		CommonShared
+)

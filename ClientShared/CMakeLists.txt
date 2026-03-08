@@ -24,3 +24,8 @@ target_sources(ClientShared
 		${CLIENT_SHARED_INCLUDE_DIR}/request_answers.h
 		${CLIENT_SHARED_INCLUDE_DIR}/requests.h
 )
+
+target_link_libraries(ClientShared
+	PUBLIC
+		CommonShared
+)
