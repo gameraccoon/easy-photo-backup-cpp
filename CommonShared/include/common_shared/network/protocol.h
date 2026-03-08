@@ -30,6 +30,9 @@ namespace Protocol
 		GetServerName = 2,
 	};
 
+	constexpr size_t MaxRequestSize = 1024;
+	constexpr size_t MaxRequestAnswerSize = 1024;
+
 	constexpr uint16_t MaxServerNameSize = 32;
 
 	namespace Requests

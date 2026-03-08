@@ -45,7 +45,7 @@ namespace TcpServer
 			return;
 		}
 
-		constexpr size_t BUFFER_SIZE = 1024;
+		constexpr size_t BUFFER_SIZE = Protocol::MaxRequestSize;
 		std::array<std::byte, BUFFER_SIZE> buffer;
 		size_t readBytes = 0;
 		if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())

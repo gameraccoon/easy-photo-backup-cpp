@@ -151,7 +151,7 @@ namespace Requests
 			return RequestAnswers::Error{ *result };
 		}
 
-		constexpr size_t MAX_MESSAGE_SIZE = 1024;
+		constexpr size_t MAX_MESSAGE_SIZE = Protocol::MaxRequestAnswerSize;
 		std::array<std::byte, MAX_MESSAGE_SIZE> buffer;
 		size_t messageSize = 0;
 		bool expectsAnswer = false;
