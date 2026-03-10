@@ -102,7 +102,7 @@ namespace NsdServer
 		socklen_t clientAddrLen = sizeof(clientAddr);
 		while ((messageLength = recvfrom(socket, buf, BUFFER_SIZE, 0, &clientAddr, &clientAddrLen)) != -1)
 		{
-			if (messageLength != expectedPacket.size())
+			if (messageLength != static_cast<ssize_t>(expectedPacket.size()))
 			{
 				continue;
 			}

@@ -375,9 +375,9 @@ namespace Network
 			return std::string("Received message size was zero, possibly reached the timeout");
 		}
 
-		assertFatalRelease(messageSize <= static_cast<size_t>(outData.size()), "recv wrote more bytes than the size of the buffer. This should never happen and may result in buffer overflow vulnerability. We have to crash.");
+		assertFatalRelease(messageSize <= static_cast<ssize_t>(outData.size()), "recv wrote more bytes than the size of the buffer. This should never happen and may result in buffer overflow vulnerability. We have to crash.");
 
-		if (messageSize > outData.size()) [[unlikely]]
+		if (messageSize > static_cast<ssize_t>(outData.size())) [[unlikely]]
 		{
 			// we should have crashed already in the assert above, but just in case treat it as an error
 			return std::string{};

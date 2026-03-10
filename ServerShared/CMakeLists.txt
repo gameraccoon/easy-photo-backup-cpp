@@ -11,6 +11,12 @@ set(SERVER_SHARED_SRC_DIR ${SERVER_SHARED_ROOT}/src)
 
 add_library(ServerShared STATIC)
 
+if(MSVC)
+	target_compile_options(ServerShared PRIVATE /W4 /WX)
+else()
+	target_compile_options(ServerShared PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
 target_include_directories(ServerShared PRIVATE
 	${MAIN_ROOT}/CommonShared/include
 	${SERVER_SHARED_INCLUDE_BASE_DIR}

@@ -53,7 +53,7 @@ namespace NsdClient
 		}
 
 		debugAssert(sentSize >= 0, "Sent size can't be less than -1 {}", sentSize);
-		debugAssert(sentSize == query.size(), "Sent size was not the same as query size {} and {}", sentSize, query.size());
+		debugAssert(sentSize == static_cast<ssize_t>(query.size()), "Sent size was not the same as query size {} and {}", sentSize, query.size());
 
 		return std::nullopt;
 	}
@@ -73,7 +73,7 @@ namespace NsdClient
 	{
 		// for the simplicity sake, we use UDP to communicate back as well
 		// this can miss packets sometimes, but it's fine for our use case
-		const int messageLength = recvfrom(socket, inOutBuffer, bufferSize, 0, &outNetAddress.addr, &outNetAddress.addrLen);
+		const ssize_t messageLength = recvfrom(socket, inOutBuffer, bufferSize, 0, &outNetAddress.addr, &outNetAddress.addrLen);
 		if (messageLength == -1) [[unlikely]]
 		{
 			// either failure or timeout, we don't destinguish them right now
@@ -91,9 +91,9 @@ namespace NsdClient
 			return false;
 		}
 
-		const size_t extraDataLen = Serialization::readUint16(inOutBuffer[1], inOutBuffer[2]);
+		const uint16_t extraDataLen = Serialization::readUint16(inOutBuffer[1], inOutBuffer[2]);
 
-		if (messageLength != 1 + 2 + 2 + extraDataLen + 2) [[unlikely]]
+		if (messageLength != 1 + 2 + 2 + static_cast<ssize_t>(extraDataLen) + 2) [[unlikely]]
 		{
 			return false;
 		}

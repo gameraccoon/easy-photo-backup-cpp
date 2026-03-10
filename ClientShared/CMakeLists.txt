@@ -11,6 +11,12 @@ set(CLIENT_SHARED_SRC_DIR ${CLIENT_SHARED_ROOT}/src)
 
 add_library(ClientShared STATIC)
 
+if(MSVC)
+	target_compile_options(ClientShared PRIVATE /W4 /WX)
+else()
+	target_compile_options(ClientShared PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
 target_include_directories(ClientShared PRIVATE
 	${MAIN_ROOT}/CommonShared/include
 	${CLIENT_SHARED_INCLUDE_BASE_DIR}

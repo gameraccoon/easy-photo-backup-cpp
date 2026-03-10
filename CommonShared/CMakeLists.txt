@@ -13,6 +13,12 @@ add_subdirectory(${COMMON_SHARED_ROOT}/deps/mbedtls ${COMMON_SHARED_ROOT}/build/
 
 add_library(CommonShared STATIC)
 
+if(MSVC)
+	target_compile_options(CommonShared PRIVATE /W4 /WX)
+else()
+	target_compile_options(CommonShared PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
 target_include_directories(CommonShared PRIVATE
 	${COMMON_SHARED_INCLUDE_BASE_DIR}
 	${MAIN_ROOT}/deps/mbedtls/include

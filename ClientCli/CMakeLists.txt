@@ -9,6 +9,12 @@ set(CLIENT_CLI_SRC_DIR ${CLIENT_CLI_ROOT}/src)
 
 add_executable(ClientCli)
 
+if(MSVC)
+	target_compile_options(ClientCli PRIVATE /W4 /WX)
+else()
+	target_compile_options(ClientCli PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
 target_include_directories(ClientCli PRIVATE
 	${MAIN_ROOT}/CommonShared/include
 	${MAIN_ROOT}/ClientShared/include

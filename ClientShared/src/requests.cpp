@@ -24,18 +24,18 @@
 
 namespace Requests
 {
-	static Protocol::RequestId prepareRequest(Request&& request, std::span<std::byte> outData, size_t& outBytesWritten, bool& outExpectsAnswer)
+	static Protocol::RequestId prepareRequest(Request&& request, std::span<std::byte> /*outData*/, size_t& outBytesWritten, bool& outExpectsAnswer)
 	{
 		return std::visit(
 			VisitLambda{
-				[&outExpectsAnswer, &outData, &outBytesWritten](Requests::GetProtocolVersion&&) -> Protocol::RequestId {
+				[&outExpectsAnswer, &outBytesWritten](Requests::GetProtocolVersion&&) -> Protocol::RequestId {
 					// make sure this logic does not change, as this answer is supposed to be the same across all versions
 					// in order for it to work
 					outExpectsAnswer = true;
 					outBytesWritten = 0;
 					return Protocol::RequestId::GetProtocolVersion;
 				},
-				[&outExpectsAnswer, &outData, &outBytesWritten](Requests::GetServerName&&) -> Protocol::RequestId {
+				[&outExpectsAnswer, &outBytesWritten](Requests::GetServerName&&) -> Protocol::RequestId {
 					outExpectsAnswer = true;
 					outBytesWritten = 0;
 					return Protocol::RequestId::GetServerName;

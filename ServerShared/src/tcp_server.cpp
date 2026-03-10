@@ -28,7 +28,7 @@
 
 namespace TcpServer
 {
-	static void handleClient(const int socket, sockaddr clientAddr, socklen_t clientAddrLen)
+	static void handleClient(const int socket, sockaddr /*clientAddr*/, socklen_t /*clientAddrLen*/)
 	{
 		// we need to make sure to have a timeout to not get DOS as soon as a couple of connections hangs
 		// we should have a shorter timeout now and increase it when we authentificate the user for the file transfer

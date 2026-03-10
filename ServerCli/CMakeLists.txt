@@ -9,6 +9,12 @@ set(SERVER_CLI_SRC_DIR ${SERVER_CLI_ROOT}/src)
 
 add_executable(ServerCli)
 
+if(MSVC)
+	target_compile_options(ServerCli PRIVATE /W4 /WX)
+else()
+	target_compile_options(ServerCli PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
 target_include_directories(ServerCli PRIVATE
 	${MAIN_ROOT}/CommonShared/include
 	${MAIN_ROOT}/ServerShared/include
