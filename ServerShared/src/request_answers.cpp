@@ -14,11 +14,11 @@
 #endif
 
 #include <cstring>
-#include <format>
 #include <optional>
 
 #include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
+#include "common_shared/serialization/string_serialization.h"
 #include "common_shared/template_utils.h"
 
 namespace RequestAnswers
@@ -47,13 +47,14 @@ namespace RequestAnswers
 				},
 				[socket](GetServerName&& response) -> std::optional<std::string> {
 					std::array<std::byte, Protocol::MaxServerNameSize + 2> buffer;
-					const size_t nameSize = std::min(response.serverName.size(), static_cast<size_t>(Protocol::MaxServerNameSize));
 					buffer[0] = static_cast<std::byte>(Protocol::RequestAnswerId::GetServerName);
-					buffer[1] = static_cast<std::byte>(nameSize);
-					std::copy(std::bit_cast<std::byte*>(response.serverName.data()), std::bit_cast<std::byte*>(response.serverName.data() + nameSize), buffer.data() + 2);
-					const size_t messageSize = nameSize + 2;
+					size_t bytesWritten = 0;
+					if (auto result = Serialization::writeShortString(std::span(buffer.data() + 1, buffer.size() - 1), response.serverName, bytesWritten); result.has_value()) [[unlikely]]
+					{
+						return result;
+					}
 
-					return Network::send(socket, std::span(buffer.data(), messageSize));
+					return Network::send(socket, std::span(buffer.data(), bytesWritten + 1));
 				},
 			},
 			std::move(requestAnswer)

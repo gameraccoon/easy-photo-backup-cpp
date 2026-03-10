@@ -13,13 +13,13 @@
 #include <unistd.h>
 #endif
 
-#include <algorithm>
 #include <cstring>
 #include <format>
 #include <span>
 
 #include "common_shared/debug/assert.h"
 #include "common_shared/serialization/number_serialization.h"
+#include "common_shared/serialization/string_serialization.h"
 #include "common_shared/template_utils.h"
 
 namespace Requests
@@ -86,28 +86,11 @@ namespace Requests
 		case Protocol::RequestId::GetServerName: {
 			if (answerId == static_cast<std::byte>(Protocol::RequestAnswerId::GetServerName))
 			{
-				if (answerData.size() < 1)
-				{
-					reportDebugError("No size provided in GetServerName answer");
-					return RequestAnswers::Error{ "No size provided in GetServerName answer" };
-				}
-
-				const size_t nameSize = static_cast<size_t>(answerData[0]);
-
-				if (answerData.size() != nameSize + 1)
-				{
-					reportDebugError("Unexpected answer size for GetServerName answer {} for name size {}", answerData.size(), nameSize);
-					return RequestAnswers::Error{ std::format("Unexpected answer size for GetServerName answer {} for name size {}", answerData.size(), nameSize) };
-				}
-
-				if (nameSize > Protocol::MaxServerNameSize)
-				{
-					reportDebugError("Too long server name in GetServerName answer: {}", nameSize);
-					return RequestAnswers::Error{ std::format("Too long server name in GetServerName answer: {}", nameSize) };
-				}
 				RequestAnswers::GetServerName answer;
-				answer.serverName.reserve(answerData.size());
-				std::copy(std::bit_cast<char*>(answerData.data() + 1), std::bit_cast<char*>(answerData.data() + nameSize + 1), std::back_inserter(answer.serverName));
+				if (auto result = Serialization::readShortString(answerData, answer.serverName, Protocol::MaxServerNameSize); result.has_value())
+				{
+					return RequestAnswers::Error{ std::move(result->errorMessage) };
+				}
 				return answer;
 			}
 			break;
