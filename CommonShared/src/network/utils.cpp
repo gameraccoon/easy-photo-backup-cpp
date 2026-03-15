@@ -380,7 +380,12 @@ namespace Network
 
 	void closeSocket(const int socket)
 	{
+#if _WIN32
+		shutdown(socket, SD_BOTH);
+		closesocket(socket);
+#else
 		shutdown(socket, SHUT_RDWR);
 		close(socket);
+#endif
 	}
 } // namespace Network
