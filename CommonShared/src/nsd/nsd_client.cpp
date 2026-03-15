@@ -42,7 +42,7 @@ namespace NsdClient
 
 		if (sentSize == -1) [[unlikely]]
 		{
-			return std::format("Failed to send NSD broadcast to UDP socket, error code {} '{}'.", errno, strerror(errno));
+			return std::format("Failed to send NSD broadcast to UDP socket, error code {}.", errno);
 		}
 
 		debugAssert(sentSize >= 0, "Sent size can't be less than -1 {}", sentSize);

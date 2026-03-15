@@ -74,8 +74,8 @@ namespace Network
 		char portStr[10];
 		if (getnameinfo(static_cast<const sockaddr*>(addr), addrLen, name, sizeof(name), portStr, sizeof(portStr), NI_NUMERICHOST | NI_NUMERICSERV) == -1) [[unlikely]]
 		{
-			reportDebugError("Can't convert socket address to string, error code {} '{}'", errno, strerror(errno));
-			return std::format("Can't convert socket address to string, error code {} '{}'", errno, strerror(errno));
+			reportDebugError("Can't convert socket address to string, error code {}", errno);
+			return std::format("Can't convert socket address to string, error code {}", errno);
 		}
 
 		NetworkAddress resultAddress;
@@ -116,8 +116,8 @@ namespace Network
 		const int newSocket = socket(addressFamily, socketType, 0);
 		if (newSocket == -1) [[unlikely]]
 		{
-			reportDebugError("Error when creating socket, error code {} '{}'.", errno, strerror(errno));
-			return std::format("Error when creating socket, error code {} '{}'.", errno, strerror(errno));
+			reportDebugError("Error when creating socket, error code {}.", errno);
+			return std::format("Error when creating socket, error code {}.", errno);
 		}
 
 		return newSocket;
@@ -128,8 +128,8 @@ namespace Network
 		constexpr int flagTrue = 1;
 		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, &flagTrue, sizeof(flagTrue)); errCode == -1) [[unlikely]]
 		{
-			reportDebugError("Cannot set option {} to the socket, error code {} '{}'.", optionName, errno, strerror(errno));
-			return std::format("Cannot set option {} to the socket, error code {} '{}'.", optionName, errno, strerror(errno));
+			reportDebugError("Cannot set option {} to the socket, error code {}.", optionName, errno);
+			return std::format("Cannot set option {} to the socket, error code {}.", optionName, errno);
 		}
 		return std::nullopt;
 	}
@@ -141,8 +141,8 @@ namespace Network
 		socketTimeout.tv_usec = microseconds;
 		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, &socketTimeout, sizeof(socketTimeout)); errCode == -1) [[unlikely]]
 		{
-			reportDebugError("Cannot set option {} to the socket, error code {} '{}'.", optionName, errno, strerror(errno));
-			return std::format("Cannot set option {} to the socket, error code {} '{}'.", optionName, errno, strerror(errno));
+			reportDebugError("Cannot set option {} to the socket, error code {}.", optionName, errno);
+			return std::format("Cannot set option {} to the socket, error code {}.", optionName, errno);
 		}
 		return std::nullopt;
 	}
@@ -153,8 +153,8 @@ namespace Network
 		socklen_t addrlen = sizeof(address);
 		if (getsockname(socket, static_cast<sockaddr*>(&address), &addrlen) != 0) [[unlikely]]
 		{
-			reportDebugError("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
-			return std::format("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
+			reportDebugError("Could not read port from socket, error code {}.", errno);
+			return std::format("Could not read port from socket, error code {}.", errno);
 		}
 
 		if (address.sa_family == AF_INET)
@@ -188,8 +188,8 @@ namespace Network
 		socklen_t addrlen = sizeof(address);
 		if (getsockname(socket, static_cast<sockaddr*>(&address), &addrlen) != 0) [[unlikely]]
 		{
-			reportDebugError("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
-			return std::format("Could not read port from socket, error code {} '{}'.", errno, strerror(errno));
+			reportDebugError("Could not read port from socket, error code {}.", errno);
+			return std::format("Could not read port from socket, error code {}.", errno);
 		}
 
 		return parseAddress(&address, addrlen);
@@ -203,8 +203,8 @@ namespace Network
 			const int errCode = bind(socket, std::bit_cast<const sockaddr*>(&address), sizeof(address));
 			if (errCode == -1) [[unlikely]]
 			{
-				reportDebugError("Cannot bind socket, error code {} '{}'.", errno, strerror(errno));
-				return std::format("Cannot bind socket, error code {} '{}'.", errno, strerror(errno));
+				reportDebugError("Cannot bind socket, error code {}.", errno);
+				return std::format("Cannot bind socket, error code {}.", errno);
 			}
 			return std::nullopt;
 		};
@@ -218,8 +218,8 @@ namespace Network
 				switch (errCode)
 				{
 				[[unlikely]] case -1:
-					reportDebugError("Not supported address type provided: '{}', error code {} '{}'.", interfaceAddressStr, errno, strerror(errno));
-					return std::format("Not supported address type provided: '{}', error code {} '{}'.", interfaceAddressStr, errno, strerror(errno));
+					reportDebugError("Not supported address type provided: '{}', error code {}.", interfaceAddressStr, errno);
+					return std::format("Not supported address type provided: '{}', error code {}.", interfaceAddressStr, errno);
 				[[unlikely]] case 0:
 					reportDebugError("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
 					return std::format("Address '{}' is not supported for address family {}.", interfaceAddressStr, addressTypeToStr(addressType));
@@ -274,7 +274,7 @@ namespace Network
 		auto innerConnect = [](auto& addr, int socket, const char* address, uint16_t port) -> std::optional<std::string> {
 			if (int result = connect(socket, (sockaddr*)&addr, sizeof(addr)); result == -1) [[unlikely]]
 			{
-				return std::format("Cannot connect to the address {}:{}, error code {} '{}'.", address, port, errno, strerror(errno));
+				return std::format("Cannot connect to the address {}:{}, error code {}.", address, port, errno);
 			}
 
 			return std::nullopt;
@@ -327,7 +327,7 @@ namespace Network
 		const ssize_t sentSize = ::send(socket, data.data(), data.size(), 0);
 		if (sentSize == -1) [[unlikely]]
 		{
-			return std::format("Failed to send data to socket, error code {} '{}'.", errno, strerror(errno));
+			return std::format("Failed to send data to socket, error code {}.", errno);
 		}
 
 		if (sentSize == 0) [[unlikely]]
@@ -352,7 +352,7 @@ namespace Network
 		const ssize_t messageSize = ::recv(socket, outData.data(), outData.size(), 0);
 		if (messageSize == -1) [[unlikely]]
 		{
-			return std::format("Failed to read response from TCP socket, error code {} '{}'.", errno, strerror(errno));
+			return std::format("Failed to read response from TCP socket, error code {}.", errno);
 		}
 
 		if (messageSize < 0) [[unlikely]]

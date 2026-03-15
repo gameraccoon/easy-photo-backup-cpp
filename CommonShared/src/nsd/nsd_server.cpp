@@ -105,10 +105,10 @@ namespace NsdServer
 
 			if (const ssize_t sentSize = sendto(socket, response.data(), responseSize, 0, &clientAddr, clientAddrLen); sentSize == -1)
 			{
-				return SocketError{ std::format("Failed to send response to UDP socket, error code {} '{}'.", errno, strerror(errno)) };
+				return SocketError{ std::format("Failed to send response to UDP socket, error code {}.", errno) };
 			}
 		}
 
-		return SocketError{ std::format("Failed to receive from UDP socket, error code {} '{}'.", errno, strerror(errno)) };
+		return SocketError{ std::format("Failed to receive from UDP socket, error code {}.", errno) };
 	}
 } // namespace NsdServer
