@@ -72,7 +72,7 @@ namespace Network
 		char name[INET6_ADDRSTRLEN];
 
 		char portStr[10];
-		if (getnameinfo(static_cast<const sockaddr*>(addr), addrLen, name, sizeof(name), portStr, sizeof(portStr), NI_NUMERICHOST | NI_NUMERICSERV) == -1) [[unlikely]]
+		if (getnameinfo(static_cast<const sockaddr*>(addr), static_cast<socklen_t>(addrLen), name, sizeof(name), portStr, sizeof(portStr), NI_NUMERICHOST | NI_NUMERICSERV) == -1) [[unlikely]]
 		{
 			reportDebugError("Can't convert socket address to string, error code {}", errno);
 			return std::format("Can't convert socket address to string, error code {}", errno);
@@ -91,7 +91,7 @@ namespace Network
 			resultAddress.ip = name;
 		}
 
-		resultAddress.port = parseInt(portStr).value_or(0);
+		resultAddress.port = static_cast<uint16_t>(parseInt(portStr).value_or(0));
 
 		resultAddress.addressType = static_cast<const sockaddr*>(addr)->sa_family == AF_INET6 ? AddressType::IpV6 : AddressType::IpV4;
 
@@ -126,7 +126,7 @@ namespace Network
 	std::optional<std::string> setSocketOption(const RawSocket socket, const int optionName)
 	{
 		constexpr int flagTrue = 1;
-		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, &flagTrue, sizeof(flagTrue)); errCode == -1) [[unlikely]]
+		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, std::bit_cast<const char*>(&flagTrue), sizeof(flagTrue)); errCode == -1) [[unlikely]]
 		{
 			reportDebugError("Cannot set option {} to the socket, error code {}.", optionName, errno);
 			return std::format("Cannot set option {} to the socket, error code {}.", optionName, errno);
@@ -136,10 +136,10 @@ namespace Network
 
 	std::optional<std::string> setSocketTimeout(RawSocket socket, const int optionName, int seconds, int microseconds)
 	{
-		timeval socketTimeout;
+		timeval socketTimeout{};
 		socketTimeout.tv_sec = seconds;
 		socketTimeout.tv_usec = microseconds;
-		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, &socketTimeout, sizeof(socketTimeout)); errCode == -1) [[unlikely]]
+		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, std::bit_cast<const char*>(socketTimeout), sizeof(socketTimeout)); errCode == -1) [[unlikely]]
 		{
 			reportDebugError("Cannot set option {} to the socket, error code {}.", optionName, errno);
 			return std::format("Cannot set option {} to the socket, error code {}.", optionName, errno);
@@ -232,7 +232,7 @@ namespace Network
 				address.sin_addr.s_addr = INADDR_ANY;
 			}
 
-			address.sin_family = addressFamily;
+			address.sin_family = static_cast<ADDRESS_FAMILY>(addressFamily);
 			address.sin_port = htons(port);
 
 			return innerBind(address, socket);
@@ -260,7 +260,7 @@ namespace Network
 				address.sin6_addr = IN6ADDR_ANY_INIT;
 			}
 
-			address.sin6_family = addressFamily;
+			address.sin6_family = static_cast<ADDRESS_FAMILY>(addressFamily);
 			address.sin6_port = htons(port);
 
 			return innerBind(address, socket);
@@ -322,7 +322,7 @@ namespace Network
 
 	std::optional<std::string> send(const RawSocket socket, std::span<std::byte> data)
 	{
-		const ssize_t sentSize = ::send(socket, data.data(), data.size(), 0);
+		const auto sentSize = ::send(socket, std::bit_cast<const char*>(data.data()), static_cast<int>(data.size()), 0);
 		if (sentSize == -1) [[unlikely]]
 		{
 			return std::format("Failed to send data to socket, error code {}.", errno);
@@ -334,9 +334,9 @@ namespace Network
 			return std::string("Sent size was zero, this is unexpected");
 		}
 
-		assertFatalRelease(sentSize <= static_cast<ssize_t>(data.size()), "send wrote more bytes than the size of the buffer. This should never happen and may signal about a vulnerability. We have to crash so signal about the severity of this.");
+		assertFatalRelease(sentSize <= static_cast<int>(data.size()), "send wrote more bytes than the size of the buffer. This should never happen and may signal about a vulnerability. We have to crash so signal about the severity of this.");
 
-		if (sentSize != static_cast<ssize_t>(data.size())) [[unlikely]]
+		if (sentSize != static_cast<int>(data.size())) [[unlikely]]
 		{
 			reportDebugError("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
 			return std::format("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
@@ -347,7 +347,7 @@ namespace Network
 
 	std::optional<std::string> recv(const RawSocket socket, std::span<std::byte> outData, size_t& receivedBytes)
 	{
-		const ssize_t messageSize = ::recv(socket, outData.data(), outData.size(), 0);
+		const auto messageSize = ::recv(socket, std::bit_cast<char*>(outData.data()), static_cast<int>(outData.size()), 0);
 		if (messageSize == -1) [[unlikely]]
 		{
 			return std::format("Failed to read response from TCP socket, error code {}.", errno);
@@ -364,9 +364,9 @@ namespace Network
 			return std::string("Received message size was zero, possibly reached the timeout");
 		}
 
-		assertFatalRelease(messageSize <= static_cast<ssize_t>(outData.size()), "recv wrote more bytes than the size of the buffer. This should never happen and may result in buffer overflow vulnerability. We have to crash.");
+		assertFatalRelease(messageSize <= static_cast<int>(outData.size()), "recv wrote more bytes than the size of the buffer. This should never happen and may result in buffer overflow vulnerability. We have to crash.");
 
-		if (messageSize > static_cast<ssize_t>(outData.size())) [[unlikely]]
+		if (messageSize > static_cast<int>(outData.size())) [[unlikely]]
 		{
 			// we should have crashed already in the assert above, but just in case treat it as an error
 			return std::string{};

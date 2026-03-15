@@ -25,20 +25,17 @@ namespace NsdClient
 
 	static std::optional<std::string> broadcastNdsUdpRequest(const Network::RawSocket socket, const Network::AddressType addressType, const std::string_view query, const uint16_t port)
 	{
-		ssize_t sentSize;
-		if (addressType == Network::AddressType::IpV4) [[likely]]
-		{
-			sockaddr_in address;
-			address.sin_addr.s_addr = INADDR_BROADCAST;
-			address.sin_family = AF_INET;
-			address.sin_port = htons(port);
-			sentSize = sendto(socket, query.data(), query.size(), 0, std::bit_cast<const sockaddr*>(&address), sizeof(address));
-		}
-		else
+		if (addressType == Network::AddressType::IpV6)
 		{
 			reportDebugError("Not implemented");
 			return std::format("IPV6 broadcast (multicast) is somewhat complicated, it isn't implemented for now. Add when needed");
 		}
+
+		sockaddr_in address;
+		address.sin_addr.s_addr = INADDR_BROADCAST;
+		address.sin_family = AF_INET;
+		address.sin_port = htons(port);
+		const auto sentSize = sendto(socket, query.data(), static_cast<int>(query.size()), 0, std::bit_cast<const sockaddr*>(&address), sizeof(address));
 
 		if (sentSize == -1) [[unlikely]]
 		{
@@ -46,7 +43,7 @@ namespace NsdClient
 		}
 
 		debugAssert(sentSize >= 0, "Sent size can't be less than -1 {}", sentSize);
-		debugAssert(sentSize == static_cast<ssize_t>(query.size()), "Sent size was not the same as query size {} and {}", sentSize, query.size());
+		debugAssert(sentSize == static_cast<int>(query.size()), "Sent size was not the same as query size {} and {}", sentSize, query.size());
 
 		return std::nullopt;
 	}
@@ -66,7 +63,7 @@ namespace NsdClient
 	{
 		// for the simplicity sake, we use UDP to communicate back as well
 		// this can miss packets sometimes, but it's fine for our use case
-		const ssize_t messageLength = recvfrom(socket, inOutBuffer, bufferSize, 0, &outNetAddress.addr, &outNetAddress.addrLen);
+		const auto messageLength = recvfrom(socket, std::bit_cast<char*>(inOutBuffer), static_cast<int>(bufferSize), 0, &outNetAddress.addr, &outNetAddress.addrLen);
 		if (messageLength == -1) [[unlikely]]
 		{
 			// either failure or timeout, we don't destinguish them right now
@@ -86,7 +83,7 @@ namespace NsdClient
 
 		const uint16_t extraDataLen = Serialization::readUint16(inOutBuffer[1], inOutBuffer[2]);
 
-		if (messageLength != 1 + 2 + 2 + static_cast<ssize_t>(extraDataLen) + 2) [[unlikely]]
+		if (messageLength != 1 + 2 + 2 + static_cast<int>(extraDataLen) + 2) [[unlikely]]
 		{
 			return false;
 		}
