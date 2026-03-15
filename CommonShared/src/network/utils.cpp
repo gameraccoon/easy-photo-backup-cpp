@@ -98,7 +98,7 @@ namespace Network
 		return resultAddress;
 	}
 
-	std::variant<int, std::string> createSocket(const SocketType type, const AddressType addressType)
+	std::variant<RawSocket, std::string> createSocket(const SocketType type, const AddressType addressType)
 	{
 		const int addressFamily = addressTypeToFamily(addressType);
 
@@ -113,7 +113,7 @@ namespace Network
 			break;
 		}
 
-		const int newSocket = socket(addressFamily, socketType, 0);
+		const RawSocket newSocket = socket(addressFamily, socketType, 0);
 		if (newSocket == -1) [[unlikely]]
 		{
 			reportDebugError("Error when creating socket, error code {}.", errno);
@@ -123,7 +123,7 @@ namespace Network
 		return newSocket;
 	}
 
-	std::optional<std::string> setSocketOption(const int socket, const int optionName)
+	std::optional<std::string> setSocketOption(const RawSocket socket, const int optionName)
 	{
 		constexpr int flagTrue = 1;
 		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, &flagTrue, sizeof(flagTrue)); errCode == -1) [[unlikely]]
@@ -134,7 +134,7 @@ namespace Network
 		return std::nullopt;
 	}
 
-	std::optional<std::string> setSocketTimeout(int socket, const int optionName, int seconds, int microseconds)
+	std::optional<std::string> setSocketTimeout(RawSocket socket, const int optionName, int seconds, int microseconds)
 	{
 		timeval socketTimeout;
 		socketTimeout.tv_sec = seconds;
@@ -147,7 +147,7 @@ namespace Network
 		return std::nullopt;
 	}
 
-	std::variant<uint16_t, std::string> getSocketPort(int socket)
+	std::variant<uint16_t, std::string> getSocketPort(RawSocket socket)
 	{
 		sockaddr address;
 		socklen_t addrlen = sizeof(address);
@@ -182,7 +182,7 @@ namespace Network
 		return std::format("Unknown address family {}", address.sa_family);
 	}
 
-	std::variant<NetworkAddress, std::string> getSocketAddress(int socket)
+	std::variant<NetworkAddress, std::string> getSocketAddress(const RawSocket socket)
 	{
 		sockaddr address;
 		socklen_t addrlen = sizeof(address);
@@ -195,11 +195,11 @@ namespace Network
 		return parseAddress(&address, addrlen);
 	}
 
-	std::optional<std::string> bindSocket(const int socket, const char* const interfaceAddressStr, const AddressType addressType, const uint16_t port)
+	std::optional<std::string> bindSocket(const RawSocket socket, const char* const interfaceAddressStr, const AddressType addressType, const uint16_t port)
 	{
 		const int addressFamily = addressTypeToFamily(addressType);
 
-		auto innerBind = [](auto& address, int socket) -> std::optional<std::string> {
+		auto innerBind = [](auto& address, RawSocket socket) -> std::optional<std::string> {
 			const int errCode = bind(socket, std::bit_cast<const sockaddr*>(&address), sizeof(address));
 			if (errCode == -1) [[unlikely]]
 			{
@@ -267,9 +267,9 @@ namespace Network
 		}
 	}
 
-	std::optional<std::string> connectToServer(const int socket, const char* const address, const AddressType addressType, const uint16_t port)
+	std::optional<std::string> connectToServer(const RawSocket socket, const char* const address, const AddressType addressType, const uint16_t port)
 	{
-		auto innerConnect = [](auto& addr, int socket, const char* address, uint16_t port) -> std::optional<std::string> {
+		auto innerConnect = [](auto& addr, RawSocket socket, const char* address, uint16_t port) -> std::optional<std::string> {
 			if (int result = connect(socket, (sockaddr*)&addr, sizeof(addr)); result == -1) [[unlikely]]
 			{
 				return std::format("Cannot connect to the address {}:{}, error code {}.", address, port, errno);
@@ -320,7 +320,7 @@ namespace Network
 		}
 	}
 
-	std::optional<std::string> send(int socket, std::span<std::byte> data)
+	std::optional<std::string> send(const RawSocket socket, std::span<std::byte> data)
 	{
 		const ssize_t sentSize = ::send(socket, data.data(), data.size(), 0);
 		if (sentSize == -1) [[unlikely]]
@@ -345,7 +345,7 @@ namespace Network
 		return std::nullopt;
 	}
 
-	std::optional<std::string> recv(int socket, std::span<std::byte> outData, size_t& receivedBytes)
+	std::optional<std::string> recv(const RawSocket socket, std::span<std::byte> outData, size_t& receivedBytes)
 	{
 		const ssize_t messageSize = ::recv(socket, outData.data(), outData.size(), 0);
 		if (messageSize == -1) [[unlikely]]
@@ -376,7 +376,7 @@ namespace Network
 		return std::nullopt;
 	}
 
-	void closeSocket(const int socket)
+	void closeSocket(const RawSocket socket)
 	{
 #if _WIN32
 		shutdown(socket, SD_BOTH);

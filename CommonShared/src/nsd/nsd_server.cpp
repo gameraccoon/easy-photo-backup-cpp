@@ -15,19 +15,19 @@
 
 namespace NsdServer
 {
-	std::variant<int, std::string> openNsdSocket(const Network::AddressType addressType)
+	std::variant<Network::RawSocket, std::string> openNsdSocket(const Network::AddressType addressType)
 	{
-		std::variant<int, std::string> createSocketResult = createSocket(Network::SocketType::Udp, addressType);
+		std::variant<Network::RawSocket, std::string> createSocketResult = createSocket(Network::SocketType::Udp, addressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
 		{
 			return std::get<std::string>(createSocketResult);
 		}
 
-		return std::get<int>(createSocketResult);
+		return std::get<Network::RawSocket>(createSocketResult);
 	}
 
 	ListenResult listen(
-		const int socket,
+		const Network::RawSocket socket,
 		const char* interfaceAddressStr,
 		const Network::AddressType addressType,
 		const uint16_t port,

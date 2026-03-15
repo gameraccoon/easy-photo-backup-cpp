@@ -24,10 +24,10 @@ namespace NsdServer
 
 	using ListenResult = std::variant<SetupError, SocketError>;
 
-	std::variant<int, std::string> openNsdSocket(const Network::AddressType addressType);
+	std::variant<Network::RawSocket, std::string> openNsdSocket(const Network::AddressType addressType);
 
 	ListenResult listen(
-		int socket,
+		Network::RawSocket socket,
 		const char* interfaceAddressStr,
 		Network::AddressType addressType,
 		uint16_t port,
