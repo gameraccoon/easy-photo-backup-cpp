@@ -3,22 +3,13 @@
 
 #include "server_shared/tcp_server.h"
 
-#if _WIN32
-#include <winsock32.h>
-#else
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
 #include <cstring>
 #include <format>
 #include <thread>
 
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
+#include "common_shared/network/raw_sockets.h"
 #include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
 #include "common_shared/template_utils.h"

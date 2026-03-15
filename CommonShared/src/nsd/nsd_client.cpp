@@ -3,24 +3,14 @@
 
 #include "common_shared/nsd/nsd_client.h"
 
-#include "common_shared/nsd/utils_internal.h"
-
-#if _WIN32
-#include <winsock32.h>
-#else
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
 #include <bit>
 #include <chrono>
 #include <cstring>
 #include <format>
 
 #include "common_shared/debug/assert.h"
+#include "common_shared/network/raw_sockets.h"
+#include "common_shared/nsd/utils_internal.h"
 #include "common_shared/serialization/number_serialization.h"
 
 namespace NsdClient
