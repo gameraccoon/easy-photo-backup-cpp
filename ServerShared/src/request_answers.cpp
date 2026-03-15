@@ -15,7 +15,7 @@
 
 namespace RequestAnswers
 {
-	std::optional<std::string> sendRequestAnswer(int socket, RequestAnswer&& requestAnswer)
+	std::optional<std::string> sendRequestAnswer(Network::RawSocket socket, RequestAnswer&& requestAnswer)
 	{
 		return std::visit(
 			VisitLambda{

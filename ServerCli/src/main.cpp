@@ -20,7 +20,7 @@ int main()
 		return 0;
 	}
 
-	const int socket = std::get<int>(openSocketResult);
+	const Network::RawSocket socket = std::get<Network::RawSocket>(openSocketResult);
 	std::atomic_bool nsdCloseSocketFlag{};
 
 	auto stopNsdServer = [socket, &nsdCloseSocketFlag] {

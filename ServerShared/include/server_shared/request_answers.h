@@ -6,6 +6,7 @@
 #include <variant>
 
 #include "common_shared/network/protocol.h"
+#include "common_shared/network/utils.h"
 
 namespace RequestAnswers
 {
@@ -16,5 +17,5 @@ namespace RequestAnswers
 		GetProtocolVersion,
 		GetServerName>;
 
-	std::optional<std::string> sendRequestAnswer(int socket, RequestAnswer&& requestAnswer);
+	std::optional<std::string> sendRequestAnswer(Network::RawSocket socket, RequestAnswer&& requestAnswer);
 } // namespace RequestAnswers

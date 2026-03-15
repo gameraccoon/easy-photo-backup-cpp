@@ -20,7 +20,7 @@
 
 namespace TcpServer
 {
-	static void handleClient(const int socket, sockaddr /*clientAddr*/, socklen_t /*clientAddrLen*/)
+	static void handleClient(const Network::RawSocket socket, sockaddr /*clientAddr*/, socklen_t /*clientAddrLen*/)
 	{
 		// we need to make sure to have a timeout to not get DOS as soon as a couple of connections hangs
 		// we should have a shorter timeout now and increase it when we authentificate the user for the file transfer
@@ -103,13 +103,13 @@ namespace TcpServer
 
 	std::optional<std::string> runServer(const char* interfaceAddressStr, const Network::AddressType addressType, std::promise<uint16_t>& portPromise)
 	{
-		std::variant<int, std::string> createSocketResult = createSocket(Network::SocketType::Tcp, addressType);
+		std::variant<Network::RawSocket, std::string> createSocketResult = createSocket(Network::SocketType::Tcp, addressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
 		{
 			return std::get<std::string>(createSocketResult);
 		}
 
-		const Network::AutoclosingSocket socket = Network::AutoclosingSocket(std::get<int>(std::move(createSocketResult)));
+		const Network::AutoclosingSocket socket = Network::AutoclosingSocket(std::get<Network::RawSocket>(std::move(createSocketResult)));
 
 		if (auto result = Network::setSocketOption(socket, SO_REUSEADDR); result.has_value())
 		{
@@ -151,7 +151,7 @@ namespace TcpServer
 		socklen_t clientAddrLen = sizeof(sockaddr);
 		while (true)
 		{
-			const int connectionSocket = accept(socket, &clientAddr, &clientAddrLen);
+			const Network::RawSocket connectionSocket = accept(socket, &clientAddr, &clientAddrLen);
 			if (connectionSocket == -1)
 			{
 				break;

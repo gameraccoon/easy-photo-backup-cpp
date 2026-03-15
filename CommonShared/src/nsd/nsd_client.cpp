@@ -23,7 +23,7 @@ namespace NsdClient
 		return std::format("aloha:{}\n", serviceIdentifier);
 	}
 
-	static std::optional<std::string> broadcastNdsUdpRequest(const int socket, const Network::AddressType addressType, const std::string_view query, const uint16_t port)
+	static std::optional<std::string> broadcastNdsUdpRequest(const Network::RawSocket socket, const Network::AddressType addressType, const std::string_view query, const uint16_t port)
 	{
 		ssize_t sentSize;
 		if (addressType == Network::AddressType::IpV4) [[likely]]
@@ -62,7 +62,7 @@ namespace NsdClient
 		}
 	};
 
-	static bool processUdpRequestAnswer(const int socket, std::byte* const inOutBuffer, const size_t bufferSize, NetworkAddressKey& outNetAddress, uint16_t& outPort, std::vector<std::byte>& outExtraData)
+	static bool processUdpRequestAnswer(const Network::RawSocket socket, std::byte* const inOutBuffer, const size_t bufferSize, NetworkAddressKey& outNetAddress, uint16_t& outPort, std::vector<std::byte>& outExtraData)
 	{
 		// for the simplicity sake, we use UDP to communicate back as well
 		// this can miss packets sometimes, but it's fine for our use case
@@ -129,14 +129,14 @@ namespace NsdClient
 			return "service identifier can't be nullptr";
 		}
 
-		std::variant<int, std::string> createSocketResult = Network::createSocket(Network::SocketType::Udp, addressType);
+		std::variant<Network::RawSocket, std::string> createSocketResult = Network::createSocket(Network::SocketType::Udp, addressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
 		{
 			reportDebugError("Could not create NSD client socket");
 			return std::get<std::string>(createSocketResult);
 		}
 
-		const Network::AutoclosingSocket socket = Network::AutoclosingSocket(std::get<int>(std::move(createSocketResult)));
+		const Network::AutoclosingSocket socket = Network::AutoclosingSocket(std::get<Network::RawSocket>(std::move(createSocketResult)));
 
 		if (auto result = Network::setSocketOption(socket, SO_BROADCAST); result.has_value())
 		{

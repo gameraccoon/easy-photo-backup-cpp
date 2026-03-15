@@ -95,14 +95,14 @@ namespace Requests
 
 	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, const int port, Request&& request)
 	{
-		std::variant<int, std::string> createSocketResult = Network::createSocket(Network::SocketType::Tcp, serverAddressType);
+		std::variant<Network::RawSocket, std::string> createSocketResult = Network::createSocket(Network::SocketType::Tcp, serverAddressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
 		{
 			reportDebugError("Could not create a TCP socket to send a request from client");
 			return RequestAnswers::Error{ std::get<std::string>(createSocketResult) };
 		}
 
-		const Network::AutoclosingSocket socket = Network::AutoclosingSocket(std::get<int>(std::move(createSocketResult)));
+		const Network::AutoclosingSocket socket = Network::AutoclosingSocket(std::get<Network::RawSocket>(std::move(createSocketResult)));
 
 		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, 1, 0); result.has_value())
 		{
