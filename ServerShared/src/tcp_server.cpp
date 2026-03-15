@@ -3,6 +3,7 @@
 
 #include "server_shared/tcp_server.h"
 
+#include <array>
 #include <cstring>
 #include <format>
 #include <thread>

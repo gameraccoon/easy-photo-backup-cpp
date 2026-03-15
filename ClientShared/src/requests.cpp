@@ -3,6 +3,7 @@
 
 #include "client_shared/requests.h"
 
+#include <array>
 #include <cstring>
 #include <format>
 #include <span>

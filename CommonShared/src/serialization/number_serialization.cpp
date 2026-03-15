@@ -3,6 +3,8 @@
 
 #include "common_shared/serialization/number_serialization.h"
 
+#include <bit>
+
 namespace Serialization
 {
 	void appendByte(std::vector<std::byte>& inOutStream, std::byte newValue)

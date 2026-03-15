@@ -3,6 +3,7 @@
 
 #include "server_shared/request_answers.h"
 
+#include <array>
 #include <cstring>
 #include <optional>
 

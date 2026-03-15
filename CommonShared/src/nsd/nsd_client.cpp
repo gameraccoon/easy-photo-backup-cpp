@@ -3,10 +3,13 @@
 
 #include "common_shared/nsd/nsd_client.h"
 
+#include <array>
 #include <bit>
 #include <chrono>
 #include <cstring>
 #include <format>
+#include <ranges>
+#include <vector>
 
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/raw_sockets.h"
