@@ -3,19 +3,10 @@
 
 #include "server_shared/request_answers.h"
 
-#if _WIN32
-#include <winsock32.h>
-#else
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
 #include <cstring>
 #include <optional>
 
+#include "common_shared/network/raw_sockets.h"
 #include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
 #include "common_shared/serialization/string_serialization.h"

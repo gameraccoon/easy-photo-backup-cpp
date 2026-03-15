@@ -3,16 +3,6 @@
 
 #include "common_shared/network/utils.h"
 
-#if _WIN32
-#include <winsock32.h>
-#else
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
 #include <algorithm>
 #include <bit>
 #include <climits>
@@ -20,6 +10,7 @@
 #include <format>
 
 #include "common_shared/debug/assert.h"
+#include "common_shared/network/raw_sockets.h"
 
 namespace Network
 {
