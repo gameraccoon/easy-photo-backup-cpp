@@ -4,7 +4,12 @@
 #pragma once
 
 #if _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <winsock2.h>
+#include <ws2ipdef.h>
+#include <WS2tcpip.h>
+#include <WSPiApi.h>
 #else
 #include <arpa/inet.h>
 #include <netdb.h>
