@@ -265,8 +265,6 @@ namespace Network
 
 			return innerBind(address, socket);
 		}
-
-		return std::nullopt;
 	}
 
 	std::optional<std::string> connectToServer(const int socket, const char* const address, const AddressType addressType, const uint16_t port)
