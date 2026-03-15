@@ -90,12 +90,17 @@ namespace NsdServer
 
 		constexpr size_t BUFFER_SIZE = 1024;
 		char buf[BUFFER_SIZE];
-		ssize_t messageLength;
+#if _WIN32
+		using RecvFromResult = int;
+#else
+		using RecvFromResult = ssize_t;
+#endif
+		RecvFromResult messageLength = 0;
 		sockaddr clientAddr;
 		socklen_t clientAddrLen = sizeof(clientAddr);
 		while ((messageLength = recvfrom(socket, buf, BUFFER_SIZE, 0, &clientAddr, &clientAddrLen)) != -1)
 		{
-			if (messageLength != static_cast<ssize_t>(expectedPacket.size()))
+			if (messageLength != static_cast<RecvFromResult>(expectedPacket.size()))
 			{
 				continue;
 			}
@@ -105,7 +110,7 @@ namespace NsdServer
 				continue;
 			}
 
-			if (const ssize_t sentSize = sendto(socket, response.data(), responseSize, 0, &clientAddr, clientAddrLen); sentSize == -1)
+			if (const auto sentSize = sendto(socket, std::bit_cast<const char*>(response.data()), static_cast<int>(responseSize), 0, &clientAddr, clientAddrLen); sentSize == -1)
 			{
 				return SocketError{ std::format("Failed to send response to UDP socket, error code {}.", errno) };
 			}

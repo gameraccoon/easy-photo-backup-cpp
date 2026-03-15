@@ -93,7 +93,7 @@ namespace Requests
 		return RequestAnswers::Error{ std::format("Unknown answer {} to request {}", static_cast<int>(answerId), static_cast<int>(request)) };
 	}
 
-	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, const int port, Request&& request)
+	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, const uint16_t port, Request&& request)
 	{
 		std::variant<Network::RawSocket, std::string> createSocketResult = Network::createSocket(Network::SocketType::Tcp, serverAddressType);
 		if (std::holds_alternative<std::string>(createSocketResult))

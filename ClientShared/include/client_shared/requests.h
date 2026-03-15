@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cinttypes>
 #include <variant>
 
 #include "common_shared/network/protocol.h"
@@ -18,5 +19,5 @@ namespace Requests
 		GetProtocolVersion,
 		GetServerName>;
 
-	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, int port, Request&& request);
+	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, uint16_t port, Request&& request);
 }
