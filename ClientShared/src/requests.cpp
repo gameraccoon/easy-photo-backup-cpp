@@ -89,7 +89,7 @@ namespace Requests
 				RequestAnswers::GetServerName answer;
 				if (auto result = Serialization::readShortString(answerData, answer.serverName, Protocol::MaxServerNameSize); result.has_value())
 				{
-					return RequestAnswers::Error{ std::move(result->errorMessage) };
+					return RequestAnswers::Error{ std::move(*result) };
 				}
 				return answer;
 			}

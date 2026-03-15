@@ -42,31 +42,31 @@ namespace Serialization
 		return std::nullopt;
 	}
 
-	std::optional<Error> readShortString(std::span<std::byte> stream, std::string& outString, size_t maxStringLength)
+	std::optional<std::string> readShortString(std::span<std::byte> buffer, std::string& outString, size_t maxStringLength)
 	{
-		if (stream.size() < 1) [[unlikely]]
+		if (buffer.size() < 1) [[unlikely]]
 		{
 			reportDebugError("Trying to read a string but the buffer is too small to fit the size byte");
-			return Error{ "Trying to read a string but the buffer is too small to fit the size byte" };
+			return "Trying to read a string but the buffer is too small to fit the size byte";
 		}
 
-		const size_t stringSize = static_cast<size_t>(stream[0]);
+		const size_t providedStringSize = static_cast<size_t>(buffer[0]);
 
-		if (stream.size() < stringSize + 1) [[unlikely]]
+		if (providedStringSize + 1 < buffer.size()) [[unlikely]]
 		{
-			reportDebugError("The string size is greater than the amount of data to read if from, string size: {}, stream size", stringSize, stream.size());
-			return Error{ std::format("The string size is greater than the amount of data to read if from, string size: {}, stream size", stringSize, stream.size()) };
+			reportDebugError("The string size is greater than the space in the buffer, string size: {}, buffer size", providedStringSize, buffer.size());
+			return std::format("The string size is greater than the space in the buffer, string size: {}, buffer size", providedStringSize, buffer.size());
 		}
 
-		if (stringSize > maxStringLength) [[unlikely]]
+		if (providedStringSize > maxStringLength) [[unlikely]]
 		{
-			reportDebugError("The received string is longer than max allowed. Received {}, max allowed {}", stringSize, maxStringLength);
-			return Error{ std::format("The received string is longer than max allowed. Received {}, max allowed {}", stringSize, maxStringLength) };
+			reportDebugError("The received string is longer than allowed. Received {}, max allowed {}", providedStringSize, maxStringLength);
+			return std::format("The received string is longer than allowed. Received {}, max allowed {}", providedStringSize, maxStringLength);
 		}
 
 		outString.clear();
-		outString.reserve(stream.size());
-		std::copy(std::bit_cast<char*>(stream.data() + 1), std::bit_cast<char*>(stream.data() + stringSize + 1), std::back_inserter(outString));
+		outString.reserve(providedStringSize);
+		std::copy(std::bit_cast<char*>(buffer.data() + 1), std::bit_cast<char*>(buffer.data() + providedStringSize + 1), std::back_inserter(outString));
 
 		return std::nullopt;
 	}

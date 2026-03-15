@@ -11,11 +11,6 @@
 
 namespace Serialization
 {
-	struct Error
-	{
-		std::string errorMessage;
-	};
-
-	std::optional<std::string> writeShortString(std::span<std::byte> stream, std::string_view string, size_t& outBytesWritten);
-	std::optional<Error> readShortString(std::span<std::byte> stream, std::string& outString, size_t maxStringLength);
+	std::optional<std::string> writeShortString(std::span<std::byte> buffer, std::string_view string, size_t& outBytesWritten);
+	std::optional<std::string> readShortString(std::span<std::byte> buffer, std::string& outString, size_t maxStringLength);
 } // namespace Serialization
