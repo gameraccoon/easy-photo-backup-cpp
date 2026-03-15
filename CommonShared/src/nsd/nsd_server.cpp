@@ -47,11 +47,13 @@ namespace NsdServer
 			return SetupError{ *result };
 		}
 
+#if !_WIN32
 		if (auto result = Network::setSocketOption(socket, SO_REUSEPORT); result.has_value())
 		{
 			reportDebugError("Could not set SO_REUSEPORT flag to NSD server socket");
 			return SetupError{ *result };
 		}
+#endif
 
 		if (auto result = Network::bindSocket(socket, interfaceAddressStr, addressType, port); result.has_value())
 		{
