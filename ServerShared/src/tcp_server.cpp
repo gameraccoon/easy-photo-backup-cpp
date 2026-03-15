@@ -141,8 +141,8 @@ namespace TcpServer
 		constexpr int MAX_QUEUED_REQUESTS = 4;
 		if (const int result = listen(socket, MAX_QUEUED_REQUESTS); result == -1)
 		{
-			reportDebugError("Could not start listening to TCP socket, error code {} '{}'.", errno, strerror(errno));
-			return std::format("Could not start listening to TCP socket, error code {} '{}'.", errno, strerror(errno));
+			reportDebugError("Could not start listening to TCP socket, error code {}.", errno);
+			return std::format("Could not start listening to TCP socket, error code {}.", errno);
 		}
 
 		sockaddr clientAddr;
