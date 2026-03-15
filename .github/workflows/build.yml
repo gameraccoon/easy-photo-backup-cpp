@@ -24,6 +24,9 @@ jobs:
         submodules: recursive
         lfs: true
 
+    - name: Install build dependencies
+      run: sudo apt install autoconf bison flex
+
     - name: Create build directory
       run: mkdir build
 

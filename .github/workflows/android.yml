@@ -30,6 +30,9 @@ jobs:
         submodules: recursive
         lfs: true
 
+    - name: Install build dependencies
+      run: sudo apt install autoconf bison flex
+
     - name: set up JDK 17
       uses: actions/setup-java@v4
       with:

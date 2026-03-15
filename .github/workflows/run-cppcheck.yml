@@ -21,7 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install build dependencies
+        run: sudo apt install autoconf bison flex
+
       - name: Install cppcheck
         run: sudo apt install cppcheck
+
       - name: Run cppcheck (fail if return code is not zero)
         run: tools/validate/cppcheck.sh
