@@ -9,8 +9,6 @@ set(COMMON_SHARED_INCLUDE_BASE_DIR ${COMMON_SHARED_ROOT}/include)
 set(COMMON_SHARED_INCLUDE_DIR ${COMMON_SHARED_INCLUDE_BASE_DIR}/common_shared)
 set(COMMON_SHARED_SRC_DIR ${COMMON_SHARED_ROOT}/src)
 
-add_subdirectory(${COMMON_SHARED_ROOT}/deps/mbedtls ${COMMON_SHARED_ROOT}/build/mdebtls)
-
 add_library(CommonShared STATIC)
 
 if(MSVC)
@@ -37,6 +35,9 @@ target_sources(CommonShared
 		${COMMON_SHARED_SRC_DIR}/serialization/string_serialization.cpp
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/utils_internal.h
 
+		${COMMON_SHARED_ROOT}/deps/monocypher-4.0.2/src/monocypher.c
+		${COMMON_SHARED_ROOT}/deps/monocypher-4.0.2/src/monocypher.h
+
 	PUBLIC
 		${COMMON_SHARED_INCLUDE_DIR}/debug/assert.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h
@@ -47,9 +48,4 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/number_serialization.h
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/raw_data_serialization.h
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/string_serialization.h
-)
-
-target_link_libraries(CommonShared
-	PRIVATE
-		mbedtls
 )
