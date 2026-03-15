@@ -34,3 +34,26 @@ jobs:
     - name: Run Make
       run: make
       working-directory: build
+
+  build-windows:
+    runs-on: windows-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-build-windows
+      cancel-in-progress: true
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+        lfs: true
+
+    - name: Create build directory
+      run: mkdir build
+
+    - name: Run CMake
+      run: cmake .. -G "Visual Studio 17 2022" -A x64
+      working-directory: build
+
+    - name: Run MSBuild
+      run: cmake --build . --config Release
+      working-directory: build
