@@ -13,6 +13,16 @@ set(COMMON_SHARED_INCLUDE_DIR ${COMMON_SHARED_INCLUDE_BASE_DIR}/common_shared)
 set(COMMON_SHARED_SRC_DIR ${COMMON_SHARED_ROOT}/src)
 
 # Noise-C stuff begin
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+	set(AUTOTOOLS_HOST aarch64-linux-android)
+elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+	set(AUTOTOOLS_HOST armv7a-linux-androideabi)
+elseif(ANDROID_ABI STREQUAL "x86_64")
+	set(AUTOTOOLS_HOST x86_64-linux-android)
+elseif(ANDROID_ABI STREQUAL "x86")
+	set(AUTOTOOLS_HOST i686-linux-android)
+endif()
+
 find_program(AUTORECONF_EXECUTABLE autoreconf)
 find_program(BISON_EXECUTABLE bison)
 find_program(FLEX_EXECUTABLE flex)
@@ -34,7 +44,7 @@ ExternalProject_Add(NoiseC
 	DOWNLOAD_COMMAND ""
 	CONFIGURE_COMMAND
 		${AUTORECONF_EXECUTABLE} -i
-		COMMAND ./configure --disable-shared --enable-static
+		COMMAND ./configure --disable-shared --enable-static --host=${AUTOTOOLS_HOST}
 	BUILD_COMMAND make
 	INSTALL_COMMAND ""
 	BUILD_IN_SOURCE ON
