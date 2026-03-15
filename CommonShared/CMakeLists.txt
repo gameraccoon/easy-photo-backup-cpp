@@ -9,7 +9,11 @@ set(COMMON_SHARED_INCLUDE_BASE_DIR ${COMMON_SHARED_ROOT}/include)
 set(COMMON_SHARED_INCLUDE_DIR ${COMMON_SHARED_INCLUDE_BASE_DIR}/common_shared)
 set(COMMON_SHARED_SRC_DIR ${COMMON_SHARED_ROOT}/src)
 
-add_subdirectory(${COMMON_SHARED_ROOT}/deps/mbedtls ${COMMON_SHARED_ROOT}/build/mdebtls)
+# set monocypher into a separate library so it doesn't use the same compiler flags
+set(MONOCYPHER_ROOT ${COMMON_SHARED_ROOT}/deps/monocypher-4.0.2)
+add_library(Monocypher STATIC)
+target_sources(Monocypher PRIVATE ${MONOCYPHER_ROOT}/src/monocypher.c)
+target_include_directories(Monocypher PRIVATE ${MONOCYPHER_ROOT}/src)
 
 add_library(CommonShared STATIC)
 
@@ -21,7 +25,7 @@ endif()
 
 target_include_directories(CommonShared PRIVATE
 	${COMMON_SHARED_INCLUDE_BASE_DIR}
-	${MAIN_ROOT}/deps/mbedtls/include
+	${MONOCYPHER_ROOT}/src
 )
 
 target_sources(CommonShared
@@ -57,6 +61,7 @@ endif()
 
 target_link_libraries(CommonShared
 	PRIVATE
-		mbedtls
+		Monocypher
 		${PLATFORM_LIBRARIES}
+
 )
