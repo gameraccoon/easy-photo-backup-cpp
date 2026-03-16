@@ -49,7 +49,14 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/string_serialization.h
 )
 
+if(MSVC)
+	set(PLATFORM_LIBRARIES ws2_32 wsock32)
+else()
+	set(PLATFORM_LIBRARIES "")
+endif()
+
 target_link_libraries(CommonShared
 	PRIVATE
 		mbedtls
+		${PLATFORM_LIBRARIES}
 )
