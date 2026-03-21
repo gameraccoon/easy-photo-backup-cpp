@@ -30,6 +30,9 @@ target_include_directories(CommonShared PRIVATE
 
 target_sources(CommonShared
 	PRIVATE
+		${COMMON_SHARED_SRC_DIR}/cryptography/dh-functions.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/keypair.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/random.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/assert.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/log.cpp
 		${COMMON_SHARED_SRC_DIR}/network/utils.cpp
@@ -42,6 +45,9 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/utils_internal.h
 
 	PUBLIC
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/dh-functions.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/keypair.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/random.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/assert.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h
 		${COMMON_SHARED_INCLUDE_DIR}/network/utils.h
