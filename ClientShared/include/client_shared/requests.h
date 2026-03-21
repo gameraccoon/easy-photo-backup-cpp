@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <cinttypes>
+#include <cstdint>
 #include <variant>
 
 #include "common_shared/network/protocol.h"
