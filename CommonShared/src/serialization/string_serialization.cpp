@@ -42,7 +42,7 @@ namespace Serialization
 		return std::nullopt;
 	}
 
-	std::optional<std::string> readShortString(std::span<std::byte> buffer, std::string& outString, size_t maxStringLength)
+	std::optional<std::string> readShortString(const std::span<const std::byte> buffer, std::string& outString, size_t maxStringLength)
 	{
 		if (buffer.size() < 1) [[unlikely]]
 		{

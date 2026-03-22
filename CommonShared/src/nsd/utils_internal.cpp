@@ -5,7 +5,7 @@
 
 namespace NsdInternalUtils
 {
-	uint16_t checksum16v1(const std::span<std::byte>& data)
+	uint16_t checksum16v1(const std::span<const std::byte> data)
 	{
 		// this is a very trivial checksum, eventually we want crc16 here
 		uint16_t checksum = 0;

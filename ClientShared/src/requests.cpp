@@ -37,7 +37,7 @@ namespace Requests
 		);
 	}
 
-	static RequestAnswers::RequestAnswer readRequestAnswer(Protocol::RequestId request, std::byte answerId, const std::span<std::byte> answerData)
+	static RequestAnswers::RequestAnswer readRequestAnswer(Protocol::RequestId request, std::byte answerId, const std::span<const std::byte> answerData)
 	{
 		using namespace RequestAnswers;
 

@@ -21,5 +21,5 @@ namespace Requests
 		GetProtocolVersion,
 		GetServerName>;
 
-	RequestVariant parseRequest(std::byte requestId, const std::span<std::byte>& requestData);
+	RequestVariant parseRequest(std::byte requestId, std::span<std::byte const> requestData);
 } // namespace Requests

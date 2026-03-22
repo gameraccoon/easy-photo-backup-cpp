@@ -9,7 +9,7 @@
 
 namespace Requests
 {
-	RequestVariant parseRequest(std::byte requestId, const std::span<std::byte>& /*requestData*/)
+	RequestVariant parseRequest(std::byte requestId, const std::span<const std::byte> /*requestData*/)
 	{
 		switch (static_cast<char>(requestId))
 		{

@@ -9,5 +9,5 @@
 namespace NsdInternalUtils
 {
 	[[nodiscard]]
-	uint16_t checksum16v1(const std::span<std::byte>& data);
+	uint16_t checksum16v1(const std::span<const std::byte> data);
 } // namespace NsdInternalUtils
