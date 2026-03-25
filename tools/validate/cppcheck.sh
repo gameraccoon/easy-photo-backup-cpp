@@ -15,6 +15,7 @@ check cppcheck -q --error-exitcode=1 --check-level=exhaustive ClientShared --fil
 check cppcheck -q --error-exitcode=1 --check-level=exhaustive CommonShared --file-filter=CommonShared/src/**
 check cppcheck -q --error-exitcode=1 --check-level=exhaustive ServerCli --file-filter=ServerCli/src/**
 check cppcheck -q --error-exitcode=1 --check-level=exhaustive ServerShared --file-filter=ServerShared/src/**
+check cppcheck -q --error-exitcode=1 --check-level=exhaustive Tests --file-filter=Tests/src/**
 check cppcheck -q --error-exitcode=1 --check-level=exhaustive platforms/android/app/src/main/cpp
 
 exit $return_code

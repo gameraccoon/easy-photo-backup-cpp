@@ -12,6 +12,7 @@ on:
       - ServerCli/src/**
       - ServerShared/include/**
       - ServerShared/src/**
+      - Tests/src/**
       - platforms/android/app/src/main/cpp/**
       - .clang-format
       - tools/validate/**
