@@ -15,6 +15,8 @@ namespace Cryptography
 		PublicKey,
 		SecretKey,
 		DhResult,
+		HashResult,
+		TempInternalBuffer,
 	};
 
 	void secureErase(std::span<uint8_t> rawData);

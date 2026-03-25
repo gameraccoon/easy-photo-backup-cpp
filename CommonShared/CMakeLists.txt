@@ -32,6 +32,7 @@ target_sources(CommonShared
 	PRIVATE
 		${COMMON_SHARED_SRC_DIR}/cryptography/dh-functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/erasable-data.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/hash-functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/keypair.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/random.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/assert.cpp
@@ -48,6 +49,7 @@ target_sources(CommonShared
 	PUBLIC
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/dh-functions.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/erasable-data.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/hash-functions.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/keypair.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/random.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/assert.h
