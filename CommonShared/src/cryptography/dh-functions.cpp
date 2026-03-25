@@ -9,7 +9,7 @@
 
 namespace Cryptography
 {
-	Keypair generateKeypair()
+	Keypair generateKeypair_x25519()
 	{
 		Keypair newKeypair;
 
@@ -22,7 +22,7 @@ namespace Cryptography
 		return newKeypair;
 	}
 
-	DhResult diffieHellman(const SecretKey& secretKey, const PublicKey& publicKey)
+	DhResult diffieHellman_x25519(const SecretKey& secretKey, const PublicKey& publicKey)
 	{
 		DhResult result;
 		// static_assert doesn't work on constexpr functions on arguments for some reason, do sizeof to have at least something

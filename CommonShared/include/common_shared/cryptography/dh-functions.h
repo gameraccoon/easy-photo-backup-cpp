@@ -7,7 +7,9 @@
 
 namespace Cryptography
 {
-	Keypair generateKeypair();
+	using DhResult = ByteSequence<Tag::DhResult, DHLEN>;
 
-	DhResult diffieHellman(const SecretKey& secretKey, const PublicKey& publicKey);
-} // namespace Cryptography
+	Keypair generateKeypair_x25519();
+
+	DhResult diffieHellman_x25519(const SecretKey& secretKey, const PublicKey& publicKey);
+}
