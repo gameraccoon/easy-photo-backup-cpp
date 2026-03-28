@@ -16,6 +16,7 @@ else()
 endif()
 
 target_include_directories(Tests PRIVATE
+	${TESTS_ROOT}/include
 	${MAIN_ROOT}/CommonShared/include
 	${TESTS_ROOT}/deps/googletest/googletest
 	${TESTS_ROOT}/deps/googletest/googletest/include
