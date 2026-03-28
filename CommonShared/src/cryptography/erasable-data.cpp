@@ -7,8 +7,14 @@
 
 namespace Cryptography
 {
-	void secureErase(std::span<uint8_t> rawData)
+	void cryptoWipeRawData(std::span<uint8_t> rawData)
 	{
 		crypto_wipe(rawData.data(), rawData.size());
 	}
+
+	using StaticAssertTestByteSequence = ByteSequence<Tag::TempInternalBuffer, 60>;
+	// these are important for some of the static asserts to work
+	// (some require using sizeof when passed by reference)
+	static_assert(sizeof(StaticAssertTestByteSequence::raw) == 60);
+	static_assert(sizeof(StaticAssertTestByteSequence) == 60);
 } // namespace Cryptography

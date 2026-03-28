@@ -1,7 +1,7 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "tests/test_helper_functions.h"
+#include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
 #include "common_shared/cryptography/hash-functions.h"
@@ -20,7 +20,7 @@ static void testHmac_blake2b(const std::span<const uint8_t> keyVec, const std::s
 	EXPECT_EQ(actualResult.raw, expectedResult);
 }
 
-static void testHkdf_blake2b(const std::span<const uint8_t> chainingKeyVec, const std::span<const uint8_t> inputKeyMaterial, int numOutputs, const std::span<const uint8_t> expected1Vec, const std::optional<std::span<const uint8_t>> expected2Vec, const std::optional<std::span<const uint8_t>> expected3Vec)
+static void testHkdf_blake2b(std::vector<uint8_t>&& chainingKeyVec, std::vector<uint8_t>&& inputKeyMaterial, int numOutputs, std::vector<uint8_t>&& expected1Vec, std::optional<std::vector<uint8_t>>&& expected2Vec, std::optional<std::vector<uint8_t>>&& expected3Vec)
 {
 	Cryptography::HashResult chainingKey;
 	vectorToArray(chainingKeyVec, chainingKey.raw);
@@ -44,7 +44,7 @@ static void testHkdf_blake2b(const std::span<const uint8_t> chainingKeyVec, cons
 	Cryptography::HashResult actualResult3;
 	Cryptography::HKDF_blake2b(
 		chainingKey,
-		inputKeyMaterial,
+		Cryptography::DynByteSequence::fromVector(std::move(inputKeyMaterial)),
 		static_cast<uint8_t>(numOutputs),
 		actualResult1,
 		expected2Vec.has_value() ? &actualResult2 : nullptr,

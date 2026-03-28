@@ -19,8 +19,8 @@ namespace Cryptography
 		crypto_blake2b_update(context, data.raw.data(), data.raw.size());
 	}
 
-	// dynamic len (avoid when possible)
-	static void hashUpdateDyn_blake2b(crypto_blake2b_ctx* context, std::span<const uint8_t> data)
+	// dynamic len raw (avoid when possible)
+	static void hashUpdateDyn_blake2b(crypto_blake2b_ctx* context, const std::span<const uint8_t> data)
 	{
 		crypto_blake2b_update(context, data.data(), data.size());
 	}
@@ -71,7 +71,7 @@ namespace Cryptography
 
 	void HKDF_blake2b(
 		const HashResult& chainingKey,
-		const std::span<const uint8_t> inputKeyMaterial,
+		const DynByteSequence& inputKeyMaterial,
 		uint8_t numOutputs,
 		HashResult& output1,
 		HashResult* output2,
@@ -102,7 +102,7 @@ namespace Cryptography
 		ByteSequence<Tag::TempInternalBuffer, HASHLEN + 1> temp;
 		std::copy(output1.raw.begin(), output1.raw.end(), temp.raw.begin());
 		temp.raw[HASHLEN] = 0x02;
-		HMAC_blake2b(tempKey, temp.raw, *output2);
+		HMAC_blake2b(tempKey, temp, *output2);
 
 		if (numOutputs == 2)
 		{
@@ -117,6 +117,6 @@ namespace Cryptography
 
 		std::copy(output2->raw.begin(), output2->raw.end(), temp.raw.begin());
 		temp.raw[HASHLEN] = 0x03;
-		HMAC_blake2b(tempKey, temp.raw, *output3);
+		HMAC_blake2b(tempKey, temp, *output3);
 	}
 } // namespace Cryptography

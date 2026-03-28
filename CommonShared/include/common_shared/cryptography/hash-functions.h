@@ -22,7 +22,7 @@ namespace Cryptography
 
 	void HKDF_blake2b(
 		const HashResult& chainingKey,
-		std::span<const uint8_t> inputKeyMaterial,
+		const DynByteSequence& inputKeyMaterial,
 		uint8_t numOutputs,
 		HashResult& output1,
 		HashResult* output2,

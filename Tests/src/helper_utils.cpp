@@ -1,7 +1,7 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "tests/test_helper_functions.h"
+#include "tests/helper_utils.h"
 
 void hexCharToInt(const char ch, uint8_t& res)
 {
