@@ -34,7 +34,7 @@ namespace Cryptography
 		crypto_blake2b_final(context, data.raw.data());
 	}
 
-	void HMAC_blake2b(const HashResult& key, std::span<const uint8_t> data, HashResult& outMac)
+	void HMAC_blake2b(const HashResult& key, const std::span<const uint8_t> data, HashResult& outMac)
 	{
 		// check https://www.ietf.org/rfc/rfc2104.txt
 
@@ -71,7 +71,7 @@ namespace Cryptography
 
 	void HKDF_blake2b(
 		const HashResult& chainingKey,
-		std::span<const uint8_t> inputKeyMaterial,
+		const std::span<const uint8_t> inputKeyMaterial,
 		uint8_t numOutputs,
 		HashResult& output1,
 		HashResult* output2,
