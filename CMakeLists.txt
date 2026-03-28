@@ -15,6 +15,10 @@ if(DEBUG_CHECKS)
 	add_definitions(-DDEBUG_CHECKS)
 endif(DEBUG_CHECKS)
 
+if(WITH_TESTS)
+	add_definitions(-DWITH_TESTS)
+endif(WITH_TESTS)
+
 # mbedtls options
 set(ENABLE_TESTING OFF CACHE INTERNAL "")
 set(ENABLE_PROGRAMS OFF CACHE INTERNAL "")
@@ -31,4 +35,7 @@ include(${MAIN_ROOT}/ClientShared/CMakeLists.txt)
 include(${MAIN_ROOT}/ServerShared/CMakeLists.txt)
 include(${MAIN_ROOT}/ClientCli/CMakeLists.txt)
 include(${MAIN_ROOT}/ServerCli/CMakeLists.txt)
-include(${MAIN_ROOT}/Tests/CMakeLists.txt)
+
+if(WITH_TESTS)
+	include(${MAIN_ROOT}/Tests/CMakeLists.txt)
+endif(WITH_TESTS)
