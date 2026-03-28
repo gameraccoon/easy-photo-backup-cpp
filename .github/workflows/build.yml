@@ -2,14 +2,14 @@ name: Build
 
 on:
   push:
-    branches: '*'
+    branches: "*"
     paths-ignore:
-    - README.md
-    - LICENSE
-    - CONTRIBUTING.md
-    - .gitignore
-    - '.github/**'
-    - '!.github/workflows/build.yml'
+      - README.md
+      - LICENSE
+      - CONTRIBUTING.md
+      - .gitignore
+      - ".github/**"
+      - "!.github/workflows/build.yml"
 
 jobs:
   build:
@@ -19,21 +19,25 @@ jobs:
       cancel-in-progress: true
 
     steps:
-    - uses: actions/checkout@v6
-      with:
-        submodules: recursive
-        lfs: true
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          lfs: true
 
-    - name: Create build directory
-      run: mkdir build
+      - name: Create build directory
+        run: mkdir build
 
-    - name: Run CMake
-      run: cmake ..
-      working-directory: build
+      - name: Run CMake
+        run: cmake ..
+        working-directory: build
 
-    - name: Run Make
-      run: make
-      working-directory: build
+      - name: Run Make
+        run: make
+        working-directory: build
+
+      - name: Run tests
+        run: ./Tests
+        working-directory: build
 
   build-windows:
     runs-on: windows-latest
@@ -42,18 +46,22 @@ jobs:
       cancel-in-progress: true
 
     steps:
-    - uses: actions/checkout@v6
-      with:
-        submodules: recursive
-        lfs: true
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          lfs: true
 
-    - name: Create build directory
-      run: mkdir build
+      - name: Create build directory
+        run: mkdir build
 
-    - name: Run CMake
-      run: cmake .. -G "Visual Studio 17 2022" -A x64
-      working-directory: build
+      - name: Run CMake
+        run: cmake .. -G "Visual Studio 17 2022" -A x64
+        working-directory: build
 
-    - name: Run MSBuild
-      run: cmake --build . --config Release
-      working-directory: build
+      - name: Run MSBuild
+        run: cmake --build . --config Release
+        working-directory: build
+
+      - name: Run tests
+        run: ./Release/Tests.exe
+        working-directory: build

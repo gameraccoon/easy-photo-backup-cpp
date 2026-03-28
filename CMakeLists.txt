@@ -9,6 +9,7 @@ set(MAIN_ROOT ${CMAKE_CURRENT_LIST_DIR})
 project(EasyPhotoBackup)
 
 option(DEBUG_CHECKS "Enable debug checks and assertions" ON)
+option(WITH_TESTS "Built texts" ON)
 
 # definitions
 if(DEBUG_CHECKS)
