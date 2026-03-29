@@ -12,11 +12,8 @@ on:
       - "!.github/workflows/build.yml"
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-build
-      cancel-in-progress: true
 
     steps:
       - uses: actions/checkout@v6
@@ -41,9 +38,6 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-build-windows
-      cancel-in-progress: true
 
     steps:
       - uses: actions/checkout@v6
