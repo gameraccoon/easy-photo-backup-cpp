@@ -66,7 +66,7 @@ target_sources(CommonShared
 )
 
 if(MSVC)
-	set(PLATFORM_LIBRARIES ws2_32 wsock32)
+	set(PLATFORM_LIBRARIES ws2_32 wsock32 bcrypt)
 else()
 	set(PLATFORM_LIBRARIES "")
 endif()
