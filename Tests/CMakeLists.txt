@@ -3,6 +3,9 @@
 
 cmake_minimum_required(VERSION 3.22.1)
 
+include(CTest)
+include(GoogleTest)
+
 set(TESTS_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
 set(TESTS_SRC_DIR ${TESTS_ROOT}/src)
@@ -34,7 +37,10 @@ target_link_libraries(Tests
 		CommonShared
 )
 
-set(UNITTESTS_SRC
-		${UNITTESTS_SRC}
-		${EXTERNALS_DIR}/sources/googletest/googletest/src/gtest-all.cc
+gtest_discover_tests(Tests)
+
+add_custom_command(TARGET Tests
+	COMMENT "Run tests"
+	POST_BUILD
+	COMMAND ${CMAKE_CTEST_COMMAND} --stop-on-failure --output-on-failure
 )
