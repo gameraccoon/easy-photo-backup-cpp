@@ -1,11 +1,11 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "common_shared/cryptography/dh-functions.h"
+#include "common_shared/cryptography/primitives/dh_functions.h"
 
 #include <monocypher.h>
 
-#include "common_shared/cryptography/random.h"
+#include "common_shared/cryptography/utils/random.h"
 
 namespace Cryptography
 {

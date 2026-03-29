@@ -1,7 +1,7 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "common_shared/cryptography/cipher-functions.h"
+#include "common_shared/cryptography/primitives/cipher_functions.h"
 
 #include <monocypher.h>
 

@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common_shared/cryptography/erasable-data.h"
+#include "common_shared/cryptography/utils/erasable_data.h"
 
 TEST(CryptographyErasableData, ArrayWithData_CryptoWipe_DataIsZeroed)
 {

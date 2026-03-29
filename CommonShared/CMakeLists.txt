@@ -30,12 +30,12 @@ target_include_directories(CommonShared PRIVATE
 
 target_sources(CommonShared
 	PRIVATE
-		${COMMON_SHARED_SRC_DIR}/cryptography/cipher-functions.cpp
-		${COMMON_SHARED_SRC_DIR}/cryptography/dh-functions.cpp
-		${COMMON_SHARED_SRC_DIR}/cryptography/erasable-data.cpp
-		${COMMON_SHARED_SRC_DIR}/cryptography/hash-functions.cpp
-		${COMMON_SHARED_SRC_DIR}/cryptography/keypair.cpp
-		${COMMON_SHARED_SRC_DIR}/cryptography/random.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/cipher_functions.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/dh_functions.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/hash_functions.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/utils/erasable_data.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/utils/keypair.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/utils/random.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/assert.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/log.cpp
 		${COMMON_SHARED_SRC_DIR}/network/utils.cpp
@@ -48,12 +48,12 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/utils_internal.h
 
 	PUBLIC
-		${COMMON_SHARED_INCLUDE_DIR}/cryptography/cipher-functions.h
-		${COMMON_SHARED_INCLUDE_DIR}/cryptography/dh-functions.h
-		${COMMON_SHARED_INCLUDE_DIR}/cryptography/erasable-data.h
-		${COMMON_SHARED_INCLUDE_DIR}/cryptography/hash-functions.h
-		${COMMON_SHARED_INCLUDE_DIR}/cryptography/keypair.h
-		${COMMON_SHARED_INCLUDE_DIR}/cryptography/random.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/primitives/cipher_functions.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/primitives/dh_functions.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/primitives/hash_functions.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/erasable_data.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/keypair.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/random.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/assert.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h
 		${COMMON_SHARED_INCLUDE_DIR}/network/utils.h

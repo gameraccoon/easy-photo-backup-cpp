@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common_shared/cryptography/random.h"
+#include "common_shared/cryptography/utils/random.h"
 
 TEST(CryptographyRandom, random_producesNonZeroArray)
 {

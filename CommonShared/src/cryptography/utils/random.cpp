@@ -1,7 +1,7 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "common_shared/cryptography/random.h"
+#include "common_shared/cryptography/utils/random.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 // clang-format off

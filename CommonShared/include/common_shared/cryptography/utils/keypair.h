@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "common_shared/cryptography/erasable-data.h"
+#include "common_shared/cryptography/utils/erasable_data.h"
 
 namespace Cryptography
 {

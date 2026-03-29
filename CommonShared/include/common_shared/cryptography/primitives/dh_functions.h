@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "common_shared/cryptography/keypair.h"
+#include "common_shared/cryptography/utils/keypair.h"
 
 namespace Cryptography
 {

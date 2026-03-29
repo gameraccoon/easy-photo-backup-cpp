@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common_shared/cryptography/dh-functions.h"
+#include "common_shared/cryptography/primitives/dh_functions.h"
 
 TEST(CryptographyDhFunctions, DhX25519_test)
 {

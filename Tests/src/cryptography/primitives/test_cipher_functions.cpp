@@ -4,8 +4,8 @@
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
-#include "common_shared/cryptography/cipher-functions.h"
-#include "common_shared/cryptography/random.h"
+#include "common_shared/cryptography/primitives/cipher_functions.h"
+#include "common_shared/cryptography/utils/random.h"
 
 TEST(CryptographyCipherFunctions, chacha20poly1305_roundripTest)
 {

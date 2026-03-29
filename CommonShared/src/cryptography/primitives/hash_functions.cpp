@@ -1,13 +1,13 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "common_shared/cryptography/hash-functions.h"
+#include "common_shared/cryptography/primitives/hash_functions.h"
 
 #include <cstring>
 
 #include <monocypher.h>
 
-#include "common_shared/cryptography/erasable-data.h"
+#include "common_shared/cryptography/utils/erasable_data.h"
 #include "common_shared/debug/assert.h"
 
 namespace Cryptography

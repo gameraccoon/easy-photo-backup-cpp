@@ -4,7 +4,7 @@
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
-#include "common_shared/cryptography/hash-functions.h"
+#include "common_shared/cryptography/primitives/hash_functions.h"
 
 static void testHmac_blake2b(const std::span<const uint8_t> keyVec, const std::span<const uint8_t> dataVec, const std::span<const uint8_t> expectedVec)
 {
