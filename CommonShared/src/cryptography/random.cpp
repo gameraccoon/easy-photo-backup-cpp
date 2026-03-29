@@ -6,8 +6,10 @@
 #if defined(_WIN32) || defined(_WIN64)
 // clang-format off
 // order matters
-#include <Windows.h>
+#include <windows.h>
 #include <bcrypt.h>
+
+#include "common_shared/debug/assert.h"
 // clang-format on
 #elif defined(__linux__) && !defined(__ANDROID__)
 #include <sys/random.h>
@@ -23,7 +25,8 @@ namespace Cryptography
 	{
 		// see https://monocypher.org/manual/#Random_number_generation
 #if defined(_WIN32) || defined(_WIN64)
-		BCryptGenRandom(nullptr, outNumber.data(), static_cast<ULONG>(outNumber.size()), 0);
+		const NTSTATUS randStatus = BCryptGenRandom(BCRYPT_RNG_ALG_HANDLE, outNumber.data(), static_cast<ULONG>(outNumber.size()), 0);
+		assertFatalRelease(randStatus == 0, "Failed to generate random number {}", randStatus);
 #elif defined(__linux__) && !defined(__ANDROID__)
 		getrandom(outNumber.data(), outNumber.size(), 0);
 #else
