@@ -1,0 +1,33 @@
+// Copyright (C) Pavel Grebnev 2026
+// Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
+
+#pragma once
+
+#include "common_shared/cryptography/erasable-data.h"
+
+namespace Cryptography
+{
+	constexpr size_t CipherKeySize = 32;
+	constexpr size_t NonceSize = 8;
+	constexpr size_t MaxMessageSize = 65535;
+
+	using CipherKey = ByteSequence<Tag::CipherKey, CipherKeySize>;
+	using Nonce = ByteSequence<Tag::Nonce, NonceSize>;
+
+	void encrypt_chacha20poly1305(
+		const CipherKey& key,
+		const Nonce& nonce,
+		const DynByteSequence& associatedData,
+		const DynByteSequence& plaintext,
+		DynByteSequence& outCiphertext
+	);
+
+	// returns 0 if authentication succeeds, otherwise returns a non-zero error code
+	int decrypt_chacha20poly1305(
+		const CipherKey& key,
+		const Nonce& nonce,
+		const DynByteSequence& associatedData,
+		const DynByteSequence& ciphertext,
+		DynByteSequence& outPlaintext
+	);
+}

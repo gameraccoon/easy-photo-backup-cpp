@@ -17,6 +17,8 @@ namespace Cryptography
 		SecretKey,
 		DhResult,
 		HashResult,
+		CipherKey,
+		Nonce,
 		TempInternalBuffer,
 	};
 

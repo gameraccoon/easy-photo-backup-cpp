@@ -30,6 +30,7 @@ target_include_directories(CommonShared PRIVATE
 
 target_sources(CommonShared
 	PRIVATE
+		${COMMON_SHARED_SRC_DIR}/cryptography/cipher-functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/dh-functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/erasable-data.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/hash-functions.cpp
@@ -47,6 +48,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/utils_internal.h
 
 	PUBLIC
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/cipher-functions.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/dh-functions.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/erasable-data.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/hash-functions.h
