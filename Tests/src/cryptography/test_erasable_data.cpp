@@ -52,7 +52,7 @@ TEST(CryptographyErasableData, DynByteSequence_CreatedFromVector_VectorDataIsMov
 	rawData.reserve(4);
 	for (size_t i = 0; i < 4; ++i)
 	{
-		rawData.push_back(i + 1);
+		rawData.push_back(static_cast<uint8_t>(i + 1));
 	}
 
 	const TestData data = TestData::fromVector(std::move(rawData));
