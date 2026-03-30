@@ -12,11 +12,11 @@ namespace Cryptography
 	constexpr size_t MaxMessageSize = 65535;
 
 	using CipherKey = ByteSequence<Tag::CipherKey, CipherKeySize>;
-	using Nonce = ByteSequence<Tag::Nonce, NonceSize>;
+	using Nonce = uint64_t;
 
 	void encrypt_chacha20poly1305(
 		const CipherKey& key,
-		const Nonce& nonce,
+		const Nonce nonce,
 		const DynByteSequence& associatedData,
 		const DynByteSequence& plaintext,
 		DynByteSequence& outCiphertext
@@ -25,7 +25,7 @@ namespace Cryptography
 	// returns 0 if authentication succeeds, otherwise returns a non-zero error code
 	int decrypt_chacha20poly1305(
 		const CipherKey& key,
-		const Nonce& nonce,
+		const Nonce nonce,
 		const DynByteSequence& associatedData,
 		const DynByteSequence& ciphertext,
 		DynByteSequence& outPlaintext

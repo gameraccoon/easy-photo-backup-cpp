@@ -14,18 +14,25 @@ namespace Cryptography
 	static constexpr size_t ChaCha20NonceSize = 12;
 	using ChaCha20Nonce = ByteSequence<Tag::Nonce, ChaCha20NonceSize>;
 
-	static void prepareChaCha20Nonce(const Nonce& inNonce, ChaCha20Nonce& outChaCha20Nonce)
+	static void prepareChaCha20Nonce(const Nonce inNonce, ChaCha20Nonce& outChaCha20Nonce)
 	{
-		static_assert(sizeof(outChaCha20Nonce.raw) > sizeof(inNonce.raw));
-		const size_t realNonceStartOffset = outChaCha20Nonce.size() - inNonce.size();
-		// set the nonce at the end and prepend with zeros
-		outChaCha20Nonce.raw.fill(0x0);
-		std::copy(inNonce.raw.begin(), inNonce.raw.end(), outChaCha20Nonce.raw.begin() + realNonceStartOffset);
+		outChaCha20Nonce.raw[0] = 0;
+		outChaCha20Nonce.raw[1] = 0;
+		outChaCha20Nonce.raw[2] = 0;
+		outChaCha20Nonce.raw[3] = 0;
+		outChaCha20Nonce.raw[4] = (inNonce & 0x00000000000000FF);
+		outChaCha20Nonce.raw[5] = (inNonce & 0x000000000000FF00) >> 0x08;
+		outChaCha20Nonce.raw[6] = (inNonce & 0x0000000000FF0000) >> 0x10;
+		outChaCha20Nonce.raw[7] = (inNonce & 0x00000000FF000000) >> 0x18;
+		outChaCha20Nonce.raw[8] = (inNonce & 0x000000FF00000000) >> 0x20;
+		outChaCha20Nonce.raw[9] = (inNonce & 0x0000FF0000000000) >> 0x28;
+		outChaCha20Nonce.raw[10] = (inNonce & 0x00FF000000000000) >> 0x30;
+		outChaCha20Nonce.raw[11] = (inNonce & 0xFF00000000000000) >> 0x38;
 	}
 
 	void encrypt_chacha20poly1305(
 		const CipherKey& key,
-		const Nonce& nonce,
+		const Nonce nonce,
 		const DynByteSequence& associatedData,
 		const DynByteSequence& plaintext,
 		DynByteSequence& outCiphertext
@@ -60,7 +67,7 @@ namespace Cryptography
 
 	int decrypt_chacha20poly1305(
 		const CipherKey& key,
-		const Nonce& nonce,
+		const Nonce nonce,
 		const DynByteSequence& associatedData,
 		const DynByteSequence& ciphertext,
 		DynByteSequence& outPlaintext
