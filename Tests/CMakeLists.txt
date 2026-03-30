@@ -3,6 +3,8 @@
 
 cmake_minimum_required(VERSION 3.22.1)
 
+option(RUN_TESTS_ON_BUILD "Should building also run tests" ON)
+
 include(CTest)
 include(GoogleTest)
 
@@ -39,8 +41,10 @@ target_link_libraries(Tests
 
 gtest_discover_tests(Tests)
 
-add_custom_command(TARGET Tests
-	COMMENT "Run tests"
-	POST_BUILD
-	COMMAND ${CMAKE_CTEST_COMMAND} --stop-on-failure --output-on-failure
-)
+if(${RUN_TESTS_ON_BUILD})
+	add_custom_command(TARGET Tests
+		COMMENT "Run tests"
+		POST_BUILD
+		COMMAND ${CMAKE_CTEST_COMMAND} --stop-on-failure --output-on-failure
+	)
+endif()
