@@ -2,6 +2,7 @@
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
 #include "tests/helper_utils.h"
+#include <bit>
 #include <gtest/gtest.h>
 
 #include "common_shared/cryptography/primitives/cipher_functions.h"

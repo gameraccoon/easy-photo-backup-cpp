@@ -16,18 +16,18 @@ namespace Cryptography
 
 	static void prepareChaCha20Nonce(const Nonce inNonce, ChaCha20Nonce& outChaCha20Nonce)
 	{
-		outChaCha20Nonce.raw[0] = 0;
-		outChaCha20Nonce.raw[1] = 0;
-		outChaCha20Nonce.raw[2] = 0;
-		outChaCha20Nonce.raw[3] = 0;
-		outChaCha20Nonce.raw[4] = (inNonce & 0x00000000000000FF);
-		outChaCha20Nonce.raw[5] = (inNonce & 0x000000000000FF00) >> 0x08;
-		outChaCha20Nonce.raw[6] = (inNonce & 0x0000000000FF0000) >> 0x10;
-		outChaCha20Nonce.raw[7] = (inNonce & 0x00000000FF000000) >> 0x18;
-		outChaCha20Nonce.raw[8] = (inNonce & 0x000000FF00000000) >> 0x20;
-		outChaCha20Nonce.raw[9] = (inNonce & 0x0000FF0000000000) >> 0x28;
-		outChaCha20Nonce.raw[10] = (inNonce & 0x00FF000000000000) >> 0x30;
-		outChaCha20Nonce.raw[11] = (inNonce & 0xFF00000000000000) >> 0x38;
+		outChaCha20Nonce.raw[0] = 0x0;
+		outChaCha20Nonce.raw[1] = 0x0;
+		outChaCha20Nonce.raw[2] = 0x0;
+		outChaCha20Nonce.raw[3] = 0x0;
+		outChaCha20Nonce.raw[4] = static_cast<uint8_t>((inNonce & 0x00000000000000FF) >> 0x00);
+		outChaCha20Nonce.raw[5] = static_cast<uint8_t>((inNonce & 0x000000000000FF00) >> 0x08);
+		outChaCha20Nonce.raw[6] = static_cast<uint8_t>((inNonce & 0x0000000000FF0000) >> 0x10);
+		outChaCha20Nonce.raw[7] = static_cast<uint8_t>((inNonce & 0x00000000FF000000) >> 0x18);
+		outChaCha20Nonce.raw[8] = static_cast<uint8_t>((inNonce & 0x000000FF00000000) >> 0x20);
+		outChaCha20Nonce.raw[9] = static_cast<uint8_t>((inNonce & 0x0000FF0000000000) >> 0x28);
+		outChaCha20Nonce.raw[10] = static_cast<uint8_t>((inNonce & 0x00FF000000000000) >> 0x30);
+		outChaCha20Nonce.raw[11] = static_cast<uint8_t>((inNonce & 0xFF00000000000000) >> 0x38);
 	}
 
 	void encrypt_chacha20poly1305(
