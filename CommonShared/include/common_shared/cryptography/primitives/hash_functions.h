@@ -6,15 +6,10 @@
 #include <cstdint>
 #include <span>
 
-#include "common_shared/cryptography/utils/erasable_data.h"
+#include "common_shared/cryptography/types/hash_types.h"
 
 namespace Cryptography
 {
-	constexpr std::size_t HASHLEN = 32;
-	constexpr std::size_t BLOCKLEN = 64;
-
-	using HashResult = ByteSequence<Tag::HashResult, HASHLEN>;
-
 #ifdef WITH_TESTS
 	// it is only used for the HKDF implementations, but we still want to test it
 	void HMAC_blake2b(const HashResult& key, std::span<const uint8_t> data, HashResult& outMac);
@@ -28,4 +23,4 @@ namespace Cryptography
 		HashResult* output2,
 		HashResult* output3
 	);
-}
+} // namespace Cryptography

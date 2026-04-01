@@ -3,12 +3,10 @@
 
 #pragma once
 
-#include "common_shared/cryptography/utils/keypair.h"
+#include "common_shared/cryptography/types/dh_types.h"
 
 namespace Cryptography
 {
-	using DhResult = ByteSequence<Tag::DhResult, DHLEN>;
-
 	Keypair generateKeypair_x25519();
 
 	DhResult diffieHellman_x25519(const SecretKey& secretKey, const PublicKey& publicKey);

@@ -3,17 +3,10 @@
 
 #pragma once
 
-#include "common_shared/cryptography/utils/erasable_data.h"
+#include "common_shared/cryptography/types/cipher_types.h"
 
 namespace Cryptography
 {
-	constexpr size_t CipherKeySize = 32;
-	constexpr size_t NonceSize = 8;
-	constexpr size_t MaxMessageSize = 65535;
-
-	using CipherKey = ByteSequence<Tag::CipherKey, CipherKeySize>;
-	using Nonce = uint64_t;
-
 	void encrypt_chacha20poly1305(
 		const CipherKey& key,
 		const Nonce nonce,

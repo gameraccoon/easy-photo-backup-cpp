@@ -34,7 +34,6 @@ target_sources(CommonShared
 		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/dh_functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/hash_functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/utils/erasable_data.cpp
-		${COMMON_SHARED_SRC_DIR}/cryptography/utils/keypair.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/utils/random.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/assert.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/log.cpp
@@ -51,8 +50,10 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/primitives/cipher_functions.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/primitives/dh_functions.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/primitives/hash_functions.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/types/cipher_types.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/types/dh_types.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/types/hash_types.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/erasable_data.h
-		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/keypair.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/random.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/assert.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h

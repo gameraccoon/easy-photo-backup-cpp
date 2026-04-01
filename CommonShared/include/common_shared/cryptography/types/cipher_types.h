@@ -7,14 +7,10 @@
 
 namespace Cryptography
 {
-	constexpr std::size_t DHLEN = 32;
+	constexpr size_t CipherKeySize = 32;
+	constexpr size_t NonceSize = 8;
+	constexpr size_t MaxMessageSize = 65535;
 
-	using PublicKey = ByteSequence<Tag::PublicKey, DHLEN>;
-	using SecretKey = ByteSequence<Tag::SecretKey, DHLEN>;
-
-	struct Keypair
-	{
-		PublicKey publicKey;
-		SecretKey secretKey;
-	};
+	using CipherKey = ByteSequence<Tag::CipherKey, CipherKeySize>;
+	using Nonce = uint64_t;
 } // namespace Cryptography
