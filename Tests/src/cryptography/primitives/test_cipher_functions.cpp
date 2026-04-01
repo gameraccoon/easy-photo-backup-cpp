@@ -1,8 +1,9 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "tests/helper_utils.h"
 #include <bit>
+
+#include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
 #include "common_shared/cryptography/primitives/cipher_functions.h"
