@@ -34,10 +34,6 @@ namespace Noise::Utils
 
 	void mixHash(const std::span<const uint8_t> data, HashResult& inOutH)
 	{
-		std::vector<uint8_t> dataToHash;
-		dataToHash.resize(data.size() + inOutH.size());
-		std::copy(inOutH.raw.begin(), inOutH.raw.end(), dataToHash.begin());
-		std::copy(data.begin(), data.end(), dataToHash.begin() + inOutH.size());
-		hash_blake2b(dataToHash, inOutH);
+		hashWithContext_blake2b(inOutH, data, inOutH);
 	}
 } // namespace Noise::Utils
