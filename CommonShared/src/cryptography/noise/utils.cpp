@@ -37,4 +37,23 @@ namespace Noise::Utils
 		// we could pass only handshakeHash to this function, however that would be a bit more error-prone
 		hashWithContext_blake2b(inOutState.handshakeHash, data, inOutState.handshakeHash);
 	}
+
+	int appendDataToBuffer(const std::span<const uint8_t>& data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos)
+	{
+		if (inOutBuffer.size() < (inOutWritePos + data.size()))
+		{
+			return -1;
+		}
+
+		if (data.size() == 0)
+		{
+			return 0;
+		}
+
+		static_assert(sizeof(data[0]) == sizeof(inOutBuffer[0]));
+		std::copy(data.begin(), data.end(), std::bit_cast<uint8_t*>(inOutBuffer.data()) + inOutWritePos);
+		inOutWritePos += data.size();
+
+		return 0;
+	}
 } // namespace Noise::Utils

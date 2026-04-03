@@ -32,3 +32,21 @@ std::array<uint8_t, Size> vectorToArray(const std::span<const uint8_t> inVector)
 	vectorToArray(inVector, result);
 	return result;
 }
+
+template<size_t Size>
+void vectorToByteArray(const std::span<const uint8_t> inVector, std::array<std::byte, Size>& outArray)
+{
+	ASSERT_EQ(inVector.size(), outArray.size());
+	for (size_t i = 0; i < outArray.size(); ++i)
+	{
+		outArray[i] = static_cast<std::byte>(inVector[i]);
+	}
+}
+
+template<size_t Size>
+std::array<std::byte, Size> vectorToByteArray(const std::span<const uint8_t> inVector)
+{
+	std::array<std::byte, Size> result;
+	vectorToByteArray(inVector, result);
+	return result;
+}

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <string_view>
 
 #include "common_shared/cryptography/noise/types.h"
@@ -13,4 +14,6 @@ namespace Noise::Utils
 
 	SymmetricState initializeSymmetric(const std::string_view protocolName);
 	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState);
+	// returns zero on success, non-zero on failure (not enough space in the buffer)
+	int appendDataToBuffer(const std::span<const uint8_t>& data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos);
 }
