@@ -42,6 +42,15 @@ namespace Cryptography
 		hashFinal_blake2b<HASHLEN>(&context, outHash);
 	}
 
+	void hashWithContext_blake2b(std::span<const uint8_t> con, std::span<const uint8_t> data, HashResult& outHash)
+	{
+		crypto_blake2b_ctx context{};
+		crypto_blake2b_init(&context, HASHLEN);
+		hashUpdateDyn_blake2b(&context, con);
+		hashUpdateDyn_blake2b(&context, data);
+		hashFinal_blake2b<HASHLEN>(&context, outHash);
+	}
+
 	void HMAC_blake2b(const HashResult& key, const std::span<const uint8_t> data, HashResult& outMac)
 	{
 		// check https://www.ietf.org/rfc/rfc2104.txt

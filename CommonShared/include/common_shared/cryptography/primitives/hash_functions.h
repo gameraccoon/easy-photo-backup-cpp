@@ -11,6 +11,7 @@
 namespace Cryptography
 {
 	void hash_blake2b(std::span<const uint8_t> data, HashResult& outHash);
+	void hashWithContext_blake2b(std::span<const uint8_t> con, std::span<const uint8_t> data, HashResult& outHash);
 
 #ifdef WITH_TESTS
 	// it is only used for the HKDF implementations, but we still want to test it
