@@ -39,10 +39,10 @@ TEST(CryptographyNoiseUtils, mixHash_test)
 	Noise::SymmetricState symmetricState;
 	vectorToArray(hexToBytes("cbdcafb819b0fbe08072ecb231de23aa047541bcbcf405a5ee30edddd29912dd"), symmetricState.handshakeHash.raw);
 
-	Noise::Utils::mixHash(strToBytes("data to mix"), symmetricState.handshakeHash);
+	Noise::Utils::mixHash(strToBytes("data to mix"), symmetricState);
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("c4fc1b79ee7f85c140887dac0e1c165f1b632e7ef901722f64820033c9061a03")), symmetricState.handshakeHash.raw);
-	Noise::Utils::mixHash(strToBytes("more data to mix"), symmetricState.handshakeHash);
+	Noise::Utils::mixHash(strToBytes("more data to mix"), symmetricState);
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("8697334e07b527b6bb0d697a0e1ee1e68dac8a81a6c1f80435299e066e1ece94")), symmetricState.handshakeHash.raw);
-	Noise::Utils::mixHash(strToBytes("even more data to mix"), symmetricState.handshakeHash);
+	Noise::Utils::mixHash(strToBytes("even more data to mix"), symmetricState);
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("14aa993c4bb8cfc0893ac0be584bc41e48537c67cd31e0c0659ff18235c7cdd3")), symmetricState.handshakeHash.raw);
 }

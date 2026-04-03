@@ -32,8 +32,9 @@ namespace Noise::Utils
 		};
 	}
 
-	void mixHash(const std::span<const uint8_t> data, HashResult& inOutH)
+	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState)
 	{
-		hashWithContext_blake2b(inOutH, data, inOutH);
+		// we could pass only handshakeHash to this function, however that would be a bit more error-prone
+		hashWithContext_blake2b(inOutState.handshakeHash, data, inOutState.handshakeHash);
 	}
 } // namespace Noise::Utils

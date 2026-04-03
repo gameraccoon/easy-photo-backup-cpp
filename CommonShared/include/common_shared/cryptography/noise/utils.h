@@ -12,5 +12,5 @@ namespace Noise::Utils
 	// see the specification here: https://noiseprotocol.org/noise.html#processing-rules
 
 	SymmetricState initializeSymmetric(const std::string_view protocolName);
-	void mixHash(const std::span<const uint8_t> data, HashResult& inOutH);
+	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState);
 }
