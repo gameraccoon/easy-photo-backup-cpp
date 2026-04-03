@@ -24,3 +24,11 @@ void vectorToArray(const std::span<const uint8_t> inVector, std::array<uint8_t, 
 		outArray[i] = inVector[i];
 	}
 }
+
+template<size_t Size>
+std::array<uint8_t, Size> vectorToArray(const std::span<const uint8_t> inVector)
+{
+	std::array<uint8_t, Size> result;
+	vectorToArray(inVector, result);
+	return result;
+}

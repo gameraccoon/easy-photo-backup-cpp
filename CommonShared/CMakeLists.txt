@@ -30,6 +30,7 @@ target_include_directories(CommonShared PRIVATE
 
 target_sources(CommonShared
 	PRIVATE
+		${COMMON_SHARED_SRC_DIR}/cryptography/noise/utils.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/cipher_functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/dh_functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/hash_functions.cpp
@@ -47,6 +48,8 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/utils_internal.h
 
 	PUBLIC
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/types.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/utils.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/primitives/cipher_functions.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/primitives/dh_functions.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/primitives/hash_functions.h

@@ -1,0 +1,41 @@
+// Copyright (C) Pavel Grebnev 2026
+// Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
+
+#include "common_shared/cryptography/noise/utils.h"
+
+#include "common_shared/cryptography/primitives/hash_functions.h"
+
+namespace Noise::Utils
+{
+	SymmetricState initializeSymmetric(const std::string_view protocolName)
+	{
+		HashResult h;
+
+		// see https://noiseprotocol.org/noise.html#the-symmetricstate-object
+		if (protocolName.length() <= HASHLEN)
+		{
+			std::copy(protocolName.begin(), protocolName.end(), h.raw.begin());
+			// this isn't technically needed because the memory should already be zeroed
+			std::fill(h.raw.begin() + protocolName.length(), h.raw.end(), static_cast<uint8_t>(0));
+		}
+		else
+		{
+			static_assert(sizeof(*protocolName.data()) == sizeof(uint8_t), "String type should be UTF-8 string with 1 byte per character");
+			hash_blake2b(std::span<const uint8_t>(std::bit_cast<const uint8_t*>(protocolName.data()), protocolName.size()), h);
+		}
+
+		return SymmetricState{
+			.handshakeHash = h.clone(),
+			.chainingKey = std::move(h),
+		};
+	}
+
+	void mixHash(const std::span<const uint8_t> data, HashResult& inOutH)
+	{
+		std::vector<uint8_t> dataToHash;
+		dataToHash.resize(data.size() + inOutH.size());
+		std::copy(inOutH.raw.begin(), inOutH.raw.end(), dataToHash.begin());
+		std::copy(data.begin(), data.end(), dataToHash.begin() + inOutH.size());
+		hash_blake2b(dataToHash, inOutH);
+	}
+} // namespace Noise::Utils
