@@ -3,6 +3,8 @@
 
 #include "common_shared/cryptography/noise/utils.h"
 
+#include <bit>
+
 #include "common_shared/cryptography/primitives/hash_functions.h"
 
 namespace Noise::Utils
