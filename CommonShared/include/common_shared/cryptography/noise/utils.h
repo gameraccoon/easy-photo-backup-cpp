@@ -12,6 +12,7 @@ namespace Noise::Utils
 {
 	// see the specification here: https://noiseprotocol.org/noise.html#processing-rules
 
+	void initializeKey(Cryptography::CipherKey&& key, CipherState& inOutState);
 	SymmetricState initializeSymmetric(const std::string_view protocolName);
 	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState);
 	// returns zero on success, non-zero on failure (not enough space in the buffer)

@@ -9,6 +9,12 @@
 
 namespace Noise::Utils
 {
+	void initializeKey(Cryptography::CipherKey&& key, CipherState& inOutState)
+	{
+		inOutState.cipherKey = std::move(key);
+		inOutState.nonce = 0;
+	}
+
 	SymmetricState initializeSymmetric(const std::string_view protocolName)
 	{
 		HashResult h;
