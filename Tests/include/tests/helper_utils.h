@@ -14,6 +14,7 @@
 void hexCharToInt(const char ch, uint8_t& res);
 std::vector<uint8_t> hexToBytes(const std::string_view inString);
 std::vector<uint8_t> strToBytes(const std::string_view inString);
+bool isAllZeroes(const std::span<const uint8_t> data);
 
 template<size_t Size>
 void vectorToArray(const std::span<const uint8_t> inVector, std::array<uint8_t, Size>& outArray)

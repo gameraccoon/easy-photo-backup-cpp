@@ -3,6 +3,8 @@
 
 #include "tests/helper_utils.h"
 
+#include <algorithm>
+
 void hexCharToInt(const char ch, uint8_t& res)
 {
 	if (ch >= '0' && ch <= '9')
@@ -56,4 +58,9 @@ std::vector<uint8_t> strToBytes(const std::string_view inString)
 		outVector.push_back(static_cast<uint8_t>(ch));
 	}
 	return outVector;
+}
+
+bool isAllZeroes(const std::span<const uint8_t> data)
+{
+	return std::all_of(data.begin(), data.end(), [](uint8_t v) { return v == static_cast<uint8_t>(0); });
 }

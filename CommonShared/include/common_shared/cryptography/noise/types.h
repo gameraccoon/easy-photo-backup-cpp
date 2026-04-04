@@ -52,4 +52,24 @@ namespace Noise
 
 	using InitiatorHandshakeState = HandshakeState<HandshakeInstanceTag::Initiator>;
 	using ResponderHandshakeState = HandshakeState<HandshakeInstanceTag::Responder>;
+
+	enum class MessageWriteError
+	{
+		MessageBufferTooSmall,
+		EphemeralKeysAlreadySet,
+		NoStaticKeys,
+		NoEphemeralKeys,
+		NoRemoteStaticKey,
+		NoRemoteEphemeralKey,
+	};
+
+	enum class MessageReadError
+	{
+		TruncatedMessage,
+		RemoteEphemeralKeysAlreadySet,
+		NoStaticKeys,
+		NoEphemeralKeys,
+		NoRemoteStaticKey,
+		NoRemoteEphemeralKey,
+	};
 } // namespace Noise
