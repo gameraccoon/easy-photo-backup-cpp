@@ -4,7 +4,7 @@
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
-#include "common_shared/cryptography/noise/utils.h"
+#include "common_shared/cryptography/noise/internal/utils.h"
 
 static void testInitializeSymmetric(const std::string_view protocolName, const std::span<const uint8_t> expectedVec)
 {
