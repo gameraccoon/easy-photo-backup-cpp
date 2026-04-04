@@ -105,50 +105,50 @@ TEST(CryptographyNoiseUtils, mixKey_test)
 	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState.nonce);
 }
 
-TEST(CryptographyNoiseUtils, appendToBuffer_writeWithinBuffer_succeeds)
+TEST(CryptographyNoiseUtils, writeToBuffer_writeWithinBuffer_succeeds)
 {
 	std::array<std::byte, 30> buffer = {};
 
 	size_t cursor = 0;
 
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes("0b0a0c"), buffer, cursor), 0);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes("0b0a0c"), buffer, cursor), 0);
 	EXPECT_EQ(buffer, vectorToByteArray<30>(hexToBytes("0b0a0c000000000000000000000000000000000000000000000000000000")));
 	EXPECT_EQ(cursor, static_cast<size_t>(3));
 
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes("00112233445566778899AABBCCDDEEFF"), buffer, cursor), 0);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes("00112233445566778899AABBCCDDEEFF"), buffer, cursor), 0);
 	EXPECT_EQ(buffer, vectorToByteArray<30>(hexToBytes("0b0a0c00112233445566778899AABBCCDDEEFF0000000000000000000000")));
 	EXPECT_EQ(cursor, static_cast<size_t>(19));
 
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes(""), buffer, cursor), 0);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes(""), buffer, cursor), 0);
 	EXPECT_EQ(buffer, vectorToByteArray<30>(hexToBytes("0b0a0c00112233445566778899AABBCCDDEEFF0000000000000000000000")));
 	EXPECT_EQ(cursor, static_cast<size_t>(19));
 
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes("FEDCBA9876543210AABBCC"), buffer, cursor), 0);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes("FEDCBA9876543210AABBCC"), buffer, cursor), 0);
 	EXPECT_EQ(buffer, vectorToByteArray<30>(hexToBytes("0b0a0c00112233445566778899AABBCCDDEEFFFEDCBA9876543210AABBCC")));
 	EXPECT_EQ(cursor, static_cast<size_t>(30));
 
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes(""), buffer, cursor), 0);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes(""), buffer, cursor), 0);
 	EXPECT_EQ(buffer, vectorToByteArray<30>(hexToBytes("0b0a0c00112233445566778899AABBCCDDEEFFFEDCBA9876543210AABBCC")));
 	EXPECT_EQ(cursor, static_cast<size_t>(30));
 }
 
-TEST(CryptographyNoiseUtils, appendToBuffer_writeBeyondBuffer_fails)
+TEST(CryptographyNoiseUtils, writeToBuffer_writeBeyondBuffer_fails)
 {
 	std::array<std::byte, 8> buffer = {};
 
 	size_t cursor = 0;
 
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes("001122334455667788"), buffer, cursor), -1);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes("001122334455667788"), buffer, cursor), -1);
 
 	cursor = 7;
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes("0011"), buffer, cursor), -1);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes("0011"), buffer, cursor), -1);
 
 	cursor = 8;
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes("00"), buffer, cursor), -1);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes("00"), buffer, cursor), -1);
 
 	cursor = 9;
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes(""), buffer, cursor), -1);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes(""), buffer, cursor), -1);
 
 	cursor = 20000;
-	ASSERT_EQ(Noise::Utils::appendDataToBuffer(hexToBytes("00"), buffer, cursor), -1);
+	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes("00"), buffer, cursor), -1);
 }
