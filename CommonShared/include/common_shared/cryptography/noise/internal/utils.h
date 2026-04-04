@@ -12,10 +12,16 @@ namespace Noise::Utils
 {
 	// see the specification here: https://noiseprotocol.org/noise.html#processing-rules
 
-	void initializeKey(Cryptography::CipherKey&& key, CipherState& inOutState) noexcept;
+	enum class HandshakeRole
+	{
+		Initiator,
+		Responder,
+	};
+
 	[[nodiscard]] SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept;
 	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState) noexcept;
 	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState) noexcept;
+	void split(const SymmetricState& symmetricState, CipherStateSending& c1, CipherStateReceiving& c2, HandshakeRole role);
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
 	[[nodiscard]] int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos) noexcept;
 	// returns zero on success, non-zero on failure (not enough space in the buffer)

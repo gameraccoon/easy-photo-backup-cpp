@@ -9,10 +9,12 @@
 
 namespace Noise::Utils
 {
-	void initializeKey(Cryptography::CipherKey&& key, CipherState& inOutState) noexcept
+	template<CipherStateInstanceTag Tag>
+	static void TruncateAndInitializeKey(const HashResult& tempKey, CipherState<Tag>& inOutState)
 	{
-		inOutState.cipherKey = std::move(key);
-		inOutState.nonce = 0;
+		static_assert(Cryptography::CipherKeySize == 32, "Unexpected CipherKeySize");
+		std::copy(tempKey.raw.begin(), tempKey.raw.begin() + 32, inOutState.cipherKey.raw.begin());
+		inOutState.nonce = static_cast<uint64_t>(0);
 	}
 
 	SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept
@@ -49,10 +51,25 @@ namespace Noise::Utils
 	{
 		HashResult tempKey;
 		Cryptography::HKDF_blake2b(inOutState.chainingKey, inputKeyMaterial, 2, inOutState.chainingKey, &tempKey, nullptr);
-		Cryptography::CipherKey key;
-		static_assert(Cryptography::CipherKeySize == 32, "Unexpected CipherKeySize");
-		std::copy(tempKey.raw.begin(), tempKey.raw.begin() + 32, key.raw.begin());
-		initializeKey(std::move(key), inOutState.cipherState);
+		TruncateAndInitializeKey(tempKey, inOutState.cipherState);
+	}
+
+	void split(const SymmetricState& symmetricState, CipherStateSending& c1, CipherStateReceiving& c2, HandshakeRole role)
+	{
+		HashResult tempKey1;
+		HashResult tempKey2;
+		Cryptography::HKDF_blake2b(symmetricState.chainingKey, std::span<uint8_t>{}, 2, tempKey1, &tempKey2, nullptr);
+
+		if (role == HandshakeRole::Initiator)
+		{
+			TruncateAndInitializeKey(tempKey1, c1);
+			TruncateAndInitializeKey(tempKey2, c2);
+		}
+		else
+		{
+			TruncateAndInitializeKey(tempKey1, c2);
+			TruncateAndInitializeKey(tempKey2, c1);
+		}
 	}
 
 	int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos) noexcept

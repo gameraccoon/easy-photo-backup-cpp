@@ -13,14 +13,27 @@ namespace Noise
 {
 	using namespace Cryptography;
 
+	// we tag the types to make sure we don't mix the functions
+	enum class CipherStateInstanceTag
+	{
+		Handshake,
+		Sending,
+		Receiving,
+	};
+
 	// cipher state exists both during handshake but also during normal message transport phase
 	// in case of handshake, each party has one copy of the CipherState
 	// during the transport phase each party has two (one for sending, one for receiving)
+	template<CipherStateInstanceTag>
 	struct CipherState
 	{
 		CipherKey cipherKey; // k
 		Nonce nonce = 0u; // n
 	};
+
+	using CipherStateHandshake = CipherState<CipherStateInstanceTag::Handshake>;
+	using CipherStateSending = CipherState<CipherStateInstanceTag::Sending>;
+	using CipherStateReceiving = CipherState<CipherStateInstanceTag::Receiving>;
 
 	// temporary state that exists only during the handshake phase (on both sides)
 	struct SymmetricState
@@ -28,7 +41,7 @@ namespace Noise
 		HashResult handshakeHash; // h
 		HashResult chainingKey; // ck
 
-		CipherState cipherState;
+		CipherStateHandshake cipherState;
 	};
 
 	// we tag the types to make sure we don't mix the functions
