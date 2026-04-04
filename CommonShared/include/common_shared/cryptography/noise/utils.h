@@ -17,7 +17,7 @@ namespace Noise::Utils
 	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState);
 	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState);
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
-	int writeDataToBuffer(const std::span<const uint8_t>& data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos);
+	int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos);
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
-	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t>& outData, size_t& inOutReadPos);
+	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t> outData, size_t& inOutReadPos);
 }

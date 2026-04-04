@@ -85,7 +85,7 @@ namespace Cryptography
 		explicit DynByteSequence(std::vector<uint8_t>&& data) noexcept
 			: raw(std::move(data)) {}
 
-		explicit DynByteSequence(const std::span<const uint8_t>& data) noexcept
+		explicit DynByteSequence(const std::span<const uint8_t> data) noexcept
 			: raw(data.begin(), data.end()) {}
 	};
 } // namespace Cryptography

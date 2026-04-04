@@ -55,7 +55,7 @@ namespace Noise::Utils
 		initializeKey(std::move(key), inOutState.cipherState);
 	}
 
-	int writeDataToBuffer(const std::span<const uint8_t>& data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos)
+	int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos)
 	{
 		if (inOutBuffer.size() < (inOutWritePos + data.size()))
 		{
@@ -74,7 +74,7 @@ namespace Noise::Utils
 		return 0;
 	}
 
-	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t>& outData, size_t& inOutReadPos)
+	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t> outData, size_t& inOutReadPos)
 	{
 		if (buffer.size() < (inOutReadPos + outData.size()))
 		{
