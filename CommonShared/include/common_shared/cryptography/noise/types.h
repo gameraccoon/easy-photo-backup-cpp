@@ -3,7 +3,10 @@
 
 #pragma once
 
+#include <optional>
+
 #include "common_shared/cryptography/types/cipher_types.h"
+#include "common_shared/cryptography/types/dh_types.h"
 #include "common_shared/cryptography/types/hash_types.h"
 
 namespace Noise
@@ -24,5 +27,29 @@ namespace Noise
 	{
 		HashResult handshakeHash; // h
 		HashResult chainingKey; // ck
+
+		CipherState cipherState;
 	};
+
+	// we tag the types to make sure we don't mix the functions
+	enum class HandshakeInstanceTag
+	{
+		Initiator,
+		Responder,
+	};
+
+	// temporary state that exists only during the handshake phase (on both sides)
+	template<HandshakeInstanceTag>
+	struct HandshakeState
+	{
+		std::optional<Keypair> ephemeralKeys; // e
+		std::optional<Keypair> staticKeys; // s
+		std::optional<PublicKey> remoteEphemeralKey; // re
+		std::optional<PublicKey> remoteStaticKey; // rs
+
+		SymmetricState symmetricState;
+	};
+
+	using InitiatorHandshakeState = HandshakeState<HandshakeInstanceTag::Initiator>;
+	using ResponderHandshakeState = HandshakeState<HandshakeInstanceTag::Responder>;
 } // namespace Noise
