@@ -73,4 +73,23 @@ namespace Noise::Utils
 
 		return 0;
 	}
+
+	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t>& outData, size_t& inOutReadPos)
+	{
+		if (buffer.size() < (inOutReadPos + outData.size()))
+		{
+			return -1;
+		}
+
+		if (outData.size() == 0)
+		{
+			return 0;
+		}
+
+		static_assert(sizeof(outData[0]) == sizeof(buffer[0]), "Both data and buffer should be arrays of bytes");
+		std::copy(buffer.begin() + inOutReadPos, buffer.begin() + (inOutReadPos + outData.size()), std::bit_cast<std::byte*>(outData.data()));
+		inOutReadPos += outData.size();
+
+		return 0;
+	}
 } // namespace Noise::Utils

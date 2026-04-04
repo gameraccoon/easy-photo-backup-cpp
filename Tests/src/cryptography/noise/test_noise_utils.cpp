@@ -105,7 +105,7 @@ TEST(CryptographyNoiseUtils, mixKey_test)
 	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState.nonce);
 }
 
-TEST(CryptographyNoiseUtils, writeToBuffer_writeWithinBuffer_succeeds)
+TEST(CryptographyNoiseUtils, writeDataToBuffer_writeWithinBuffer_succeeds)
 {
 	std::array<std::byte, 30> buffer = {};
 
@@ -132,7 +132,7 @@ TEST(CryptographyNoiseUtils, writeToBuffer_writeWithinBuffer_succeeds)
 	EXPECT_EQ(cursor, static_cast<size_t>(30));
 }
 
-TEST(CryptographyNoiseUtils, writeToBuffer_writeBeyondBuffer_fails)
+TEST(CryptographyNoiseUtils, writeDataToBuffer_writeBeyondBuffer_fails)
 {
 	std::array<std::byte, 8> buffer = {};
 
@@ -151,4 +151,67 @@ TEST(CryptographyNoiseUtils, writeToBuffer_writeBeyondBuffer_fails)
 
 	cursor = 20000;
 	ASSERT_EQ(Noise::Utils::writeDataToBuffer(hexToBytes("00"), buffer, cursor), -1);
+}
+
+TEST(CryptographyNoiseUtils, readDataFromBuffer_readWithinBuffer_succeeds)
+{
+	const std::array<std::byte, 30> buffer = vectorToByteArray<30>(hexToBytes("0b0a0c00112233445566778899AABBCCDDEEFFFEDCBA9876543210AABBCC"));
+
+	size_t cursor = 0;
+	std::array<uint8_t, 30> readData = {};
+
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(readData.begin(), readData.begin() + 3), cursor), 0);
+	EXPECT_EQ(readData, vectorToArray<30>(hexToBytes("0b0a0c000000000000000000000000000000000000000000000000000000")));
+	EXPECT_EQ(cursor, static_cast<size_t>(3));
+
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(readData.begin() + 3, readData.begin() + 19), cursor), 0);
+	EXPECT_EQ(readData, vectorToArray<30>(hexToBytes("0b0a0c00112233445566778899AABBCCDDEEFF0000000000000000000000")));
+	EXPECT_EQ(cursor, static_cast<size_t>(19));
+
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(readData.begin() + 19, readData.begin() + 19), cursor), 0);
+	EXPECT_EQ(readData, vectorToArray<30>(hexToBytes("0b0a0c00112233445566778899AABBCCDDEEFF0000000000000000000000")));
+	EXPECT_EQ(cursor, static_cast<size_t>(19));
+
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(readData.begin() + 19, readData.begin() + 30), cursor), 0);
+	EXPECT_EQ(readData, vectorToArray<30>(hexToBytes("0b0a0c00112233445566778899AABBCCDDEEFFFEDCBA9876543210AABBCC")));
+	EXPECT_EQ(cursor, static_cast<size_t>(30));
+
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(readData.begin() + 30, readData.begin() + 30), cursor), 0);
+	EXPECT_EQ(readData, vectorToArray<30>(hexToBytes("0b0a0c00112233445566778899AABBCCDDEEFFFEDCBA9876543210AABBCC")));
+	EXPECT_EQ(cursor, static_cast<size_t>(30));
+
+	// make sure we don't write anything before and after the provided buffer
+	std::array<uint8_t, 8> zeroPaddedBuffer = {};
+	cursor = 5;
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(zeroPaddedBuffer.begin() + 2, zeroPaddedBuffer.begin() + 6), cursor), 0);
+	EXPECT_EQ(zeroPaddedBuffer, vectorToArray<8>(hexToBytes("0000223344550000")));
+	EXPECT_EQ(cursor, static_cast<size_t>(9));
+
+	std::array<uint8_t, 8> onePaddedBuffer = vectorToArray<8>(hexToBytes("FFFFFFFFFFFFFFFF"));
+	cursor = 5;
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(onePaddedBuffer.begin() + 2, onePaddedBuffer.begin() + 6), cursor), 0);
+	EXPECT_EQ(onePaddedBuffer, vectorToArray<8>(hexToBytes("FFFF22334455FFFF")));
+	EXPECT_EQ(cursor, static_cast<size_t>(9));
+}
+
+TEST(CryptographyNoiseUtils, readDataFromBuffer_readBeyondBuffer_fails)
+{
+	const std::array<std::byte, 8> buffer = {};
+	size_t cursor = 0;
+
+	std::array<uint8_t, 9> readData = {};
+
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, readData, cursor), -1);
+
+	cursor = 7;
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(readData.begin(), readData.begin() + 2), cursor), -1);
+
+	cursor = 8;
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(readData.begin(), readData.begin() + 1), cursor), -1);
+
+	cursor = 9;
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(readData.begin(), readData.begin() + 0), cursor), -1);
+
+	cursor = 20000;
+	ASSERT_EQ(Noise::Utils::readDataFromBuffer(buffer, std::span(readData.begin(), readData.begin() + 1), cursor), -1);
 }
