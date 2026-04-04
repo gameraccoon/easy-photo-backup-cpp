@@ -18,5 +18,13 @@ namespace Cryptography
 	{
 		PublicKey publicKey;
 		SecretKey secretKey;
+
+		[[nodiscard]] Keypair clone() const noexcept
+		{
+			return Keypair{
+				.publicKey = publicKey.clone(),
+				.secretKey = secretKey.clone(),
+			};
+		}
 	};
 } // namespace Cryptography
