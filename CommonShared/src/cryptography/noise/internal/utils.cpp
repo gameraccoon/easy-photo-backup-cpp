@@ -9,13 +9,13 @@
 
 namespace Noise::Utils
 {
-	void initializeKey(Cryptography::CipherKey&& key, CipherState& inOutState)
+	void initializeKey(Cryptography::CipherKey&& key, CipherState& inOutState) noexcept
 	{
 		inOutState.cipherKey = std::move(key);
 		inOutState.nonce = 0;
 	}
 
-	SymmetricState initializeSymmetric(const std::string_view protocolName)
+	SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept
 	{
 		HashResult h;
 
@@ -39,13 +39,13 @@ namespace Noise::Utils
 		};
 	}
 
-	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState)
+	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState) noexcept
 	{
 		// we could pass only handshakeHash to this function, however that would be a bit more error-prone
 		hashWithContext_blake2b(inOutState.handshakeHash, data, inOutState.handshakeHash);
 	}
 
-	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState)
+	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState) noexcept
 	{
 		HashResult tempKey;
 		Cryptography::HKDF_blake2b(inOutState.chainingKey, inputKeyMaterial, 2, inOutState.chainingKey, &tempKey, nullptr);
@@ -55,7 +55,7 @@ namespace Noise::Utils
 		initializeKey(std::move(key), inOutState.cipherState);
 	}
 
-	int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos)
+	int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos) noexcept
 	{
 		if (inOutBuffer.size() < (inOutWritePos + data.size()))
 		{
@@ -74,7 +74,7 @@ namespace Noise::Utils
 		return 0;
 	}
 
-	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t> outData, size_t& inOutReadPos)
+	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t> outData, size_t& inOutReadPos) noexcept
 	{
 		if (buffer.size() < (inOutReadPos + outData.size()))
 		{

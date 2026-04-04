@@ -36,7 +36,7 @@ namespace Cryptography
 		const DynByteSequence& associatedData,
 		const DynByteSequence& plaintext,
 		DynByteSequence& outCiphertext
-	)
+	) noexcept
 	{
 		assertFatalRelease(plaintext.size() <= MaxMessageSize, "Plaintext for encryption is longer than available size {}", plaintext.size());
 		outCiphertext.clearResize(plaintext.size() + CipherAuthDataSize);
@@ -71,7 +71,7 @@ namespace Cryptography
 		const DynByteSequence& associatedData,
 		const DynByteSequence& ciphertext,
 		DynByteSequence& outPlaintext
-	)
+	) noexcept
 	{
 		assertFatalRelease(ciphertext.size() >= CipherAuthDataSize, "Cyphertext should be at least CipherAuthDataSize of size {}", ciphertext.size());
 		assertFatalRelease(ciphertext.size() <= MaxMessageSize + CipherAuthDataSize, "Cyphertext is longer than available size {}", ciphertext.size());

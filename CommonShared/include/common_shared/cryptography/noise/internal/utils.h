@@ -12,12 +12,12 @@ namespace Noise::Utils
 {
 	// see the specification here: https://noiseprotocol.org/noise.html#processing-rules
 
-	void initializeKey(Cryptography::CipherKey&& key, CipherState& inOutState);
-	SymmetricState initializeSymmetric(const std::string_view protocolName);
-	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState);
-	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState);
+	void initializeKey(Cryptography::CipherKey&& key, CipherState& inOutState) noexcept;
+	[[nodiscard]] SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept;
+	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState) noexcept;
+	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState) noexcept;
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
-	int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos);
+	[[nodiscard]] int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos) noexcept;
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
-	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t> outData, size_t& inOutReadPos);
+	[[nodiscard]] int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t> outData, size_t& inOutReadPos) noexcept;
 }

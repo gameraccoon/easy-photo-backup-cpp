@@ -14,19 +14,19 @@ namespace Cryptography
 {
 	// compile-time checked len (prefer this when possible)
 	template<size_t len, Tag tag>
-	static void hashUpdate_blake2b(crypto_blake2b_ctx* context, const ByteSequence<tag, len>& data)
+	static void hashUpdate_blake2b(crypto_blake2b_ctx* context, const ByteSequence<tag, len>& data) noexcept
 	{
 		crypto_blake2b_update(context, data.raw.data(), data.raw.size());
 	}
 
 	// dynamic len raw (avoid when possible)
-	static void hashUpdateDyn_blake2b(crypto_blake2b_ctx* context, const std::span<const uint8_t> data)
+	static void hashUpdateDyn_blake2b(crypto_blake2b_ctx* context, const std::span<const uint8_t> data) noexcept
 	{
 		crypto_blake2b_update(context, data.data(), data.size());
 	}
 
 	template<size_t len, Tag tag>
-	static void hashFinal_blake2b(crypto_blake2b_ctx* context, ByteSequence<tag, len>& data)
+	static void hashFinal_blake2b(crypto_blake2b_ctx* context, ByteSequence<tag, len>& data) noexcept
 	{
 		static_assert(sizeof(data.raw) == len, "Unexpected result buffer size");
 		assertFatalRelease(data.raw.size() == len, "Unexpected result buffer size");
@@ -34,7 +34,7 @@ namespace Cryptography
 		crypto_blake2b_final(context, data.raw.data());
 	}
 
-	void hash_blake2b(std::span<const uint8_t> data, HashResult& outHash)
+	void hash_blake2b(std::span<const uint8_t> data, HashResult& outHash) noexcept
 	{
 		crypto_blake2b_ctx context{};
 		crypto_blake2b_init(&context, HASHLEN);
@@ -42,7 +42,7 @@ namespace Cryptography
 		hashFinal_blake2b<HASHLEN>(&context, outHash);
 	}
 
-	void hashWithContext_blake2b(std::span<const uint8_t> con, std::span<const uint8_t> data, HashResult& outHash)
+	void hashWithContext_blake2b(std::span<const uint8_t> con, std::span<const uint8_t> data, HashResult& outHash) noexcept
 	{
 		crypto_blake2b_ctx context{};
 		crypto_blake2b_init(&context, HASHLEN);
@@ -51,7 +51,7 @@ namespace Cryptography
 		hashFinal_blake2b<HASHLEN>(&context, outHash);
 	}
 
-	void HMAC_blake2b(const HashResult& key, const std::span<const uint8_t> data, HashResult& outMac)
+	void HMAC_blake2b(const HashResult& key, const std::span<const uint8_t> data, HashResult& outMac) noexcept
 	{
 		// check https://www.ietf.org/rfc/rfc2104.txt
 
@@ -93,7 +93,7 @@ namespace Cryptography
 		HashResult& output1,
 		HashResult* output2,
 		HashResult* output3
-	)
+	) noexcept
 	{
 		if (numOutputs != 1 && numOutputs != 2 && numOutputs != 3)
 		{

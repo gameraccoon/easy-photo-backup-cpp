@@ -22,7 +22,7 @@ namespace Cryptography
 		TempInternalBuffer,
 	};
 
-	void cryptoWipeRawData(std::span<uint8_t> rawData);
+	void cryptoWipeRawData(std::span<uint8_t> rawData) noexcept;
 
 	template<Tag, std::size_t DataLen>
 	struct ByteSequence
@@ -36,7 +36,7 @@ namespace Cryptography
 		operator std::span<const uint8_t>() const noexcept { return raw; }
 		constexpr size_t size() const noexcept { return raw.size(); }
 
-		ByteSequence clone() const noexcept { return ByteSequence{ raw }; }
+		[[nodiscard]] ByteSequence clone() const noexcept { return ByteSequence{ raw }; }
 
 		// rule of five, no implicit copy, allow move, require secure erase of each copy
 		ByteSequence(const ByteSequence&) noexcept = delete;
@@ -58,14 +58,14 @@ namespace Cryptography
 		DynByteSequence() noexcept = default;
 
 		// note that the data in the source container need to be erased as well
-		static DynByteSequence fromVector(std::vector<uint8_t>&& data) noexcept { return DynByteSequence(std::move(data)); }
+		[[nodiscard]] static DynByteSequence fromVector(std::vector<uint8_t>&& data) noexcept { return DynByteSequence(std::move(data)); }
 
 		// allow the byte sequence being passed as a span
 		operator std::span<uint8_t>() noexcept { return raw; }
 		operator std::span<const uint8_t>() const noexcept { return raw; }
 		constexpr size_t size() const noexcept { return raw.size(); }
 
-		DynByteSequence clone() const noexcept { return DynByteSequence{ raw }; }
+		[[nodiscard]] DynByteSequence clone() const noexcept { return DynByteSequence{ raw }; }
 
 		void clearResize(const size_t newSize) noexcept
 		{

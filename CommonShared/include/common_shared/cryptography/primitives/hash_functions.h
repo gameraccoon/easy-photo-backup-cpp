@@ -10,12 +10,12 @@
 
 namespace Cryptography
 {
-	void hash_blake2b(std::span<const uint8_t> data, HashResult& outHash);
-	void hashWithContext_blake2b(std::span<const uint8_t> con, std::span<const uint8_t> data, HashResult& outHash);
+	void hash_blake2b(std::span<const uint8_t> data, HashResult& outHash) noexcept;
+	void hashWithContext_blake2b(std::span<const uint8_t> con, std::span<const uint8_t> data, HashResult& outHash) noexcept;
 
 #ifdef WITH_TESTS
 	// it is only used for the HKDF implementations, but we still want to test it
-	void HMAC_blake2b(const HashResult& key, std::span<const uint8_t> data, HashResult& outMac);
+	void HMAC_blake2b(const HashResult& key, std::span<const uint8_t> data, HashResult& outMac) noexcept;
 #endif
 
 	void HKDF_blake2b(
@@ -25,5 +25,5 @@ namespace Cryptography
 		HashResult& output1,
 		HashResult* output2,
 		HashResult* output3
-	);
+	) noexcept;
 } // namespace Cryptography

@@ -13,14 +13,14 @@ namespace Cryptography
 		const DynByteSequence& associatedData,
 		const DynByteSequence& plaintext,
 		DynByteSequence& outCiphertext
-	);
+	) noexcept;
 
 	// returns 0 if authentication succeeds, otherwise returns a non-zero error code
-	int decrypt_chacha20poly1305(
+	[[nodiscard]] int decrypt_chacha20poly1305(
 		const CipherKey& key,
 		const Nonce nonce,
 		const DynByteSequence& associatedData,
 		const DynByteSequence& ciphertext,
 		DynByteSequence& outPlaintext
-	);
+	) noexcept;
 }

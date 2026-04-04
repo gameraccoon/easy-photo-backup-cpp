@@ -7,7 +7,7 @@
 
 namespace Cryptography
 {
-	void cryptoWipeRawData(std::span<uint8_t> rawData)
+	void cryptoWipeRawData(std::span<uint8_t> rawData) noexcept
 	{
 		crypto_wipe(rawData.data(), rawData.size());
 	}

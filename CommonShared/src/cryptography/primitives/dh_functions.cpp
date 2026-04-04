@@ -9,7 +9,7 @@
 
 namespace Cryptography
 {
-	Keypair generateKeypair_x25519()
+	Keypair generateKeypair_x25519() noexcept
 	{
 		Keypair newKeypair;
 
@@ -22,7 +22,7 @@ namespace Cryptography
 		return newKeypair;
 	}
 
-	DhResult diffieHellman_x25519(const SecretKey& secretKey, const PublicKey& publicKey)
+	DhResult diffieHellman_x25519(const SecretKey& secretKey, const PublicKey& publicKey) noexcept
 	{
 		DhResult result;
 
