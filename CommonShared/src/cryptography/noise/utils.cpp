@@ -45,6 +45,16 @@ namespace Noise::Utils
 		hashWithContext_blake2b(inOutState.handshakeHash, data, inOutState.handshakeHash);
 	}
 
+	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState)
+	{
+		HashResult tempKey;
+		Cryptography::HKDF_blake2b(inOutState.chainingKey, inputKeyMaterial, 2, inOutState.chainingKey, &tempKey, nullptr);
+		Cryptography::CipherKey key;
+		static_assert(Cryptography::CipherKeySize == 32, "Unexpected CipherKeySize");
+		std::copy(tempKey.raw.begin(), tempKey.raw.begin() + 32, key.raw.begin());
+		initializeKey(std::move(key), inOutState.cipherState);
+	}
+
 	int appendDataToBuffer(const std::span<const uint8_t>& data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos)
 	{
 		if (inOutBuffer.size() < (inOutWritePos + data.size()))
@@ -57,7 +67,7 @@ namespace Noise::Utils
 			return 0;
 		}
 
-		static_assert(sizeof(data[0]) == sizeof(inOutBuffer[0]));
+		static_assert(sizeof(data[0]) == sizeof(inOutBuffer[0]), "Both data and buffer should be arrays of bytes");
 		std::copy(data.begin(), data.end(), std::bit_cast<uint8_t*>(inOutBuffer.data()) + inOutWritePos);
 		inOutWritePos += data.size();
 

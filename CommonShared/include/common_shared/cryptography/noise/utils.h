@@ -15,6 +15,7 @@ namespace Noise::Utils
 	void initializeKey(Cryptography::CipherKey&& key, CipherState& inOutState);
 	SymmetricState initializeSymmetric(const std::string_view protocolName);
 	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState);
+	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState);
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
 	int appendDataToBuffer(const std::span<const uint8_t>& data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos);
 }
