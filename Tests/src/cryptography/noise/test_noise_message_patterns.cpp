@@ -398,16 +398,16 @@ TEST(CryptographyNoiseMessagePatterns, pattern_es_readInitiatorErrorTest)
 	}
 }
 
-TEST(CryptographyNoiseMessagePatterns, pattern_se_roundtripTest)
+TEST(CryptographyNoiseMessagePatterns, pattern_se_roundtripFromResponderTest)
 {
 	Noise::ResponderHandshakeState responderHandshakeState;
 	Noise::InitiatorHandshakeState initiatorHandshakeState;
 
 	// preconditions: static keys are exchanged
-	initiatorHandshakeState.staticKeys = Cryptography::generateKeypair_x25519();
 	responderHandshakeState.staticKeys = Cryptography::generateKeypair_x25519();
-	initiatorHandshakeState.remoteStaticKey = responderHandshakeState.staticKeys->publicKey.clone();
+	initiatorHandshakeState.staticKeys = Cryptography::generateKeypair_x25519();
 	responderHandshakeState.remoteStaticKey = initiatorHandshakeState.staticKeys->publicKey.clone();
+	initiatorHandshakeState.remoteStaticKey = responderHandshakeState.staticKeys->publicKey.clone();
 	// preconditions: ephemeral key is sent from responder
 	responderHandshakeState.ephemeralKeys = Cryptography::generateKeypair_x25519();
 	initiatorHandshakeState.remoteEphemeralKey = responderHandshakeState.ephemeralKeys->publicKey.clone();
