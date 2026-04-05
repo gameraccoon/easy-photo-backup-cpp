@@ -26,4 +26,4 @@ namespace Noise::Utils
 	[[nodiscard]] int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos) noexcept;
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
 	[[nodiscard]] int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t> outData, size_t& inOutReadPos) noexcept;
-}
+} // namespace Noise::Utils

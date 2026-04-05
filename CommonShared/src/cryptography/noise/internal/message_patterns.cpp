@@ -221,4 +221,4 @@ namespace Noise::MessagePatterns
 
 		return std::nullopt;
 	}
-} // namespace Noise::Patterns
+} // namespace Noise::MessagePatterns
