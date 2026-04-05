@@ -51,7 +51,7 @@ namespace Cryptography
 
 		if (outCiphertext.size() > plaintext.size() + CipherAuthDataSize) [[unlikely]]
 		{
-			reportDebugError("Ciphertext buffer is bigger than the cyphertext, this is likely a logical error {} != {}", outCiphertext.size(), plaintext.size() + CipherAuthDataSize);
+			reportDebugError("Ciphertext buffer is bigger than the ciphertext, this is likely a logical error {} != {}", outCiphertext.size(), plaintext.size() + CipherAuthDataSize);
 			return EncryptResult::CiphertextBufferTooBig;
 		}
 
@@ -66,7 +66,7 @@ namespace Cryptography
 		static_assert(chaCha20Nonce.raw.size() == 12);
 		crypto_aead_init_ietf(&context, key.raw.data(), chaCha20Nonce.raw.data());
 
-		assertFatalRelease(outCiphertext.size() == macOffsetInCiphertext + 16, "The output cyphertext size should exactly fit cyphertext and mac");
+		assertFatalRelease(outCiphertext.size() == macOffsetInCiphertext + 16, "The output ciphertext size should exactly fit ciphertext and mac");
 		crypto_aead_write(
 			&context,
 			outCiphertext.data(),

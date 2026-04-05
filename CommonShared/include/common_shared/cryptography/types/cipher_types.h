@@ -20,7 +20,7 @@ namespace Cryptography
 		Success,
 		// this should be checked in advice, treat as logical error
 		PlaintextBiggerThanMaxMessageSize,
-		// the buffer is to small to fit the cyphertext, note that cyphertext
+		// the buffer is to small to fit the ciphertext, note that ciphertext
 		// is bigger than plaintext by the size of MAC
 		CiphertextBufferTooSmall,
 		// this implementation requires the ciphertext buffer to be exactly of the size

@@ -26,7 +26,7 @@ namespace Noise::Utils
 	[[nodiscard]] SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept;
 	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState) noexcept;
 	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState) noexcept;
-	[[nodiscard]] Cryptography::EncryptResult encryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCyphertext);
+	[[nodiscard]] Cryptography::EncryptResult encryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext);
 	[[nodiscard]] Cryptography::DecryptResult decryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext);
 	void split(const SymmetricState& symmetricState, CipherStateSending& c1, CipherStateReceiving& c2, HandshakeRole role);
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
