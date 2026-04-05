@@ -188,6 +188,40 @@ namespace Noise::MessagePatterns
 		return std::nullopt;
 	}
 
+	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_se_initiator(InitiatorHandshakeState& handshakeState) noexcept
+	{
+		if (!handshakeState.staticKeys.has_value())
+		{
+			return MessageWriteError::NoStaticKeys;
+		}
+
+		if (!handshakeState.remoteEphemeralKey.has_value())
+		{
+			return MessageWriteError::NoRemoteEphemeralKey;
+		}
+
+		Utils::mixKey(Cryptography::diffieHellman_x25519(handshakeState.staticKeys->secretKey, *handshakeState.remoteEphemeralKey), handshakeState.symmetricState);
+
+		return std::nullopt;
+	}
+
+	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_se_responder(ResponderHandshakeState& handshakeState) noexcept
+	{
+		if (!handshakeState.ephemeralKeys.has_value())
+		{
+			return MessageReadError::NoEphemeralKeys;
+		}
+
+		if (!handshakeState.remoteStaticKey.has_value())
+		{
+			return MessageReadError::NoRemoteStaticKey;
+		}
+
+		Utils::mixKey(Cryptography::diffieHellman_x25519(handshakeState.ephemeralKeys->secretKey, *handshakeState.remoteStaticKey), handshakeState.symmetricState);
+
+		return std::nullopt;
+	}
+
 	std::optional<MessageWriteError> writeMessagePattern_se_responder(ResponderHandshakeState& handshakeState) noexcept
 	{
 		if (!handshakeState.ephemeralKeys.has_value())

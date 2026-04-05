@@ -33,6 +33,10 @@ namespace Noise::MessagePatterns
 	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_es_responder(ResponderHandshakeState& handshakeState) noexcept;
 	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_es_initiator(InitiatorHandshakeState& handshakeState) noexcept;
 
+	// -> se
+	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_se_initiator(InitiatorHandshakeState& handshakeState) noexcept;
+	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_se_responder(ResponderHandshakeState& handshakeState) noexcept;
+
 	// <- se
 	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_se_responder(ResponderHandshakeState& handshakeState) noexcept;
 	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_se_initiator(InitiatorHandshakeState& handshakeState) noexcept;
