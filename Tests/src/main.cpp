@@ -1,6 +1,7 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
+#include "tests/assert_helper.h"
 #include <gtest/gtest.h>
 
 #include "common_shared/debug/assert.h"
@@ -35,8 +36,7 @@ class TestInfoLogger final : public EmptyTestEventListener
 
 void SGTestingEnvironment::SetUp()
 {
-	Debug::Assert::gGlobalAssertHandler = [] { GTEST_FAIL(); };
-	Debug::Assert::gGlobalFatalAssertHandler = [] { GTEST_FATAL_FAILURE_("Fatal assert called"); };
+	AssertHelper::enableAsserts();
 }
 
 void SGTestingEnvironment::TearDown()

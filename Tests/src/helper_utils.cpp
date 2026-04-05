@@ -25,6 +25,8 @@ void hexCharToInt(const char ch, uint8_t& res)
 		return;
 	}
 
+	printf("unknown HEX character: '%c' with code %u", ch, ch);
+
 	FAIL();
 }
 
@@ -58,6 +60,22 @@ std::vector<uint8_t> strToBytes(const std::string_view inString)
 		outVector.push_back(static_cast<uint8_t>(ch));
 	}
 	return outVector;
+}
+
+void appendHexBytes(const std::string_view inString, std::vector<uint8_t>& inOutVec)
+{
+	assertEven(inString.size());
+	const size_t writePos = inOutVec.size();
+	const size_t byteSize = inString.size() / 2;
+	inOutVec.resize(writePos + byteSize);
+	for (size_t i = 0; i < byteSize; ++i)
+	{
+		uint8_t v1;
+		uint8_t v2;
+		hexCharToInt(inString[i * 2], v1);
+		hexCharToInt(inString[i * 2 + 1], v2);
+		inOutVec[writePos + i] = (v1 << 4) | v2;
+	}
 }
 
 bool isAllZeroes(const std::span<const uint8_t> data)

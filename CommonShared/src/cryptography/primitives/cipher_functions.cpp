@@ -9,7 +9,6 @@
 
 namespace Cryptography
 {
-	static constexpr size_t CipherAuthDataSize = 16;
 	// we use IETF version of ChaCha20 instead of XChaCha for compatibility with other implementations
 	static constexpr size_t ChaCha20NonceSize = 12;
 	using ChaCha20Nonce = ByteSequence<Tag::Nonce, ChaCha20NonceSize>;
@@ -30,17 +29,33 @@ namespace Cryptography
 		outChaCha20Nonce.raw[11] = static_cast<uint8_t>((inNonce & 0xFF00000000000000) >> 0x38);
 	}
 
-	void encrypt_chacha20poly1305(
+	EncryptResult encrypt_chacha20poly1305(
 		const CipherKey& key,
 		const Nonce nonce,
-		const DynByteSequence& associatedData,
-		const DynByteSequence& plaintext,
-		DynByteSequence& outCiphertext
+		const std::span<const uint8_t> associatedData,
+		const std::span<const uint8_t> plaintext,
+		const std::span<uint8_t> outCiphertext
 	) noexcept
 	{
-		assertFatalRelease(plaintext.size() <= MaxMessageSize, "Plaintext for encryption is longer than available size {}", plaintext.size());
-		outCiphertext.clearResize(plaintext.size() + CipherAuthDataSize);
-		const size_t macOffsetInCyphertext = plaintext.size();
+		if (plaintext.size() > MaxMessageSize) [[unlikely]]
+		{
+			reportDebugError("Plaintext for encryption is bigger than max allowed size {} > {}", plaintext.size(), MaxMessageSize);
+			return EncryptResult::PlaintextBiggerThanMaxMessageSize;
+		}
+
+		if (outCiphertext.size() < plaintext.size() + CipherAuthDataSize) [[unlikely]]
+		{
+			reportDebugError("Ciphertext buffer is smaller than the plaintext {} < {}", outCiphertext.size() + CipherAuthDataSize, plaintext.size());
+			return EncryptResult::CiphertextBufferTooSmall;
+		}
+
+		if (outCiphertext.size() > plaintext.size() + CipherAuthDataSize) [[unlikely]]
+		{
+			reportDebugError("Ciphertext buffer is bigger than the cyphertext, this is likely a logical error {} != {}", outCiphertext.size(), plaintext.size() + CipherAuthDataSize);
+			return EncryptResult::CiphertextBufferTooBig;
+		}
+
+		const size_t macOffsetInCiphertext = plaintext.size();
 
 		ChaCha20Nonce chaCha20Nonce;
 		prepareChaCha20Nonce(nonce, chaCha20Nonce);
@@ -51,32 +66,55 @@ namespace Cryptography
 		static_assert(chaCha20Nonce.raw.size() == 12);
 		crypto_aead_init_ietf(&context, key.raw.data(), chaCha20Nonce.raw.data());
 
-		assertFatalRelease(outCiphertext.size() == macOffsetInCyphertext + 16, "The output cyphertext sidze should exactly fit cyphertext and mac");
+		assertFatalRelease(outCiphertext.size() == macOffsetInCiphertext + 16, "The output cyphertext size should exactly fit cyphertext and mac");
 		crypto_aead_write(
 			&context,
-			outCiphertext.raw.data(),
-			outCiphertext.raw.data() + macOffsetInCyphertext, // mac goes after text
-			associatedData.raw.data(),
-			associatedData.raw.size(),
-			plaintext.raw.data(),
-			plaintext.raw.size()
+			outCiphertext.data(),
+			outCiphertext.data() + macOffsetInCiphertext, // mac goes after text
+			associatedData.data(),
+			associatedData.size(),
+			plaintext.data(),
+			plaintext.size()
 		);
 
 		crypto_wipe(&context, sizeof(context));
+
+		return EncryptResult::Success;
 	}
 
-	int decrypt_chacha20poly1305(
+	DecryptResult decrypt_chacha20poly1305(
 		const CipherKey& key,
 		const Nonce nonce,
-		const DynByteSequence& associatedData,
-		const DynByteSequence& ciphertext,
-		DynByteSequence& outPlaintext
+		const std::span<const uint8_t> associatedData,
+		const std::span<const uint8_t> ciphertext,
+		const std::span<uint8_t> outPlaintext
 	) noexcept
 	{
-		assertFatalRelease(ciphertext.size() >= CipherAuthDataSize, "Cyphertext should be at least CipherAuthDataSize of size {}", ciphertext.size());
-		assertFatalRelease(ciphertext.size() <= MaxMessageSize + CipherAuthDataSize, "Cyphertext is longer than available size {}", ciphertext.size());
-		outPlaintext.clearResize(ciphertext.size() - CipherAuthDataSize);
-		const size_t macOffsetInCyphertext = ciphertext.size() - CipherAuthDataSize;
+		if (ciphertext.size() < CipherAuthDataSize) [[unlikely]]
+		{
+			reportDebugError("Ciphertext should be at least CipherAuthDataSize of size, but was shorter {}", ciphertext.size());
+			return DecryptResult::CiphertextSmallerThanMac;
+		}
+
+		if (ciphertext.size() > MaxMessageSize + CipherAuthDataSize) [[unlikely]]
+		{
+			reportDebugError("Ciphertext is bigger than max allowed size {}", ciphertext.size());
+			return DecryptResult::CiphertextBiggerThanMessageLimit;
+		}
+
+		if (outPlaintext.size() + CipherAuthDataSize < ciphertext.size()) [[unlikely]]
+		{
+			reportDebugError("Plaintext buffer is smaller than the plaintext {} < {}", outPlaintext.size(), ciphertext.size() - CipherAuthDataSize);
+			return DecryptResult::PlaintextBufferTooSmall;
+		}
+
+		if (outPlaintext.size() + CipherAuthDataSize > ciphertext.size()) [[unlikely]]
+		{
+			reportDebugError("Plaintext buffer is bigger than the plaintext, this is likely a logical error {} != {}", outPlaintext.size(), ciphertext.size() - CipherAuthDataSize);
+			return DecryptResult::PlaintextBufferTooBig;
+		}
+
+		const size_t macOffsetInCiphertext = ciphertext.size() - CipherAuthDataSize;
 
 		ChaCha20Nonce chaCha20Nonce;
 		prepareChaCha20Nonce(nonce, chaCha20Nonce);
@@ -87,17 +125,24 @@ namespace Cryptography
 		static_assert(chaCha20Nonce.raw.size() == 12);
 		crypto_aead_init_ietf(&context, key.raw.data(), chaCha20Nonce.raw.data());
 
-		assertFatalRelease(ciphertext.size() == macOffsetInCyphertext + 16, "The output cyphertext sidze should exactly fit cyphertext and mac");
+		assertFatalRelease(ciphertext.size() == macOffsetInCiphertext + 16, "The output ciphertext size should exactly fit ciphertext and mac");
 		int mismatch = crypto_aead_read(
 			&context,
-			outPlaintext.raw.data(),
-			ciphertext.raw.data() + macOffsetInCyphertext, // mac is at the end of cyphertext
-			associatedData.raw.data(),
-			associatedData.raw.size(),
-			ciphertext.raw.data(),
+			outPlaintext.data(),
+			ciphertext.data() + macOffsetInCiphertext, // mac is at the end of ciphertext
+			associatedData.data(),
+			associatedData.size(),
+			ciphertext.data(),
 			outPlaintext.size()
 		);
 		crypto_wipe(&context, sizeof(context));
-		return mismatch;
+
+		if (mismatch != 0) [[unlikely]]
+		{
+			Debug::Log::printDebug(std::format("Decryption failed, mac mismatch is {}", mismatch));
+			return DecryptResult::AuthDataMismatch;
+		}
+
+		return DecryptResult::Success;
 	}
 } // namespace Cryptography
