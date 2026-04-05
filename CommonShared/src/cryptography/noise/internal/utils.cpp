@@ -70,7 +70,7 @@ namespace Noise::Utils
 		return SymmetricState{
 			.handshakeHash = h.clone(),
 			.chainingKey = std::move(h),
-			.cipherState = {},
+			.cipherState = std::nullopt,
 		};
 	}
 
