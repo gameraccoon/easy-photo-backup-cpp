@@ -36,14 +36,12 @@ TEST(CryptographyNoiseMessagePatterns, pattern_e_roundtripFromInitiatorTest)
 	EXPECT_FALSE(initiatorHandshakeState.staticKeys.has_value());
 	EXPECT_FALSE(initiatorHandshakeState.remoteEphemeralKey.has_value());
 	EXPECT_FALSE(initiatorHandshakeState.remoteStaticKey.has_value());
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_TRUE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw));
+	EXPECT_FALSE(initiatorHandshakeState.symmetricState.cipherState.has_value());
 	EXPECT_TRUE(isAllZeroes(initiatorHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_FALSE(responderHandshakeState.ephemeralKeys.has_value());
 	EXPECT_FALSE(responderHandshakeState.staticKeys.has_value());
 	EXPECT_FALSE(responderHandshakeState.remoteStaticKey.has_value());
-	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_TRUE(isAllZeroes(responderHandshakeState.symmetricState.cipherState.cipherKey.raw));
+	EXPECT_FALSE(responderHandshakeState.symmetricState.cipherState.has_value());
 	EXPECT_TRUE(isAllZeroes(responderHandshakeState.symmetricState.chainingKey.raw));
 }
 
@@ -75,14 +73,12 @@ TEST(CryptographyNoiseMessagePatterns, pattern_e_roundtripFromResponderTest)
 	EXPECT_FALSE(responderHandshakeState.staticKeys.has_value());
 	EXPECT_FALSE(responderHandshakeState.remoteEphemeralKey.has_value());
 	EXPECT_FALSE(responderHandshakeState.remoteStaticKey.has_value());
-	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_TRUE(isAllZeroes(responderHandshakeState.symmetricState.cipherState.cipherKey.raw));
+	EXPECT_FALSE(responderHandshakeState.symmetricState.cipherState.has_value());
 	EXPECT_TRUE(isAllZeroes(responderHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_FALSE(initiatorHandshakeState.ephemeralKeys.has_value());
 	EXPECT_FALSE(initiatorHandshakeState.staticKeys.has_value());
 	EXPECT_FALSE(initiatorHandshakeState.remoteStaticKey.has_value());
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_TRUE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw));
+	EXPECT_FALSE(initiatorHandshakeState.symmetricState.cipherState.has_value());
 	EXPECT_TRUE(isAllZeroes(initiatorHandshakeState.symmetricState.chainingKey.raw));
 }
 
@@ -180,11 +176,13 @@ TEST(CryptographyNoiseMessagePatterns, pattern_ee_roundtripFromInitiatorTest)
 	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_EQ(initiatorHandshakeState.symmetricState.chainingKey.raw, responderHandshakeState.symmetricState.chainingKey.raw);
-	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw));
-	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.cipherState.cipherKey.raw));
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw, responderHandshakeState.symmetricState.cipherState.cipherKey.raw);
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
+	ASSERT_TRUE(initiatorHandshakeState.symmetricState.cipherState.has_value());
+	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw));
+	ASSERT_TRUE(responderHandshakeState.symmetricState.cipherState.has_value());
+	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.cipherState->cipherKey.raw));
+	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw, responderHandshakeState.symmetricState.cipherState->cipherKey.raw);
+	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
+	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
 }
 
 TEST(CryptographyNoiseMessagePatterns, pattern_ee_roundtripFromResponderTest)
@@ -209,11 +207,13 @@ TEST(CryptographyNoiseMessagePatterns, pattern_ee_roundtripFromResponderTest)
 	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_EQ(responderHandshakeState.symmetricState.chainingKey.raw, initiatorHandshakeState.symmetricState.chainingKey.raw);
-	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.cipherState.cipherKey.raw));
-	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw));
-	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState.cipherKey.raw, initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw);
-	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
+	ASSERT_TRUE(initiatorHandshakeState.symmetricState.cipherState.has_value());
+	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw));
+	ASSERT_TRUE(responderHandshakeState.symmetricState.cipherState.has_value());
+	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.cipherState->cipherKey.raw));
+	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState->cipherKey.raw, initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw);
+	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
+	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
 }
 
 TEST(CryptographyNoiseMessagePatterns, pattern_ee_writeInitiatorErrorTest)
@@ -299,10 +299,12 @@ TEST(CryptographyNoiseMessagePatterns, pattern_es_roundtripFromInitiatorTest)
 
 	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_EQ(initiatorHandshakeState.symmetricState.chainingKey.raw, responderHandshakeState.symmetricState.chainingKey.raw);
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw));
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw, responderHandshakeState.symmetricState.cipherState.cipherKey.raw);
+	ASSERT_TRUE(initiatorHandshakeState.symmetricState.cipherState.has_value());
+	ASSERT_TRUE(responderHandshakeState.symmetricState.cipherState.has_value());
+	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
+	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
+	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw));
+	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw, responderHandshakeState.symmetricState.cipherState->cipherKey.raw);
 }
 
 TEST(CryptographyNoiseMessagePatterns, pattern_es_writeInitiatorErrorTest)
@@ -358,10 +360,12 @@ TEST(CryptographyNoiseMessagePatterns, pattern_se_roundtripTest)
 
 	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_EQ(responderHandshakeState.symmetricState.chainingKey.raw, initiatorHandshakeState.symmetricState.chainingKey.raw);
-	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.cipherState.cipherKey.raw));
-	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState.cipherKey.raw, initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw);
-	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
+	ASSERT_TRUE(initiatorHandshakeState.symmetricState.cipherState.has_value());
+	ASSERT_TRUE(responderHandshakeState.symmetricState.cipherState.has_value());
+	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.cipherState->cipherKey.raw));
+	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState->cipherKey.raw, initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw);
+	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
+	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
 }
 
 TEST(CryptographyNoiseMessagePatterns, pattern_se_writeResponderErrorTest)
@@ -415,11 +419,13 @@ TEST(CryptographyNoiseMessagePatterns, pattern_ss_roundtripTest)
 	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.chainingKey.raw));
 	EXPECT_EQ(initiatorHandshakeState.symmetricState.chainingKey.raw, responderHandshakeState.symmetricState.chainingKey.raw);
-	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw));
-	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.cipherState.cipherKey.raw));
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.cipherKey.raw, responderHandshakeState.symmetricState.cipherState.cipherKey.raw);
-	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
-	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState.nonce, static_cast<uint64_t>(0));
+	ASSERT_TRUE(initiatorHandshakeState.symmetricState.cipherState.has_value());
+	ASSERT_TRUE(responderHandshakeState.symmetricState.cipherState.has_value());
+	EXPECT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw));
+	EXPECT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.cipherState->cipherKey.raw));
+	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw, responderHandshakeState.symmetricState.cipherState->cipherKey.raw);
+	EXPECT_EQ(initiatorHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
+	EXPECT_EQ(responderHandshakeState.symmetricState.cipherState->nonce, static_cast<uint64_t>(0));
 }
 
 TEST(CryptographyNoiseMessagePatterns, pattern_ss_writeInitiatorErrorTest)

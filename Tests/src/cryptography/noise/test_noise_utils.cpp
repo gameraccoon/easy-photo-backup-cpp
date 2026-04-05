@@ -55,22 +55,23 @@ TEST(CryptographyNoiseUtils, mixKey_test)
 	Noise::SymmetricState symmetricState;
 	vectorToArray(hexToBytes("cbdcafb819b0fbe08072ecb231de23aa047541bcbcf405a5ee30edddd29912dd"), symmetricState.handshakeHash.raw);
 	vectorToArray(hexToBytes("cbdcafb819b0fbe08072ecb231de23aa047541bcbcf405a5ee30edddd29912dd"), symmetricState.chainingKey.raw);
+	symmetricState.cipherState = Noise::CipherStateHandshake{};
 
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("cbdcafb819b0fbe08072ecb231de23aa047541bcbcf405a5ee30edddd29912dd")), symmetricState.chainingKey.raw);
-	EXPECT_EQ(vectorToArray<Cryptography::CipherKeySize>(hexToBytes("0000000000000000000000000000000000000000000000000000000000000000")), symmetricState.cipherState.cipherKey.raw);
-	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState.nonce);
+	EXPECT_EQ(vectorToArray<Cryptography::CipherKeySize>(hexToBytes("0000000000000000000000000000000000000000000000000000000000000000")), symmetricState.cipherState->cipherKey.raw);
+	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState->nonce);
 	Noise::Utils::mixKey(strToBytes("input key material to mix"), symmetricState);
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("acabea2d7b60b142822b9fdfe854be8b79d28b7629d98b0843055191bf447752")), symmetricState.chainingKey.raw);
-	EXPECT_EQ(vectorToArray<Cryptography::CipherKeySize>(hexToBytes("48c08419f44eb9b1dcd468642d0e7f9edd5621fcd31d83dbb039c33c840dcce9")), symmetricState.cipherState.cipherKey.raw);
-	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState.nonce);
+	EXPECT_EQ(vectorToArray<Cryptography::CipherKeySize>(hexToBytes("48c08419f44eb9b1dcd468642d0e7f9edd5621fcd31d83dbb039c33c840dcce9")), symmetricState.cipherState->cipherKey.raw);
+	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState->nonce);
 	Noise::Utils::mixKey(strToBytes("more input key material to mix"), symmetricState);
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("4609e704ad389aa726a889aa36111f361ff7f306fdeaf89640eda13d5b798a51")), symmetricState.chainingKey.raw);
-	EXPECT_EQ(vectorToArray<Cryptography::CipherKeySize>(hexToBytes("297b6973e958d7ed70038eecc073dd90a7547f56c18030e913aa3d99a53c8e91")), symmetricState.cipherState.cipherKey.raw);
-	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState.nonce);
+	EXPECT_EQ(vectorToArray<Cryptography::CipherKeySize>(hexToBytes("297b6973e958d7ed70038eecc073dd90a7547f56c18030e913aa3d99a53c8e91")), symmetricState.cipherState->cipherKey.raw);
+	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState->nonce);
 	Noise::Utils::mixKey(strToBytes("even more input key material to mix"), symmetricState);
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("d560b1dd54852ff8c57cb22bd656880334b7db1f36a78cbabc5a53ccbae3d8ea")), symmetricState.chainingKey.raw);
-	EXPECT_EQ(vectorToArray<Cryptography::CipherKeySize>(hexToBytes("ef720e03cd1a6447cb6dc913ec958dbd95a4e5b053267caf497d78360c0c1381")), symmetricState.cipherState.cipherKey.raw);
-	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState.nonce);
+	EXPECT_EQ(vectorToArray<Cryptography::CipherKeySize>(hexToBytes("ef720e03cd1a6447cb6dc913ec958dbd95a4e5b053267caf497d78360c0c1381")), symmetricState.cipherState->cipherKey.raw);
+	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState->nonce);
 }
 
 TEST(CryptographyNoiseUtils, split_test)

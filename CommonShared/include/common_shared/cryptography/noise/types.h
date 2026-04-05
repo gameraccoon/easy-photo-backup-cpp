@@ -41,7 +41,8 @@ namespace Noise
 		HashResult handshakeHash; // h
 		HashResult chainingKey; // ck
 
-		CipherStateHandshake cipherState;
+		// instead of making k optional, we make the whole state optional
+		std::optional<CipherStateHandshake> cipherState;
 	};
 
 	// we tag the types to make sure we don't mix the functions
