@@ -51,7 +51,8 @@ namespace Noise::Utils
 	{
 		HashResult tempKey;
 		Cryptography::HKDF_blake2b(inOutState.chainingKey, inputKeyMaterial, 2, inOutState.chainingKey, &tempKey, nullptr);
-		TruncateAndInitializeKey(tempKey, inOutState.cipherState);
+		inOutState.cipherState = CipherStateHandshake{};
+		TruncateAndInitializeKey(tempKey, *inOutState.cipherState);
 	}
 
 	void split(const SymmetricState& symmetricState, CipherStateSending& c1, CipherStateReceiving& c2, HandshakeRole role)
