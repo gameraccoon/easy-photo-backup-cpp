@@ -90,57 +90,31 @@ namespace Noise::Utils
 
 	Cryptography::EncryptResult encryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext)
 	{
+		if (!symmetricState.cipherState.has_value())
+		{
+			// even though this case is supported by Noise protocols with names starting with I
+			// these protocols are not used in this implementation, therefore treat this as a logical error
+			return Cryptography::EncryptResult::NoEncryptionKey;
+		}
+
 		Cryptography::EncryptResult result = Cryptography::EncryptResult::Success;
-		if (symmetricState.cipherState.has_value())
-		{
-			result = encryptWithAdGeneric(*symmetricState.cipherState, symmetricState.handshakeHash, plaintext, outCiphertext);
-		}
-		else
-		{
-			// this is only intended to be used with protocols with immediately transmitted static keys
-			// (Noise protocols starting with I)
-			if (outCiphertext.size() < plaintext.size())
-			{
-				return Cryptography::EncryptResult::CiphertextBufferTooSmall;
-			}
-
-			if (outCiphertext.size() > plaintext.size())
-			{
-				return Cryptography::EncryptResult::CiphertextBufferTooBig;
-			}
-
-			std::copy(plaintext.begin(), plaintext.end(), outCiphertext.begin());
-		}
+		result = encryptWithAdGeneric(*symmetricState.cipherState, symmetricState.handshakeHash, plaintext, outCiphertext);
 		mixHash(outCiphertext, symmetricState);
-
 		return result;
 	}
 
 	Cryptography::DecryptResult decryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext)
 	{
+		if (!symmetricState.cipherState.has_value()) [[unlikely]]
+		{
+			// even though this case is supported by Noise protocols with names starting with I
+			// these protocols are not used in this implementation, therefore treat this as a logical error
+			return Cryptography::DecryptResult::NoEncryptionKey;
+		}
+
 		Cryptography::DecryptResult result = Cryptography::DecryptResult::Success;
-		if (symmetricState.cipherState.has_value())
-		{
-			result = decryptWithAdGeneric(*symmetricState.cipherState, symmetricState.handshakeHash, ciphertext, outPlaintext);
-		}
-		else
-		{
-			// this is only intended to be used with protocols with immediately transmitted static keys
-			// (Noise protocols starting with I)
-			if (outPlaintext.size() < ciphertext.size())
-			{
-				return Cryptography::DecryptResult::PlaintextBufferTooSmall;
-			}
-
-			if (outPlaintext.size() > ciphertext.size())
-			{
-				return Cryptography::DecryptResult::PlaintextBufferTooBig;
-			}
-
-			std::copy(ciphertext.begin(), ciphertext.end(), outPlaintext.begin());
-		}
+		result = decryptWithAdGeneric(*symmetricState.cipherState, symmetricState.handshakeHash, ciphertext, outPlaintext);
 		mixHash(ciphertext, symmetricState);
-
 		return result;
 	}
 

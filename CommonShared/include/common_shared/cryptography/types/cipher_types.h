@@ -27,6 +27,9 @@ namespace Cryptography
 		// of the ciphertext that is going to be placed to it, to make sure that we don't have
 		// any off-by-one errors. Seeing this status code signals about a logical error
 		CiphertextBufferTooBig,
+
+		// this error code used down the line, here for concenience
+		NoEncryptionKey,
 	};
 
 	enum class DecryptResult
@@ -45,5 +48,8 @@ namespace Cryptography
 		// of the message that is going to be placed to it, to make sure that we don't have
 		// any off-by-one errors. Seeing this status code signals about a logical error
 		PlaintextBufferTooBig,
+
+		// this error code used down the line, here for concenience
+		NoEncryptionKey,
 	};
 } // namespace Cryptography
