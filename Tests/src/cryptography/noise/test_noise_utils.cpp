@@ -7,7 +7,7 @@
 #include "common_shared/cryptography/noise/internal/utils.h"
 #include "common_shared/cryptography/utils/random.h"
 
-static void testEncryptionDecryption(Noise::CipherStateSending& sending, Noise::CipherStateReceiving& receiving, const std::vector<uint8_t>& plaintext, const std::span<const uint8_t> associatedData)
+static void testEncryptDecryptWithAd(Noise::CipherStateSending& sending, Noise::CipherStateReceiving& receiving, const std::vector<uint8_t>& plaintext, const std::span<const uint8_t> associatedData)
 {
 	Cryptography::DynByteSequence ciphertext;
 	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
@@ -18,6 +18,7 @@ static void testEncryptionDecryption(Noise::CipherStateSending& sending, Noise::
 	ASSERT_EQ(Noise::Utils::decryptWithAd(receiving, associatedData, ciphertext, resultPlaintext), Cryptography::DecryptResult::Success);
 
 	EXPECT_EQ(resultPlaintext.raw, plaintext);
+	EXPECT_EQ(sending.nonce, receiving.nonce);
 }
 
 static void testInitializeSymmetric(const std::string_view protocolName, const std::span<const uint8_t> expectedVec)
@@ -32,7 +33,27 @@ static void testInitializeSymmetric(const std::string_view protocolName, const s
 	EXPECT_EQ(symmetricState.handshakeHash.raw, expectedResult);
 }
 
-TEST(CryptographyNoiseUtils, encryptWithAd_roundtripTest)
+static void testEncryptDecryptAndHash(Noise::SymmetricState& sendingSymmetricState, Noise::SymmetricState& receivingSymmetricState, const std::vector<uint8_t>& plaintext)
+{
+	Cryptography::DynByteSequence ciphertext;
+	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	ASSERT_EQ(Noise::Utils::encryptAndHash(sendingSymmetricState, plaintext, ciphertext), Cryptography::EncryptResult::Success);
+
+	Cryptography::DynByteSequence resultPlaintext;
+	resultPlaintext.clearResize(plaintext.size());
+	ASSERT_EQ(Noise::Utils::decryptAndHash(receivingSymmetricState, ciphertext, resultPlaintext), Cryptography::DecryptResult::Success);
+
+	EXPECT_EQ(resultPlaintext.raw, plaintext);
+	EXPECT_EQ(sendingSymmetricState.handshakeHash.raw, receivingSymmetricState.handshakeHash.raw);
+
+	ASSERT_EQ(sendingSymmetricState.cipherState.has_value(), receivingSymmetricState.cipherState.has_value());
+	if (sendingSymmetricState.cipherState.has_value() && receivingSymmetricState.cipherState.has_value())
+	{
+		ASSERT_EQ(sendingSymmetricState.cipherState->nonce, receivingSymmetricState.cipherState->nonce);
+	}
+}
+
+TEST(CryptographyNoiseUtils, encryptWithAd_decryptWithAd_roundtripTest)
 {
 	std::array<uint8_t, Cryptography::CipherKeySize> randomizedKey;
 	Cryptography::fillWithRandomBytes(randomizedKey);
@@ -45,9 +66,9 @@ TEST(CryptographyNoiseUtils, encryptWithAd_roundtripTest)
 	receivingState.nonce = static_cast<uint64_t>(0x102);
 	const std::vector<uint8_t> associatedData = hexToBytes("BBBBBBBB");
 
-	testEncryptionDecryption(sendingState, receivingState, strToBytes("test text 1"), associatedData);
-	testEncryptionDecryption(sendingState, receivingState, strToBytes("and test text 2"), associatedData);
-	testEncryptionDecryption(sendingState, receivingState, strToBytes("and also test text 3"), associatedData);
+	testEncryptDecryptWithAd(sendingState, receivingState, strToBytes("test text 1"), associatedData);
+	testEncryptDecryptWithAd(sendingState, receivingState, strToBytes("and test text 2"), associatedData);
+	testEncryptDecryptWithAd(sendingState, receivingState, strToBytes("and also test text 3"), associatedData);
 
 	EXPECT_EQ(sendingState.nonce, static_cast<uint64_t>(0x105));
 	EXPECT_EQ(receivingState.nonce, static_cast<uint64_t>(0x105));
@@ -107,6 +128,28 @@ TEST(CryptographyNoiseUtils, mixKey_test)
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("d560b1dd54852ff8c57cb22bd656880334b7db1f36a78cbabc5a53ccbae3d8ea")), symmetricState.chainingKey.raw);
 	EXPECT_EQ(vectorToArray<Cryptography::CipherKeySize>(hexToBytes("ef720e03cd1a6447cb6dc913ec958dbd95a4e5b053267caf497d78360c0c1381")), symmetricState.cipherState->cipherKey.raw);
 	EXPECT_EQ(static_cast<uint64_t>(0), symmetricState.cipherState->nonce);
+}
+
+TEST(CryptographyNoiseUtils, encryptAndHash_decryptAndHash_roundtripTest)
+{
+	std::array<uint8_t, Cryptography::CipherKeySize> randomizedKey;
+	Cryptography::fillWithRandomBytes(randomizedKey);
+
+	Noise::SymmetricState sendingState = Noise::Utils::initializeSymmetric("Noise_XX_25519_ChaChaPoly_BLAKE2b");
+	sendingState.cipherState = Noise::CipherStateHandshake{};
+	sendingState.cipherState->cipherKey.raw = randomizedKey;
+	sendingState.cipherState->nonce = static_cast<uint64_t>(0x102);
+	Noise::SymmetricState receivingState = Noise::Utils::initializeSymmetric("Noise_XX_25519_ChaChaPoly_BLAKE2b");
+	receivingState.cipherState = Noise::CipherStateHandshake{};
+	receivingState.cipherState->cipherKey.raw = randomizedKey;
+	receivingState.cipherState->nonce = static_cast<uint64_t>(0x102);
+
+	testEncryptDecryptAndHash(sendingState, receivingState, strToBytes("test text 1"));
+	testEncryptDecryptAndHash(sendingState, receivingState, strToBytes("and test text 2"));
+	testEncryptDecryptAndHash(sendingState, receivingState, strToBytes("and also test text 3"));
+
+	EXPECT_EQ(sendingState.cipherState->nonce, static_cast<uint64_t>(0x105));
+	EXPECT_EQ(receivingState.cipherState->nonce, static_cast<uint64_t>(0x105));
 }
 
 TEST(CryptographyNoiseUtils, split_test)

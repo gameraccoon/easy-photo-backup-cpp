@@ -18,7 +18,8 @@ namespace Noise::Utils
 		inOutState.nonce = static_cast<uint64_t>(0);
 	}
 
-	Cryptography::EncryptResult encryptWithAd(CipherStateSending& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext)
+	template<CipherStateInstanceTag Tag>
+	[[nodiscard]] Cryptography::EncryptResult encryptWithAdGeneric(CipherState<Tag>& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext)
 	{
 		Cryptography::EncryptResult result = Cryptography::encrypt_chacha20poly1305(cipherState.cipherKey, cipherState.nonce, associatedData, plaintext, outCiphertext);
 		if (result == Cryptography::EncryptResult::Success) [[likely]]
@@ -28,7 +29,8 @@ namespace Noise::Utils
 		return result;
 	}
 
-	Cryptography::DecryptResult decryptWithAd(CipherStateReceiving& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext)
+	template<CipherStateInstanceTag Tag>
+	[[nodiscard]] Cryptography::DecryptResult decryptWithAdGeneric(CipherState<Tag>& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext)
 	{
 		const Cryptography::DecryptResult result = Cryptography::decrypt_chacha20poly1305(cipherState.cipherKey, cipherState.nonce, associatedData, ciphertext, outPlaintext);
 		if (result == Cryptography::DecryptResult::Success) [[likely]]
@@ -36,6 +38,16 @@ namespace Noise::Utils
 			++cipherState.nonce;
 		}
 		return result;
+	}
+
+	Cryptography::EncryptResult encryptWithAd(CipherStateSending& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext)
+	{
+		return encryptWithAdGeneric(cipherState, associatedData, plaintext, outCiphertext);
+	}
+
+	Cryptography::DecryptResult decryptWithAd(CipherStateReceiving& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext)
+	{
+		return decryptWithAdGeneric(cipherState, associatedData, ciphertext, outPlaintext);
 	}
 
 	SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept
@@ -74,6 +86,62 @@ namespace Noise::Utils
 		Cryptography::HKDF_blake2b(inOutState.chainingKey, inputKeyMaterial, 2, inOutState.chainingKey, &tempKey, nullptr);
 		inOutState.cipherState = CipherStateHandshake{};
 		TruncateAndInitializeKey(tempKey, *inOutState.cipherState);
+	}
+
+	Cryptography::EncryptResult encryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext)
+	{
+		Cryptography::EncryptResult result = Cryptography::EncryptResult::Success;
+		if (symmetricState.cipherState.has_value())
+		{
+			result = encryptWithAdGeneric(*symmetricState.cipherState, symmetricState.handshakeHash, plaintext, outCiphertext);
+		}
+		else
+		{
+			// this is only intended to be used with protocols with immediately transmitted static keys
+			// (Noise protocols starting with I)
+			if (outCiphertext.size() < plaintext.size())
+			{
+				return Cryptography::EncryptResult::CiphertextBufferTooSmall;
+			}
+
+			if (outCiphertext.size() > plaintext.size())
+			{
+				return Cryptography::EncryptResult::CiphertextBufferTooBig;
+			}
+
+			std::copy(plaintext.begin(), plaintext.end(), outCiphertext.begin());
+		}
+		mixHash(outCiphertext, symmetricState);
+
+		return result;
+	}
+
+	Cryptography::DecryptResult decryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext)
+	{
+		Cryptography::DecryptResult result = Cryptography::DecryptResult::Success;
+		if (symmetricState.cipherState.has_value())
+		{
+			result = decryptWithAdGeneric(*symmetricState.cipherState, symmetricState.handshakeHash, ciphertext, outPlaintext);
+		}
+		else
+		{
+			// this is only intended to be used with protocols with immediately transmitted static keys
+			// (Noise protocols starting with I)
+			if (outPlaintext.size() < ciphertext.size())
+			{
+				return Cryptography::DecryptResult::PlaintextBufferTooSmall;
+			}
+
+			if (outPlaintext.size() > ciphertext.size())
+			{
+				return Cryptography::DecryptResult::PlaintextBufferTooBig;
+			}
+
+			std::copy(ciphertext.begin(), ciphertext.end(), outPlaintext.begin());
+		}
+		mixHash(ciphertext, symmetricState);
+
+		return result;
 	}
 
 	void split(const SymmetricState& symmetricState, CipherStateSending& c1, CipherStateReceiving& c2, HandshakeRole role)
