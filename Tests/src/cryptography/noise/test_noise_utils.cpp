@@ -5,6 +5,20 @@
 #include <gtest/gtest.h>
 
 #include "common_shared/cryptography/noise/internal/utils.h"
+#include "common_shared/cryptography/utils/random.h"
+
+static void testEncryptionDecryption(Noise::CipherStateSending& sending, Noise::CipherStateReceiving& receiving, const std::vector<uint8_t>& plaintext, const std::span<const uint8_t> associatedData)
+{
+	Cryptography::DynByteSequence ciphertext;
+	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	ASSERT_EQ(Noise::Utils::encryptWithAd(sending, associatedData, plaintext, ciphertext), Cryptography::EncryptResult::Success);
+
+	Cryptography::DynByteSequence resultPlaintext;
+	resultPlaintext.clearResize(plaintext.size());
+	ASSERT_EQ(Noise::Utils::decryptWithAd(receiving, associatedData, ciphertext, resultPlaintext), Cryptography::DecryptResult::Success);
+
+	EXPECT_EQ(resultPlaintext.raw, plaintext);
+}
 
 static void testInitializeSymmetric(const std::string_view protocolName, const std::span<const uint8_t> expectedVec)
 {
@@ -16,6 +30,27 @@ static void testInitializeSymmetric(const std::string_view protocolName, const s
 	// during the initialization, ck and h are equal
 	EXPECT_EQ(symmetricState.chainingKey.raw, expectedResult);
 	EXPECT_EQ(symmetricState.handshakeHash.raw, expectedResult);
+}
+
+TEST(CryptographyNoiseUtils, encryptWithAd_roundtripTest)
+{
+	std::array<uint8_t, Cryptography::CipherKeySize> randomizedKey;
+	Cryptography::fillWithRandomBytes(randomizedKey);
+
+	Noise::CipherStateSending sendingState;
+	sendingState.cipherKey.raw = randomizedKey;
+	sendingState.nonce = static_cast<uint64_t>(0x102);
+	Noise::CipherStateReceiving receivingState;
+	receivingState.cipherKey.raw = randomizedKey;
+	receivingState.nonce = static_cast<uint64_t>(0x102);
+	const std::vector<uint8_t> associatedData = hexToBytes("BBBBBBBB");
+
+	testEncryptionDecryption(sendingState, receivingState, strToBytes("test text 1"), associatedData);
+	testEncryptionDecryption(sendingState, receivingState, strToBytes("and test text 2"), associatedData);
+	testEncryptionDecryption(sendingState, receivingState, strToBytes("and also test text 3"), associatedData);
+
+	EXPECT_EQ(sendingState.nonce, static_cast<uint64_t>(0x105));
+	EXPECT_EQ(receivingState.nonce, static_cast<uint64_t>(0x105));
 }
 
 TEST(CryptographyNoiseUtils, initializeSymmetric_test)
