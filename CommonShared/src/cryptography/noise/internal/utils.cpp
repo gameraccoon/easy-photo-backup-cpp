@@ -7,6 +7,7 @@
 
 #include "common_shared/cryptography/primitives/cipher_functions.h"
 #include "common_shared/cryptography/primitives/hash_functions.h"
+#include "common_shared/debug/assert.h"
 
 namespace Noise::Utils
 {
@@ -94,6 +95,7 @@ namespace Noise::Utils
 		{
 			// even though this case is supported by Noise protocols with names starting with I
 			// these protocols are not used in this implementation, therefore treat this as a logical error
+			reportDebugError("No encryption key provided");
 			return Cryptography::EncryptResult::NoEncryptionKey;
 		}
 
@@ -109,6 +111,7 @@ namespace Noise::Utils
 		{
 			// even though this case is supported by Noise protocols with names starting with I
 			// these protocols are not used in this implementation, therefore treat this as a logical error
+			reportDebugError("No encryption key provided");
 			return Cryptography::DecryptResult::NoEncryptionKey;
 		}
 

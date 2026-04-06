@@ -1,6 +1,7 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
+#include "tests/assert_helper.h"
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
@@ -237,6 +238,7 @@ TEST(CryptographyNoiseUtils, encryptAndHash_noKey)
 
 	Cryptography::DynByteSequence ciphertext;
 	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	AssertHelper::ScopedAssertDisabler d{};
 	ASSERT_EQ(Noise::Utils::encryptAndHash(sendingState, plaintext, ciphertext), Cryptography::EncryptResult::NoEncryptionKey);
 }
 
@@ -247,6 +249,7 @@ TEST(CryptographyNoiseUtils, decryptAndHash_noKey)
 
 	Cryptography::DynByteSequence plaintext;
 	plaintext.clearResize(ciphertext.size() + Cryptography::CipherAuthDataSize);
+	AssertHelper::ScopedAssertDisabler d{};
 	ASSERT_EQ(Noise::Utils::decryptAndHash(sendingState, ciphertext, plaintext), Cryptography::DecryptResult::NoEncryptionKey);
 }
 
