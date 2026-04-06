@@ -80,7 +80,7 @@ namespace Noise
 	enum class MessageReadError
 	{
 		TruncatedMessage,
-		RemoteEphemeralKeysAlreadySet,
+		RemoteEphemeralKeyAlreadySet,
 		NoStaticKeys,
 		NoEphemeralKeys,
 		NoRemoteStaticKey,

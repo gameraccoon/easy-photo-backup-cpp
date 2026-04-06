@@ -33,7 +33,7 @@ namespace Noise::MessagePatterns
 	{
 		if (handshakeState.remoteEphemeralKey.has_value())
 		{
-			return MessageReadError::RemoteEphemeralKeysAlreadySet;
+			return MessageReadError::RemoteEphemeralKeyAlreadySet;
 		}
 
 		handshakeState.remoteEphemeralKey = PublicKey{};

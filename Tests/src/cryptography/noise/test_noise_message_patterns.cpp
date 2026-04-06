@@ -132,7 +132,7 @@ TEST(CryptographyNoiseMessagePatterns, pattern_e_readInitiatorErrorTest)
 		initiatorHandshakeState.remoteEphemeralKey = Cryptography::PublicKey{};
 		std::array<std::byte, Cryptography::DHLEN> messageBuffer;
 		size_t writeCursor = 0;
-		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_e_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::RemoteEphemeralKeysAlreadySet));
+		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_e_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::RemoteEphemeralKeyAlreadySet));
 	}
 }
 
@@ -150,7 +150,7 @@ TEST(CryptographyNoiseMessagePatterns, pattern_e_readResponderErrorTest)
 		responderHandshakeState.remoteEphemeralKey = Cryptography::PublicKey{};
 		std::array<std::byte, Cryptography::DHLEN> messageBuffer;
 		size_t writeCursor = 0;
-		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_e_responder(responderHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::RemoteEphemeralKeysAlreadySet));
+		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_e_responder(responderHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::RemoteEphemeralKeyAlreadySet));
 	}
 }
 
