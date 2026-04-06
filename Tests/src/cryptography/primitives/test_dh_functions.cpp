@@ -27,7 +27,7 @@ TEST(CryptographyDhFunctions, DhX25519_test)
 	vectorToArray(hexToBytes("BD918676BB3C2657A264CC1047601AD931B9FB0D5EC42E688EE7B06CE077A777"), keys2.publicKey.raw);
 	vectorToArray(hexToBytes("D2EC0792480DD0EFE2850CE84C9D367202E0FB67FE462314C7A9F94ED3911F73"), keys2.secretKey.raw);
 
-	std::array<uint8_t, Cryptography::DHLEN> expectedResult;
+	std::array<uint8_t, Cryptography::DHLEN> expectedResult = {};
 	vectorToArray(hexToBytes("37266b1796b20191001d0a7b46cef587deb1f7e7b73e26d764314113ad3b4c28"), expectedResult);
 
 	Cryptography::DhResult dhResult1 = Cryptography::diffieHellman_x25519(keys1.secretKey, keys2.publicKey);

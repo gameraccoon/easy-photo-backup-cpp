@@ -8,7 +8,7 @@
 
 static void testHash_blake2b(const std::span<const uint8_t> dataVec, const std::span<const uint8_t> expectedHashVec)
 {
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult;
+	std::array<uint8_t, Cryptography::HASHLEN> expectedResult = {};
 	vectorToArray(expectedHashVec, expectedResult);
 
 	Cryptography::HashResult actualResult;
@@ -32,7 +32,7 @@ static void testHmac_blake2b(const std::span<const uint8_t> keyVec, const std::s
 	Cryptography::HashResult key;
 	vectorToArray(keyVec, key.raw);
 
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult;
+	std::array<uint8_t, Cryptography::HASHLEN> expectedResult = {};
 	vectorToArray(expectedVec, expectedResult);
 
 	Cryptography::HashResult actualResult;
@@ -46,10 +46,10 @@ static void testHkdf_blake2b(std::vector<uint8_t>&& chainingKeyVec, std::vector<
 	Cryptography::HashResult chainingKey;
 	vectorToArray(chainingKeyVec, chainingKey.raw);
 
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult1;
+	std::array<uint8_t, Cryptography::HASHLEN> expectedResult1 = {};
 	vectorToArray(expected1Vec, expectedResult1);
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult2;
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult3;
+	std::array<uint8_t, Cryptography::HASHLEN> expectedResult2 = {};
+	std::array<uint8_t, Cryptography::HASHLEN> expectedResult3 = {};
 	if (expected2Vec.has_value())
 	{
 		vectorToArray(*expected2Vec, expectedResult2);

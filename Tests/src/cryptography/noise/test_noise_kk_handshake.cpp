@@ -18,7 +18,7 @@ TEST(CryptographyNoiseKKHandshake, roundtripTest)
 	Noise::InitiatorHandshakeState initiatorHandshakeState = initializeInitiator(initiatorStaticKeys, responderStaticKeys.publicKey);
 	Noise::ResponderHandshakeState responderHandshakeState = initializeResponder(responderStaticKeys, initiatorStaticKeys.publicKey);
 
-	std::array<std::byte, DHLEN> messageBuffer;
+	std::array<std::byte, DHLEN> messageBuffer = {};
 	size_t initiatorCursor = 0;
 	EXPECT_EQ(appendHandshakeMessage1(initiatorHandshakeState, messageBuffer, initiatorCursor), std::nullopt);
 

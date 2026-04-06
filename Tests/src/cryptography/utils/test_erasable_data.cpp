@@ -7,7 +7,7 @@
 
 TEST(CryptographyErasableData, ArrayWithData_CryptoWipe_DataIsZeroed)
 {
-	std::array<uint8_t, 4> rawData;
+	std::array<uint8_t, 4> rawData = {};
 	for (size_t i = 0; i < 4; ++i)
 	{
 		rawData[i] = static_cast<uint8_t>(i + 1);

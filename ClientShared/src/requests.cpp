@@ -127,7 +127,7 @@ namespace Requests
 		}
 
 		constexpr size_t MAX_MESSAGE_SIZE = Protocol::MaxRequestAnswerSize;
-		std::array<std::byte, MAX_MESSAGE_SIZE> buffer;
+		std::array<std::byte, MAX_MESSAGE_SIZE> buffer = {};
 		size_t messageSize = 0;
 		bool expectsAnswer = false;
 		const Protocol::RequestId requestId = prepareRequest(std::move(request), std::span(buffer.data() + 3, buffer.size() - 3), messageSize, expectsAnswer);

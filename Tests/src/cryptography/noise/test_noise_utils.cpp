@@ -24,7 +24,7 @@ static void testEncryptDecryptWithAd(Noise::CipherStateSending& sending, Noise::
 
 static void testInitializeSymmetric(const std::string_view protocolName, const std::span<const uint8_t> expectedVec)
 {
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult;
+	std::array<uint8_t, Cryptography::HASHLEN> expectedResult = {};
 	vectorToArray(expectedVec, expectedResult);
 
 	Noise::SymmetricState symmetricState = Noise::Utils::initializeSymmetric(protocolName);
@@ -56,7 +56,7 @@ static void testEncryptDecryptAndHash(Noise::SymmetricState& sendingSymmetricSta
 
 TEST(CryptographyNoiseUtils, encryptWithAd_decryptWithAd_roundtripTest)
 {
-	std::array<uint8_t, Cryptography::CipherKeySize> randomizedKey;
+	std::array<uint8_t, Cryptography::CipherKeySize> randomizedKey = {};
 	Cryptography::fillWithRandomBytes(randomizedKey);
 
 	Noise::CipherStateSending sendingState;
@@ -171,7 +171,7 @@ TEST(CryptographyNoiseUtils, mixKey_test)
 
 TEST(CryptographyNoiseUtils, encryptAndHash_decryptAndHash_roundtripTest)
 {
-	std::array<uint8_t, Cryptography::CipherKeySize> randomizedKey;
+	std::array<uint8_t, Cryptography::CipherKeySize> randomizedKey = {};
 	Cryptography::fillWithRandomBytes(randomizedKey);
 
 	Noise::SymmetricState sendingState = Noise::Utils::initializeSymmetric("Noise_XX_25519_ChaChaPoly_BLAKE2b");
