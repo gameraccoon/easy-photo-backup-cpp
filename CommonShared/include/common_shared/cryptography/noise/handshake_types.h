@@ -5,31 +5,13 @@
 
 #include <optional>
 
-#include "common_shared/cryptography/types/cipher_types.h"
+#include "common_shared/cryptography/noise/cipher_types.h"
 #include "common_shared/cryptography/types/dh_types.h"
 #include "common_shared/cryptography/types/hash_types.h"
 
 namespace Noise
 {
 	using namespace Cryptography;
-
-	// we tag the types to make sure we don't mix the functions
-	enum class CipherStateInstanceTag
-	{
-		Handshake,
-		Sending,
-		Receiving,
-	};
-
-	// cipher state exists both during handshake but also during normal message transport phase
-	// in case of handshake, each party has one copy of the CipherState
-	// during the transport phase each party has two (one for sending, one for receiving)
-	template<CipherStateInstanceTag>
-	struct CipherState
-	{
-		CipherKey cipherKey; // k
-		Nonce nonce = 0u; // n
-	};
 
 	using CipherStateHandshake = CipherState<CipherStateInstanceTag::Handshake>;
 	using CipherStateSending = CipherState<CipherStateInstanceTag::Sending>;

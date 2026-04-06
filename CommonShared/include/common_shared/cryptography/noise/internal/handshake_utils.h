@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <string_view>
 
-#include "common_shared/cryptography/noise/types.h"
+#include "common_shared/cryptography/noise/handshake_types.h"
 
 namespace Noise::Utils
 {

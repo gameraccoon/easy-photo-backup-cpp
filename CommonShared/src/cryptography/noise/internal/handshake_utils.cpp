@@ -1,11 +1,11 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "common_shared/cryptography/noise/internal/utils.h"
+#include "common_shared/cryptography/noise/internal/handshake_utils.h"
 
 #include <bit>
 
-#include "common_shared/cryptography/primitives/cipher_functions.h"
+#include "common_shared/cryptography/noise/cipher_utils.h"
 #include "common_shared/cryptography/primitives/hash_functions.h"
 #include "common_shared/debug/assert.h"
 
@@ -17,38 +17,6 @@ namespace Noise::Utils
 		static_assert(Cryptography::CipherKeySize == 32, "Unexpected CipherKeySize");
 		std::copy(tempKey.raw.begin(), tempKey.raw.begin() + 32, inOutState.cipherKey.raw.begin());
 		inOutState.nonce = static_cast<uint64_t>(0);
-	}
-
-	template<CipherStateInstanceTag Tag>
-	[[nodiscard]] Cryptography::EncryptResult encryptWithAdGeneric(CipherState<Tag>& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext)
-	{
-		Cryptography::EncryptResult result = Cryptography::encrypt_chacha20poly1305(cipherState.cipherKey, cipherState.nonce, associatedData, plaintext, outCiphertext);
-		if (result == Cryptography::EncryptResult::Success) [[likely]]
-		{
-			++cipherState.nonce;
-		}
-		return result;
-	}
-
-	template<CipherStateInstanceTag Tag>
-	[[nodiscard]] Cryptography::DecryptResult decryptWithAdGeneric(CipherState<Tag>& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext)
-	{
-		const Cryptography::DecryptResult result = Cryptography::decrypt_chacha20poly1305(cipherState.cipherKey, cipherState.nonce, associatedData, ciphertext, outPlaintext);
-		if (result == Cryptography::DecryptResult::Success) [[likely]]
-		{
-			++cipherState.nonce;
-		}
-		return result;
-	}
-
-	Cryptography::EncryptResult encryptWithAd(CipherStateSending& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext)
-	{
-		return encryptWithAdGeneric(cipherState, associatedData, plaintext, outCiphertext);
-	}
-
-	Cryptography::DecryptResult decryptWithAd(CipherStateReceiving& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext)
-	{
-		return decryptWithAdGeneric(cipherState, associatedData, ciphertext, outPlaintext);
 	}
 
 	SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept
@@ -100,7 +68,7 @@ namespace Noise::Utils
 		}
 
 		Cryptography::EncryptResult result = Cryptography::EncryptResult::Success;
-		result = encryptWithAdGeneric(*symmetricState.cipherState, symmetricState.handshakeHash, plaintext, outCiphertext);
+		result = encryptWithAd(*symmetricState.cipherState, symmetricState.handshakeHash, plaintext, outCiphertext);
 		mixHash(outCiphertext, symmetricState);
 		return result;
 	}
@@ -116,7 +84,7 @@ namespace Noise::Utils
 		}
 
 		Cryptography::DecryptResult result = Cryptography::DecryptResult::Success;
-		result = decryptWithAdGeneric(*symmetricState.cipherState, symmetricState.handshakeHash, ciphertext, outPlaintext);
+		result = decryptWithAd(*symmetricState.cipherState, symmetricState.handshakeHash, ciphertext, outPlaintext);
 		mixHash(ciphertext, symmetricState);
 		return result;
 	}

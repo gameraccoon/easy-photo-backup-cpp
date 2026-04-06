@@ -3,8 +3,8 @@
 
 #include "common_shared/cryptography/noise/noise_xx_handshake.h"
 
+#include "common_shared/cryptography/noise/internal/handshake_utils.h"
 #include "common_shared/cryptography/noise/internal/message_patterns.h"
-#include "common_shared/cryptography/noise/internal/utils.h"
 
 namespace Noise::NoiseXX
 {

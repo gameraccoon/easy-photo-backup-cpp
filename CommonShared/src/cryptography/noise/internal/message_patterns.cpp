@@ -5,7 +5,7 @@
 
 #include <bit>
 
-#include "common_shared/cryptography/noise/internal/utils.h"
+#include "common_shared/cryptography/noise/internal/handshake_utils.h"
 #include "common_shared/cryptography/primitives/dh_functions.h"
 
 namespace Noise::MessagePatterns

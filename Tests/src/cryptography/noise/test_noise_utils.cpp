@@ -5,7 +5,7 @@
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
-#include "common_shared/cryptography/noise/internal/utils.h"
+#include "common_shared/cryptography/noise/internal/handshake_utils.h"
 #include "common_shared/cryptography/utils/random.h"
 
 static void testEncryptDecryptWithAd(Noise::CipherStateSending& sending, Noise::CipherStateReceiving& receiving, const std::vector<uint8_t>& plaintext, const std::span<const uint8_t> associatedData)

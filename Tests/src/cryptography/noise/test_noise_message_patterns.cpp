@@ -5,8 +5,8 @@
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
+#include "common_shared/cryptography/noise/internal/handshake_utils.h"
 #include "common_shared/cryptography/noise/internal/message_patterns.h"
-#include "common_shared/cryptography/noise/internal/utils.h"
 #include "common_shared/cryptography/primitives/dh_functions.h"
 
 TEST(CryptographyNoiseMessagePatterns, pattern_e_roundtripFromInitiatorTest)
