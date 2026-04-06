@@ -18,11 +18,6 @@ namespace Noise::Utils
 		Responder,
 	};
 
-	// cipher state functions
-	[[nodiscard]] Cryptography::EncryptResult encryptWithAd(CipherStateSending& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext);
-	[[nodiscard]] Cryptography::DecryptResult decryptWithAd(CipherStateReceiving& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext);
-
-	// symmetric state functions
 	[[nodiscard]] SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept;
 	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState) noexcept;
 	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState) noexcept;

@@ -5,6 +5,7 @@
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
+#include "common_shared/cryptography/noise/cipher_utils.h"
 #include "common_shared/cryptography/noise/internal/handshake_utils.h"
 #include "common_shared/cryptography/utils/random.h"
 
