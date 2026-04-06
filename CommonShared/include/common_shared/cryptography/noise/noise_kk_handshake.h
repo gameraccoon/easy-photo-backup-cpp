@@ -22,8 +22,8 @@ namespace Noise::NoiseKK
 	};
 
 	// initialization
-	[[nodiscard]] InitiatorHandshakeState InitializeInitiator(const Keypair& staticKeys, const PublicKey& remoteStaticKey) noexcept;
-	[[nodiscard]] ResponderHandshakeState InitializeResponder(const Keypair& staticKeys, const PublicKey& remoteStaticKey) noexcept;
+	[[nodiscard]] InitiatorHandshakeState initializeInitiator(const Keypair& staticKeys, const PublicKey& remoteStaticKey) noexcept;
+	[[nodiscard]] ResponderHandshakeState initializeResponder(const Keypair& staticKeys, const PublicKey& remoteStaticKey) noexcept;
 
 	// message 1
 	const size_t Message1ExpectedSize = DHLEN;

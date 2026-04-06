@@ -8,7 +8,7 @@
 
 namespace Noise::NoiseKK
 {
-	InitiatorHandshakeState InitializeInitiator(const Keypair& staticKeys, const PublicKey& remoteStaticKey) noexcept
+	InitiatorHandshakeState initializeInitiator(const Keypair& staticKeys, const PublicKey& remoteStaticKey) noexcept
 	{
 		InitiatorHandshakeState handshakeState;
 
@@ -23,7 +23,7 @@ namespace Noise::NoiseKK
 		return handshakeState;
 	}
 
-	ResponderHandshakeState InitializeResponder(const Keypair& staticKeys, const PublicKey& remoteStaticKey) noexcept
+	ResponderHandshakeState initializeResponder(const Keypair& staticKeys, const PublicKey& remoteStaticKey) noexcept
 	{
 		ResponderHandshakeState handshakeState;
 

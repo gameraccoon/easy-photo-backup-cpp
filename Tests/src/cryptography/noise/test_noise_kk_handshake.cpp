@@ -15,8 +15,8 @@ TEST(CryptographyNoiseKKHandshake, roundtripTest)
 	Keypair responderStaticKeys = generateKeypair_x25519();
 
 	// initialize both parts
-	Noise::InitiatorHandshakeState initiatorHandshakeState = InitializeInitiator(initiatorStaticKeys, responderStaticKeys.publicKey);
-	Noise::ResponderHandshakeState responderHandshakeState = InitializeResponder(responderStaticKeys, initiatorStaticKeys.publicKey);
+	Noise::InitiatorHandshakeState initiatorHandshakeState = initializeInitiator(initiatorStaticKeys, responderStaticKeys.publicKey);
+	Noise::ResponderHandshakeState responderHandshakeState = initializeResponder(responderStaticKeys, initiatorStaticKeys.publicKey);
 
 	std::array<std::byte, HASHLEN> messageBuffer;
 	size_t initiatorCursor = 0;
