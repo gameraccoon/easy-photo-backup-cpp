@@ -14,4 +14,7 @@ namespace Noise::Utils
 
 	[[nodiscard]] Cryptography::EncryptResult encryptWithAd(CipherStateHandshake& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext);
 	[[nodiscard]] Cryptography::DecryptResult decryptWithAd(CipherStateHandshake& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext);
+
+	EncryptResult rekey(CipherStateSending& cipherState);
+	EncryptResult rekey(CipherStateReceiving& cipherState);
 }
