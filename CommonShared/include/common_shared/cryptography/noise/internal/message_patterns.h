@@ -17,6 +17,14 @@ namespace Noise::MessagePatterns
 	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_e_responder(ResponderHandshakeState& handshakeState, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept;
 	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_e_initiator(InitiatorHandshakeState& handshakeState, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept;
 
+	// -> s
+	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_s_initiator(InitiatorHandshakeState& handshakeState, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept;
+	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_s_responder(ResponderHandshakeState& handshakeState, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept;
+
+	// <- s
+	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_s_responder(ResponderHandshakeState& handshakeState, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept;
+	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_s_initiator(InitiatorHandshakeState& handshakeState, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept;
+
 	// -> ee
 	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_ee_initiator(InitiatorHandshakeState& handshakeState) noexcept;
 	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_ee_responder(ResponderHandshakeState& handshakeState) noexcept;

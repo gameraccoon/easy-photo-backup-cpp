@@ -3,6 +3,8 @@
 
 #include "common_shared/cryptography/noise/internal/message_patterns.h"
 
+#include <bit>
+
 #include "common_shared/cryptography/noise/internal/utils.h"
 #include "common_shared/cryptography/primitives/dh_functions.h"
 
@@ -44,6 +46,70 @@ namespace Noise::MessagePatterns
 		}
 
 		Utils::mixHash(*handshakeState.remoteEphemeralKey, handshakeState.symmetricState);
+
+		return std::nullopt;
+	}
+
+	template<HandshakeInstanceTag Tag>
+	static std::optional<MessageWriteError> writeMessagePattern_s(HandshakeState<Tag>& handshakeState, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept
+	{
+		if (!handshakeState.staticKeys.has_value())
+		{
+			return MessageWriteError::NoStaticKeys;
+		}
+
+		if (outMessageBuffer.size() < inOutCursor + DHLEN + CipherAuthDataSize)
+		{
+			return MessageWriteError::MessageBufferTooSmall;
+		}
+
+		// to avoid extra copies, write the result of encryption directly to the message buffer
+		static_assert(sizeof(*outMessageBuffer.data()) == sizeof(uint8_t), "outMessageBuffer type should be a byte array");
+		if (Utils::encryptAndHash(
+				handshakeState.symmetricState,
+				handshakeState.staticKeys->publicKey,
+				std::span(
+					std::bit_cast<uint8_t*>(outMessageBuffer.data()) + inOutCursor,
+					std::bit_cast<uint8_t*>(outMessageBuffer.data()) + inOutCursor + DHLEN + CipherAuthDataSize
+				)
+			)
+			!= EncryptResult::Success)
+		{
+			return MessageWriteError::EncryptionFailed;
+		}
+		inOutCursor += DHLEN + CipherAuthDataSize;
+
+		return std::nullopt;
+	}
+
+	template<HandshakeInstanceTag Tag>
+	static std::optional<MessageReadError> readMessagePattern_s(HandshakeState<Tag>& handshakeState, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept
+	{
+		if (handshakeState.remoteStaticKey.has_value())
+		{
+			return MessageReadError::RemoteStaticKeyAlreadySet;
+		}
+
+		if (messageData.size() < inOutCursor + DHLEN + CipherAuthDataSize)
+		{
+			return MessageReadError::TruncatedMessage;
+		}
+
+		handshakeState.remoteStaticKey = PublicKey{};
+		static_assert(sizeof(*messageData.data()) == sizeof(uint8_t), "messageData type should be a byte array");
+		if (Utils::decryptAndHash(
+				handshakeState.symmetricState,
+				std::span(
+					std::bit_cast<uint8_t*>(messageData.data()) + inOutCursor,
+					std::bit_cast<uint8_t*>(messageData.data()) + inOutCursor + DHLEN + CipherAuthDataSize
+				),
+				*handshakeState.remoteStaticKey
+			)
+			!= DecryptResult::Success)
+		{
+			return MessageReadError::DecryptionFailed;
+		}
+		inOutCursor += DHLEN + CipherAuthDataSize;
 
 		return std::nullopt;
 	}
@@ -100,6 +166,24 @@ namespace Noise::MessagePatterns
 	std::optional<MessageReadError> readMessagePattern_e_initiator(InitiatorHandshakeState& handshakeState, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept
 	{
 		return readMessagePattern_e(handshakeState, messageData, inOutCursor);
+	}
+
+	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_s_initiator(InitiatorHandshakeState& handshakeState, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept
+	{
+		return writeMessagePattern_s(handshakeState, outMessageBuffer, inOutCursor);
+	}
+	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_s_responder(ResponderHandshakeState& handshakeState, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept
+	{
+		return readMessagePattern_s(handshakeState, messageData, inOutCursor);
+	}
+
+	[[nodiscard]] std::optional<MessageWriteError> writeMessagePattern_s_responder(ResponderHandshakeState& handshakeState, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept
+	{
+		return writeMessagePattern_s(handshakeState, outMessageBuffer, inOutCursor);
+	}
+	[[nodiscard]] std::optional<MessageReadError> readMessagePattern_s_initiator(InitiatorHandshakeState& handshakeState, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept
+	{
+		return readMessagePattern_s(handshakeState, messageData, inOutCursor);
 	}
 
 	std::optional<MessageWriteError> writeMessagePattern_ee_initiator(InitiatorHandshakeState& handshakeState) noexcept

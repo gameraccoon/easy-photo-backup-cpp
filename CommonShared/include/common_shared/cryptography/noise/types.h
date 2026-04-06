@@ -75,15 +75,18 @@ namespace Noise
 		NoEphemeralKeys,
 		NoRemoteStaticKey,
 		NoRemoteEphemeralKey,
+		EncryptionFailed,
 	};
 
 	enum class MessageReadError
 	{
 		TruncatedMessage,
 		RemoteEphemeralKeyAlreadySet,
+		RemoteStaticKeyAlreadySet,
 		NoStaticKeys,
 		NoEphemeralKeys,
 		NoRemoteStaticKey,
 		NoRemoteEphemeralKey,
+		DecryptionFailed,
 	};
 } // namespace Noise
