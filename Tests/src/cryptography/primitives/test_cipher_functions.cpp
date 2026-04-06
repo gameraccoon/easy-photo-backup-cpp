@@ -180,22 +180,22 @@ TEST(CryptographyCipherFunctions, chacha20poly1305_encryptTest_tooBigCiphertextB
 
 TEST(CryptographyCipherFunctions, chacha20poly1305_encryptTest_cipherKeyInvalid)
 {
-    const std::string plaintextStr = "text to encrypt";
+	const std::string plaintextStr = "text to encrypt";
 
-    Cryptography::CipherKey cipherKey;
-    vectorToArray(hexToBytes("0000000000000000000000000000000000000000000000000000000000000000"), cipherKey.raw);
+	Cryptography::CipherKey cipherKey;
+	vectorToArray(hexToBytes("0000000000000000000000000000000000000000000000000000000000000000"), cipherKey.raw);
 
-    Cryptography::Nonce nonce = 0xABCDEF0123456789;
+	Cryptography::Nonce nonce = 0xABCDEF0123456789;
 
-    const Cryptography::DynByteSequence associatedData = Cryptography::DynByteSequence::fromVector(hexToBytes("000102030405060708090a0b0c0d0e0f"));
+	const Cryptography::DynByteSequence associatedData = Cryptography::DynByteSequence::fromVector(hexToBytes("000102030405060708090a0b0c0d0e0f"));
 
-    const Cryptography::DynByteSequence plaintext = Cryptography::DynByteSequence::fromVector(strToBytes(plaintextStr));
+	const Cryptography::DynByteSequence plaintext = Cryptography::DynByteSequence::fromVector(strToBytes(plaintextStr));
 
-    Cryptography::DynByteSequence ciphertext;
-    ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	Cryptography::DynByteSequence ciphertext;
+	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
 
-    AssertHelper::ScopedAssertDisabler d{};
-    ASSERT_EQ(Cryptography::encrypt_chacha20poly1305(cipherKey, nonce, associatedData, plaintext, ciphertext), Cryptography::EncryptResult::IncorrectEncryptionKey);
+	AssertHelper::ScopedAssertDisabler d{};
+	ASSERT_EQ(Cryptography::encrypt_chacha20poly1305(cipherKey, nonce, associatedData, plaintext, ciphertext), Cryptography::EncryptResult::IncorrectEncryptionKey);
 }
 
 TEST(CryptographyCipherFunctions, chacha20poly1305_decryptTest_correct)
@@ -324,20 +324,20 @@ TEST(CryptographyCipherFunctions, chacha20poly1305_decryptTest_tooBigBuffer)
 
 TEST(CryptographyCipherFunctions, chacha20poly1305_decryptTest_cipherKeyInvalid)
 {
-    Cryptography::CipherKey cipherKey;
-    vectorToArray(hexToBytes("0000000000000000000000000000000000000000000000000000000000000000"), cipherKey.raw);
+	Cryptography::CipherKey cipherKey;
+	vectorToArray(hexToBytes("0000000000000000000000000000000000000000000000000000000000000000"), cipherKey.raw);
 
-    Cryptography::Nonce nonce = 0xABCDEF0123456789;
+	Cryptography::Nonce nonce = 0xABCDEF0123456789;
 
-    Cryptography::DynByteSequence ciphertext = Cryptography::DynByteSequence::fromVector(hexToBytes("81a31e0ca246ecee4e8dc559ad8cf5193e1e04fc8b83b5702da4b9de13e2c5"));
+	Cryptography::DynByteSequence ciphertext = Cryptography::DynByteSequence::fromVector(hexToBytes("81a31e0ca246ecee4e8dc559ad8cf5193e1e04fc8b83b5702da4b9de13e2c5"));
 
-    const Cryptography::DynByteSequence associatedData = Cryptography::DynByteSequence::fromVector(hexToBytes("08090a0b0c0d0e0f0001020304050607"));
+	const Cryptography::DynByteSequence associatedData = Cryptography::DynByteSequence::fromVector(hexToBytes("08090a0b0c0d0e0f0001020304050607"));
 
-    Cryptography::DynByteSequence plaintext;
-    plaintext.clearResize(ciphertext.size() - Cryptography::CipherAuthDataSize);
+	Cryptography::DynByteSequence plaintext;
+	plaintext.clearResize(ciphertext.size() - Cryptography::CipherAuthDataSize);
 
-    AssertHelper::ScopedAssertDisabler d{};
-    ASSERT_EQ(Cryptography::decrypt_chacha20poly1305(cipherKey, nonce, associatedData, ciphertext, plaintext), Cryptography::DecryptResult::IncorrectEncryptionKey);
+	AssertHelper::ScopedAssertDisabler d{};
+	ASSERT_EQ(Cryptography::decrypt_chacha20poly1305(cipherKey, nonce, associatedData, ciphertext, plaintext), Cryptography::DecryptResult::IncorrectEncryptionKey);
 }
 
 TEST(CryptographyCipherFunctions, chacha20poly1305_decryptTest_wrongMac)
