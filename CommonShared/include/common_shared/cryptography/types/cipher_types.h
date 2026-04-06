@@ -11,6 +11,7 @@ namespace Cryptography
 	constexpr size_t NonceSize = 8;
 	constexpr size_t MaxMessageSize = 65535;
 	constexpr size_t CipherAuthDataSize = 16; // mac
+	constexpr size_t MaxNonce = 0xFFFFFFFFFFFFFFFF;
 
 	using CipherKey = ByteSequence<Tag::CipherKey, CipherKeySize>;
 	using Nonce = uint64_t;
@@ -30,8 +31,10 @@ namespace Cryptography
 		// key of all zeros is not allowed and signals about a logical error
 		IncorrectEncryptionKey,
 
-		// this error code used down the line, here for concenience
+		// this error code used down the line, here for convenience
 		NoEncryptionKey,
+		// this error code used down the line, here for convenience
+		NonceExhausted,
 	};
 
 	enum class DecryptResult
@@ -53,7 +56,9 @@ namespace Cryptography
 		// key of all zeros is not allowed and signals about a logical error
 		IncorrectEncryptionKey,
 
-		// this error code used down the line, here for concenience
+		// this error code used down the line, here for convenience
 		NoEncryptionKey,
+		// this error code used down the line, here for convenience
+		NonceExhausted,
 	};
 } // namespace Cryptography

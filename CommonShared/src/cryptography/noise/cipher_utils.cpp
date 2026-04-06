@@ -12,6 +12,11 @@ namespace Noise::Utils
 	template<CipherStateInstanceTag Tag>
 	[[nodiscard]] Cryptography::EncryptResult encryptWithAdGeneric(CipherState<Tag>& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext)
 	{
+		if (cipherState.nonce == MaxNonce)
+		{
+			return Cryptography::EncryptResult::NonceExhausted;
+		}
+
 		Cryptography::EncryptResult result = Cryptography::encrypt_chacha20poly1305(cipherState.cipherKey, cipherState.nonce, associatedData, plaintext, outCiphertext);
 		if (result == Cryptography::EncryptResult::Success) [[likely]]
 		{
@@ -23,6 +28,11 @@ namespace Noise::Utils
 	template<CipherStateInstanceTag Tag>
 	[[nodiscard]] Cryptography::DecryptResult decryptWithAdGeneric(CipherState<Tag>& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext)
 	{
+		if (cipherState.nonce == MaxNonce)
+		{
+			return Cryptography::DecryptResult::NonceExhausted;
+		}
+
 		const Cryptography::DecryptResult result = Cryptography::decrypt_chacha20poly1305(cipherState.cipherKey, cipherState.nonce, associatedData, ciphertext, outPlaintext);
 		if (result == Cryptography::DecryptResult::Success) [[likely]]
 		{
@@ -56,9 +66,8 @@ namespace Noise::Utils
 	{
 		const std::array<uint8_t, Cryptography::CipherKeySize> allZeros = {};
 		std::array<uint8_t, Cryptography::CipherKeySize + Cryptography::CipherAuthDataSize> cyphertext;
-		constexpr uint64_t nonce = 0xFFFFFFFFFFFFFFFF;
-		static_assert(nonce == std::numeric_limits<Nonce>::max(), "Nonce expected to be 64 bit unsigned");
-		const EncryptResult result = Cryptography::encrypt_chacha20poly1305(cipherState.cipherKey, nonce, std::span<uint8_t>{}, allZeros, cyphertext);
+		static_assert(MaxNonce == std::numeric_limits<Nonce>::max(), "Nonce expected to be 64 bit unsigned");
+		const EncryptResult result = Cryptography::encrypt_chacha20poly1305(cipherState.cipherKey, MaxNonce, std::span<uint8_t>{}, allZeros, cyphertext);
 		if (result == EncryptResult::Success)
 		{
 			std::copy(cyphertext.begin(), cyphertext.begin() + Cryptography::CipherKeySize, cipherState.cipherKey.raw.begin());
