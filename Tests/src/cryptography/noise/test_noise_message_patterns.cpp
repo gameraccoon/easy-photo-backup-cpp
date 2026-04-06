@@ -135,6 +135,13 @@ TEST(CryptographyNoiseMessagePatterns, pattern_e_readInitiatorErrorTest)
 		size_t writeCursor = 0;
 		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_e_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::RemoteEphemeralKeyAlreadySet));
 	}
+
+	{
+		Noise::InitiatorHandshakeState initiatorHandshakeState;
+		std::array<std::byte, Cryptography::DHLEN> messageBuffer = {};
+		size_t writeCursor = 0;
+		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_e_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::InvalidPublicKey));
+	}
 }
 
 TEST(CryptographyNoiseMessagePatterns, pattern_e_readResponderErrorTest)
@@ -152,6 +159,13 @@ TEST(CryptographyNoiseMessagePatterns, pattern_e_readResponderErrorTest)
 		std::array<std::byte, Cryptography::DHLEN> messageBuffer = {};
 		size_t writeCursor = 0;
 		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_e_responder(responderHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::RemoteEphemeralKeyAlreadySet));
+	}
+
+	{
+		Noise::ResponderHandshakeState responderHandshakeState;
+		std::array<std::byte, Cryptography::DHLEN> messageBuffer = {};
+		size_t writeCursor = 0;
+		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_e_responder(responderHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::InvalidPublicKey));
 	}
 }
 
@@ -254,6 +268,7 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_writeInitiatorErrorTest)
 	{
 		Noise::InitiatorHandshakeState initiatorHandshakeState;
 		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize - 1> messageBuffer = {};
+		initiatorHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
 		initiatorHandshakeState.staticKeys = Cryptography::generateKeypair_x25519();
 		size_t writeCursor = 0;
 		EXPECT_EQ(Noise::MessagePatterns::writeMessagePattern_s_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageWriteError>(Noise::MessageWriteError::MessageBufferTooSmall));
@@ -262,8 +277,18 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_writeInitiatorErrorTest)
 	{
 		Noise::InitiatorHandshakeState initiatorHandshakeState;
 		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize> messageBuffer = {};
+		initiatorHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
 		size_t writeCursor = 0;
 		EXPECT_EQ(Noise::MessagePatterns::writeMessagePattern_s_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageWriteError>(Noise::MessageWriteError::NoStaticKeys));
+	}
+
+	{
+		Noise::InitiatorHandshakeState initiatorHandshakeState;
+		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize> messageBuffer = {};
+		initiatorHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
+		initiatorHandshakeState.staticKeys = Cryptography::Keypair{};
+		size_t writeCursor = 0;
+		EXPECT_EQ(Noise::MessagePatterns::writeMessagePattern_s_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageWriteError>(Noise::MessageWriteError::InvalidPublicKey));
 	}
 
 	{
@@ -282,6 +307,7 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_writeResponderErrorTest)
 	{
 		Noise::ResponderHandshakeState responderHandshakeState;
 		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize - 1> messageBuffer = {};
+		responderHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
 		responderHandshakeState.staticKeys = Cryptography::generateKeypair_x25519();
 		size_t writeCursor = 0;
 		EXPECT_EQ(Noise::MessagePatterns::writeMessagePattern_s_responder(responderHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageWriteError>(Noise::MessageWriteError::MessageBufferTooSmall));
@@ -290,8 +316,18 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_writeResponderErrorTest)
 	{
 		Noise::ResponderHandshakeState responderHandshakeState;
 		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize> messageBuffer = {};
+		responderHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
 		size_t writeCursor = 0;
 		EXPECT_EQ(Noise::MessagePatterns::writeMessagePattern_s_responder(responderHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageWriteError>(Noise::MessageWriteError::NoStaticKeys));
+	}
+
+	{
+		Noise::ResponderHandshakeState responderHandshakeState;
+		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize> messageBuffer = {};
+		responderHandshakeState.staticKeys = Cryptography::Keypair{};
+		responderHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
+		size_t writeCursor = 0;
+		EXPECT_EQ(Noise::MessagePatterns::writeMessagePattern_s_responder(responderHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageWriteError>(Noise::MessageWriteError::InvalidPublicKey));
 	}
 
 	{
@@ -310,14 +346,16 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_readInitiatorErrorTest)
 	{
 		Noise::InitiatorHandshakeState initiatorHandshakeState;
 		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize - 1> messageBuffer = {};
+		initiatorHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
 		size_t writeCursor = 0;
 		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_s_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::TruncatedMessage));
 	}
 
 	{
 		Noise::InitiatorHandshakeState initiatorHandshakeState;
+		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize> messageBuffer = {};
 		initiatorHandshakeState.remoteStaticKey = Cryptography::PublicKey{};
-		std::array<std::byte, Cryptography::DHLEN> messageBuffer = {};
+		initiatorHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
 		size_t writeCursor = 0;
 		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_s_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::RemoteStaticKeyAlreadySet));
 	}
@@ -339,6 +377,16 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_readInitiatorErrorTest)
 		// reading cyphertext from the empty buffer can't result in correct authentification
 		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_s_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::DecryptionFailed));
 	}
+
+	{
+		Noise::InitiatorHandshakeState initiatorHandshakeState;
+		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize> messageBuffer = {};
+		vectorToByteArray(hexToBytes("9F07E7BE5551387A98BA977C732D080DCB0F29A048E3656912C6533E32EE7AED338C2AE8F036B5735006AAD23413FEB8"), messageBuffer);
+		initiatorHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
+		size_t writeCursor = 0;
+		// the cyphertext results in an empty public key
+		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_s_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::InvalidPublicKey));
+	}
 }
 
 TEST(CryptographyNoiseMessagePatterns, pattern_s_readResponderErrorTest)
@@ -352,8 +400,8 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_readResponderErrorTest)
 
 	{
 		Noise::ResponderHandshakeState responderHandshakeState;
-		responderHandshakeState.remoteStaticKey = Cryptography::PublicKey{};
 		std::array<std::byte, Cryptography::DHLEN> messageBuffer = {};
+		responderHandshakeState.remoteStaticKey = Cryptography::PublicKey{};
 		size_t writeCursor = 0;
 		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_s_responder(responderHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::RemoteStaticKeyAlreadySet));
 	}
@@ -374,6 +422,16 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_readResponderErrorTest)
 		size_t writeCursor = 0;
 		// reading cyphertext from the empty buffer can't result in correct authentification
 		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_s_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::DecryptionFailed));
+	}
+
+	{
+		Noise::InitiatorHandshakeState initiatorHandshakeState;
+		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize> messageBuffer = {};
+		vectorToByteArray(hexToBytes("9F07E7BE5551387A98BA977C732D080DCB0F29A048E3656912C6533E32EE7AED338C2AE8F036B5735006AAD23413FEB8"), messageBuffer);
+		initiatorHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
+		size_t writeCursor = 0;
+		// the cyphertext results in an empty public key
+		EXPECT_EQ(Noise::MessagePatterns::readMessagePattern_s_initiator(initiatorHandshakeState, messageBuffer, writeCursor), std::optional<Noise::MessageReadError>(Noise::MessageReadError::InvalidPublicKey));
 	}
 }
 

@@ -20,6 +20,11 @@ namespace Noise::MessagePatterns
 
 		handshakeState.ephemeralKeys = generateKeypair_x25519();
 
+		if (!Cryptography::isPublicKeyValid(handshakeState.ephemeralKeys->publicKey))
+		{
+			return MessageWriteError::InvalidPublicKey;
+		}
+
 		if (Utils::writeDataToBuffer(handshakeState.ephemeralKeys->publicKey, outMessageBuffer, inOutCursor) != 0)
 		{
 			return MessageWriteError::MessageBufferTooSmall;
@@ -45,6 +50,11 @@ namespace Noise::MessagePatterns
 			return MessageReadError::TruncatedMessage;
 		}
 
+		if (!Cryptography::isPublicKeyValid(*handshakeState.remoteEphemeralKey))
+		{
+			return MessageReadError::InvalidPublicKey;
+		}
+
 		Utils::mixHash(*handshakeState.remoteEphemeralKey, handshakeState.symmetricState);
 
 		return std::nullopt;
@@ -61,6 +71,11 @@ namespace Noise::MessagePatterns
 		if (outMessageBuffer.size() < inOutCursor + DHLEN + CipherAuthDataSize)
 		{
 			return MessageWriteError::MessageBufferTooSmall;
+		}
+
+		if (!Cryptography::isPublicKeyValid(handshakeState.staticKeys->publicKey))
+		{
+			return MessageWriteError::InvalidPublicKey;
 		}
 
 		// to avoid extra copies, write the result of encryption directly to the message buffer
@@ -109,6 +124,12 @@ namespace Noise::MessagePatterns
 		{
 			return MessageReadError::DecryptionFailed;
 		}
+
+		if (!Cryptography::isPublicKeyValid(*handshakeState.remoteStaticKey))
+		{
+			return MessageReadError::InvalidPublicKey;
+		}
+
 		inOutCursor += DHLEN + CipherAuthDataSize;
 
 		return std::nullopt;

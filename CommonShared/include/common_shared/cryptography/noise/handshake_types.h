@@ -58,6 +58,7 @@ namespace Noise
 		NoRemoteStaticKey,
 		NoRemoteEphemeralKey,
 		EncryptionFailed,
+		InvalidPublicKey,
 	};
 
 	enum class MessageReadError
@@ -70,5 +71,6 @@ namespace Noise
 		NoRemoteStaticKey,
 		NoRemoteEphemeralKey,
 		DecryptionFailed,
+		InvalidPublicKey,
 	};
 } // namespace Noise
