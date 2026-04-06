@@ -9,6 +9,8 @@
 
 namespace Cryptography
 {
+	constexpr static std::array<uint8_t, CipherKeySize> EmptyKey = {};
+
 	// we use IETF version of ChaCha20 instead of XChaCha for compatibility with other implementations
 	static constexpr size_t ChaCha20NonceSize = 12;
 	using ChaCha20Nonce = ByteSequence<Tag::Nonce, ChaCha20NonceSize>;
@@ -53,6 +55,12 @@ namespace Cryptography
 		{
 			reportDebugError("Ciphertext buffer is bigger than the ciphertext, this is likely a logical error {} != {}", outCiphertext.size(), plaintext.size() + CipherAuthDataSize);
 			return EncryptResult::CiphertextBufferTooBig;
+		}
+
+		static_assert(CipherKeySize == 32, "crypto_verify32 only expected to be used to compare 32 byte values");
+		if (crypto_verify32(key.raw.data(), EmptyKey.data()) == 0)
+		{
+			return EncryptResult::IncorrectEncryptionKey;
 		}
 
 		const size_t macOffsetInCiphertext = plaintext.size();
@@ -112,6 +120,12 @@ namespace Cryptography
 		{
 			reportDebugError("Plaintext buffer is bigger than the plaintext, this is likely a logical error {} != {}", outPlaintext.size(), ciphertext.size() - CipherAuthDataSize);
 			return DecryptResult::PlaintextBufferTooBig;
+		}
+
+		static_assert(CipherKeySize == 32, "crypto_verify32 only expected to be used to compare 32 byte values");
+		if (crypto_verify32(key.raw.data(), EmptyKey.data()) == 0)
+		{
+			return DecryptResult::IncorrectEncryptionKey;
 		}
 
 		const size_t macOffsetInCiphertext = ciphertext.size() - CipherAuthDataSize;

@@ -27,6 +27,8 @@ namespace Cryptography
 		// of the ciphertext that is going to be placed to it, to make sure that we don't have
 		// any off-by-one errors. Seeing this status code signals about a logical error
 		CiphertextBufferTooBig,
+		// key of all zeros is not allowed and signals about a logical error
+		IncorrectEncryptionKey,
 
 		// this error code used down the line, here for concenience
 		NoEncryptionKey,
@@ -48,6 +50,8 @@ namespace Cryptography
 		// of the message that is going to be placed to it, to make sure that we don't have
 		// any off-by-one errors. Seeing this status code signals about a logical error
 		PlaintextBufferTooBig,
+		// key of all zeros is not allowed and signals about a logical error
+		IncorrectEncryptionKey,
 
 		// this error code used down the line, here for concenience
 		NoEncryptionKey,
