@@ -88,7 +88,7 @@ namespace Noise::NoiseKK
 		return std::nullopt;
 	}
 
-	AppendHandshakeMessage2Result appendHandshakeMessage2(ResponderHandshakeState& handshakeState, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept
+	AppendHandshakeMessage2Result appendHandshakeMessage2(ResponderHandshakeState&& handshakeState, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept
 	{
 		if (outMessageBuffer.size() < inOutCursor + Message2ExpectedSize)
 		{
@@ -115,7 +115,7 @@ namespace Noise::NoiseKK
 		return result;
 	}
 
-	ProcessHandshakeMessage2Result processHandshakeMessage2(InitiatorHandshakeState& handshakeState, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept
+	ProcessHandshakeMessage2Result processHandshakeMessage2(InitiatorHandshakeState&& handshakeState, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept
 	{
 		if (messageData.size() < inOutCursor + Message2ExpectedSize)
 		{

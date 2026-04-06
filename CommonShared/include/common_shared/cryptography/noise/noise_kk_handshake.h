@@ -18,6 +18,7 @@ namespace Noise::NoiseKK
 	{
 		CipherStateSending sendingCipherState;
 		CipherStateReceiving receivingCipherState;
+		// this can include more data which is omitted because this application doesn't use it
 	};
 
 	// initialization
@@ -39,6 +40,6 @@ namespace Noise::NoiseKK
 	using ProcessHandshakeMessage2Result = std::variant<MessageReadError, HandshakeResult>;
 
 	// <- e, ee, se
-	[[nodiscard]] AppendHandshakeMessage2Result appendHandshakeMessage2(ResponderHandshakeState& state, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept;
-	[[nodiscard]] ProcessHandshakeMessage2Result processHandshakeMessage2(InitiatorHandshakeState& state, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept;
+	[[nodiscard]] AppendHandshakeMessage2Result appendHandshakeMessage2(ResponderHandshakeState&& state, const std::span<std::byte> outMessageBuffer, size_t& inOutCursor) noexcept;
+	[[nodiscard]] ProcessHandshakeMessage2Result processHandshakeMessage2(InitiatorHandshakeState&& state, const std::span<const std::byte> messageData, size_t& inOutCursor) noexcept;
 } // namespace Noise::NoiseKK

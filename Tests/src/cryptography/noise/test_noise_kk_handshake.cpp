@@ -26,10 +26,10 @@ TEST(CryptographyNoiseKKHandshake, roundtripTest)
 	EXPECT_EQ(processHandshakeMessage1(responderHandshakeState, messageBuffer, receiverCursor), std::nullopt);
 
 	receiverCursor = 0;
-	const auto result1 = appendHandshakeMessage2(responderHandshakeState, messageBuffer, receiverCursor);
+	const auto result1 = appendHandshakeMessage2(std::move(responderHandshakeState), messageBuffer, receiverCursor);
 
 	initiatorCursor = 0;
-	const auto result2 = processHandshakeMessage2(initiatorHandshakeState, messageBuffer, initiatorCursor);
+	const auto result2 = processHandshakeMessage2(std::move(initiatorHandshakeState), messageBuffer, initiatorCursor);
 
 	ASSERT_TRUE(std::holds_alternative<HandshakeResult>(result1));
 	ASSERT_TRUE(std::holds_alternative<HandshakeResult>(result2));
