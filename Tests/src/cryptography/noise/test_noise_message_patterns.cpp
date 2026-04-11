@@ -656,7 +656,7 @@ TEST(CryptographyNoiseMessagePatterns, pattern_es_roundtripFromResponderTest)
 	initiatorHandshakeState.ephemeralKeys = Cryptography::generateKeypair_x25519();
 	responderHandshakeState.remoteEphemeralKey = initiatorHandshakeState.ephemeralKeys->publicKey.clone();
 	// preconditions: handshake hash is calculated
-	Noise::Utils::mixHash(responderHandshakeState.ephemeralKeys->publicKey, responderHandshakeState.symmetricState);
+	Noise::Utils::mixHash(*responderHandshakeState.remoteEphemeralKey, responderHandshakeState.symmetricState);
 	ASSERT_FALSE(isAllZeroes(responderHandshakeState.symmetricState.handshakeHash.raw));
 	initiatorHandshakeState.symmetricState.handshakeHash = responderHandshakeState.symmetricState.handshakeHash.clone();
 
@@ -747,7 +747,7 @@ TEST(CryptographyNoiseMessagePatterns, pattern_se_roundtripFromInitiatorTest)
 	responderHandshakeState.ephemeralKeys = Cryptography::generateKeypair_x25519();
 	initiatorHandshakeState.remoteEphemeralKey = responderHandshakeState.ephemeralKeys->publicKey.clone();
 	// preconditions: handshake hash is calculated
-	Noise::Utils::mixHash(initiatorHandshakeState.ephemeralKeys->publicKey, initiatorHandshakeState.symmetricState);
+	Noise::Utils::mixHash(*initiatorHandshakeState.remoteEphemeralKey, initiatorHandshakeState.symmetricState);
 	ASSERT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.handshakeHash.raw));
 	responderHandshakeState.symmetricState.handshakeHash = initiatorHandshakeState.symmetricState.handshakeHash.clone();
 
@@ -778,7 +778,7 @@ TEST(CryptographyNoiseMessagePatterns, pattern_se_roundtripFromResponderTest)
 	responderHandshakeState.ephemeralKeys = Cryptography::generateKeypair_x25519();
 	initiatorHandshakeState.remoteEphemeralKey = responderHandshakeState.ephemeralKeys->publicKey.clone();
 	// preconditions: handshake hash is calculated
-	Noise::Utils::mixHash(initiatorHandshakeState.ephemeralKeys->publicKey, initiatorHandshakeState.symmetricState);
+	Noise::Utils::mixHash(*initiatorHandshakeState.remoteEphemeralKey, initiatorHandshakeState.symmetricState);
 	ASSERT_FALSE(isAllZeroes(initiatorHandshakeState.symmetricState.handshakeHash.raw));
 	responderHandshakeState.symmetricState.handshakeHash = initiatorHandshakeState.symmetricState.handshakeHash.clone();
 
