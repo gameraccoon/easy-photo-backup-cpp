@@ -3,7 +3,6 @@
 
 #include <streambuf>
 
-#include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
 #include "common_shared/bstorage/value.h"

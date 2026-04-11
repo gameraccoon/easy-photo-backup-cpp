@@ -87,7 +87,7 @@ namespace BStorage
 		}
 
 		template<typename T>
-		static [[nodiscard]] T readUint(std::istream& inputStream)
+		[[nodiscard]] static T readUint(std::istream& inputStream)
 		{
 			T v = 0;
 			if constexpr (sizeof(v) == 1)
@@ -137,7 +137,7 @@ namespace BStorage
 			writeUint<uint32_t>(outputStream, bitRepresentation);
 		}
 
-		static [[nodiscard]] size_t readSize(std::istream& inputStream)
+		[[nodiscard]] static size_t readSize(std::istream& inputStream)
 		{
 			const size_t firstByte = readUint<uint8_t>(inputStream);
 
