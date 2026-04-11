@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
 
@@ -17,6 +18,7 @@ namespace Protocol
 		// as it should remain the same across all versions in order for it to work
 		GetProtocolVersion = 0,
 		GetServerName = 1,
+		Pair = 2,
 	};
 
 	enum class RequestAnswerId : uint8_t
@@ -69,4 +71,10 @@ namespace Protocol
 			std::string serverName;
 		};
 	} // namespace RequestAnswers
+
+	// interactive requests have their own internal implementation details
+	// changing the interaction details requires changing NetworkProtocolVersion
+	constexpr std::array<std::byte, 1> InteractiveRequests{
+		static_cast<std::byte>(RequestId::Pair),
+	};
 } // namespace Protocol

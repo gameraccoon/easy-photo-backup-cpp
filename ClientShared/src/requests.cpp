@@ -87,13 +87,16 @@ namespace Requests
 			}
 			break;
 		}
+		case Protocol::RequestId::Pair:
+			// expects no answer, fall through to the error
+			break;
 		}
 
 		reportDebugError("Unknown answer {} to request {}", static_cast<int>(answerId), static_cast<int>(request));
 		return RequestAnswers::Error{ std::format("Unknown answer {} to request {}", static_cast<int>(answerId), static_cast<int>(request)) };
 	}
 
-	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, const uint16_t port, Request&& request)
+	RequestAnswers::RequestAnswer prepareConnectionAndProcess(const char* serverAddress, const Network::AddressType serverAddressType, uint16_t port, const std::function<RequestAnswers::RequestAnswer(int socket)>& processFn)
 	{
 		std::variant<Network::RawSocket, std::string> createSocketResult = Network::createSocket(Network::SocketType::Tcp, serverAddressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
@@ -126,39 +129,46 @@ namespace Requests
 			return RequestAnswers::Error{ *result };
 		}
 
-		constexpr size_t MAX_MESSAGE_SIZE = Protocol::MaxRequestAnswerSize;
-		std::array<std::byte, MAX_MESSAGE_SIZE> buffer = {};
-		size_t messageSize = 0;
-		bool expectsAnswer = false;
-		const Protocol::RequestId requestId = prepareRequest(std::move(request), std::span(buffer.data() + 3, buffer.size() - 3), messageSize, expectsAnswer);
+		return processFn(socket);
+	}
 
-		Serialization::writeUint16(buffer[0], buffer[1], Protocol::NetworkProtocolVersion);
-		buffer[2] = static_cast<std::byte>(requestId);
-		messageSize += 3;
+	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, const uint16_t port, Request&& request)
+	{
+		return prepareConnectionAndProcess(serverAddress, serverAddressType, port, [&request](int socket) -> RequestAnswers::RequestAnswer {
+			constexpr size_t MAX_MESSAGE_SIZE = Protocol::MaxRequestAnswerSize;
+			std::array<std::byte, MAX_MESSAGE_SIZE> buffer = {};
+			size_t messageSize = 0;
+			bool expectsAnswer = false;
+			const Protocol::RequestId requestId = prepareRequest(std::move(request), std::span(buffer.data() + 3, buffer.size() - 3), messageSize, expectsAnswer);
 
-		if (messageSize > MAX_MESSAGE_SIZE)
-		{
-			reportReleaseError("Message size is bigger than MAX_MESSAGE_SIZE: {}", messageSize);
-			return RequestAnswers::LogicalError{ std::format("Message size is bigger than MAX_MESSAGE_SIZE: {}", messageSize) };
-		}
+			Serialization::writeUint16(buffer[0], buffer[1], Protocol::NetworkProtocolVersion);
+			buffer[2] = static_cast<std::byte>(requestId);
+			messageSize += 3;
 
-		if (auto result = Network::send(socket, std::span(buffer.data(), messageSize)); result.has_value())
-		{
-			return RequestAnswers::Error{ *result };
-		}
+			if (messageSize > MAX_MESSAGE_SIZE)
+			{
+				reportReleaseError("Message size is bigger than MAX_MESSAGE_SIZE: {}", messageSize);
+				return RequestAnswers::LogicalError{ std::format("Message size is bigger than MAX_MESSAGE_SIZE: {}", messageSize) };
+			}
 
-		if (expectsAnswer)
-		{
-			// we assume that the message wasn't fragmented, as we don't know what size should it be
-			// and can't yet process it in parts
-			if (auto result = Network::recv(socket, buffer, messageSize); result.has_value())
+			if (auto result = Network::send(socket, std::span(buffer.data(), messageSize)); result.has_value())
 			{
 				return RequestAnswers::Error{ *result };
 			}
 
-			return readRequestAnswer(requestId, buffer[0], std::span<std::byte>{ buffer.data() + 1, messageSize - 1 });
-		}
+			if (expectsAnswer)
+			{
+				// we assume that the message wasn't fragmented, as we don't know what size should it be
+				// and can't yet process it in parts
+				if (auto result = Network::recv(socket, buffer, messageSize); result.has_value())
+				{
+					return RequestAnswers::Error{ *result };
+				}
 
-		return RequestAnswers::ExpectedNoAnswer{};
+				return readRequestAnswer(requestId, buffer[0], std::span<std::byte>{ buffer.data() + 1, messageSize - 1 });
+			}
+
+			return RequestAnswers::ExpectedNoAnswer{};
+		});
 	}
 } // namespace Requests

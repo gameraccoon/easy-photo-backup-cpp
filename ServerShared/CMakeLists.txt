@@ -24,11 +24,13 @@ target_include_directories(ServerShared PRIVATE
 
 target_sources(ServerShared
 	PRIVATE
+		${SERVER_SHARED_SRC_DIR}/pairing_interactive_request.cpp
 		${SERVER_SHARED_SRC_DIR}/requests.cpp
 		${SERVER_SHARED_SRC_DIR}/request_answers.cpp
 		${SERVER_SHARED_SRC_DIR}/tcp_server.cpp
 
 	PUBLIC
+		${SERVER_SHARED_INCLUDE_DIR}/pairing_interactive_request.h
 		${SERVER_SHARED_INCLUDE_DIR}/requests.h
 		${SERVER_SHARED_INCLUDE_DIR}/request_answers.h
 		${SERVER_SHARED_INCLUDE_DIR}/tcp_server.h

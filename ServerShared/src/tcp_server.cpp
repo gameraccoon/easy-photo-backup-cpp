@@ -6,7 +6,9 @@
 #include <array>
 #include <cstring>
 #include <format>
+#include <functional>
 #include <thread>
+#include <unordered_map>
 
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
@@ -15,6 +17,7 @@
 #include "common_shared/serialization/number_serialization.h"
 #include "common_shared/template_utils.h"
 
+#include "server_shared/pairing_interactive_request.h"
 #include "server_shared/request_answers.h"
 #include "server_shared/requests.h"
 
@@ -80,25 +83,44 @@ namespace TcpServer
 			return;
 		}
 
-		auto request = Requests::parseRequest(buffer[2], std::span(std::bit_cast<std::byte*>(buffer.data() + 3), std::bit_cast<std::byte*>(buffer.data() + readBytes)));
+		const std::byte requestIdByte = buffer[2];
 
-		std::visit(
-			VisitLambda{
-				[](const Requests::RequestReadError&&) {},
-				[](const Requests::GetProtocolVersion&&) {
-					// should be already handled above
-					reportFatalReleaseError("unreachable code");
-				},
-				[socket](const Requests::GetServerName&&) {
-					RequestAnswers::sendRequestAnswer(
-						socket,
-						RequestAnswers::GetServerName{
-							.serverName = std::string("test server"),
-						}
-					);
-				} },
-			std::move(request)
-		);
+		if (std::ranges::find(Protocol::InteractiveRequests, requestIdByte) != Protocol::InteractiveRequests.end())
+		{
+			// interactive requests
+			if (requestIdByte == static_cast<std::byte>(Protocol::RequestId::Pair))
+			{
+				Requests::processPairingInteractiveRequest(buffer, readBytes, socket);
+			}
+			else
+			{
+				reportDebugError("Unknown interactive request id {}", static_cast<int>(requestIdByte));
+				return;
+			}
+		}
+		else
+		{
+			// non-interactive requests
+			auto request = Requests::parseRequest(requestIdByte, std::span(std::bit_cast<std::byte*>(buffer.data() + 3), std::bit_cast<std::byte*>(buffer.data() + readBytes)));
+
+			std::visit(
+				VisitLambda{
+					[](const Requests::RequestReadError&&) {},
+					[](const Requests::GetProtocolVersion&&) {
+						// should be already handled above
+						reportFatalReleaseError("unreachable code");
+					},
+					[socket](const Requests::GetServerName&&) {
+						RequestAnswers::sendRequestAnswer(
+							socket,
+							RequestAnswers::GetServerName{
+								.serverName = std::string("test server"),
+							}
+						);
+					} },
+				std::move(request)
+			);
+		}
 	}
 
 	std::optional<std::string> runServer(const char* interfaceAddressStr, const Network::AddressType addressType, std::promise<uint16_t>& portPromise)
