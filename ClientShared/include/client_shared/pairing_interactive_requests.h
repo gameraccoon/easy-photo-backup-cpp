@@ -3,7 +3,9 @@
 
 #pragma once
 
+#include "common_shared/network/utils.h"
+
 namespace Requests
 {
-	bool sendAndProcessPairingInteractiveRequest(int socket);
+	bool sendAndProcessPairingInteractiveRequest(RawSocket socket);
 }

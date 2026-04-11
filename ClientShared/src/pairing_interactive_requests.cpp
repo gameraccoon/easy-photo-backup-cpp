@@ -10,7 +10,7 @@
 
 namespace Requests
 {
-	bool sendAndProcessPairingInteractiveRequest(int socket)
+	bool sendAndProcessPairingInteractiveRequest(Network::RawSocket socket)
 	{
 		using namespace Noise;
 

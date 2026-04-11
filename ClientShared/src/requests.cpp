@@ -96,7 +96,7 @@ namespace Requests
 		return RequestAnswers::Error{ std::format("Unknown answer {} to request {}", static_cast<int>(answerId), static_cast<int>(request)) };
 	}
 
-	RequestAnswers::RequestAnswer prepareConnectionAndProcess(const char* serverAddress, const Network::AddressType serverAddressType, uint16_t port, const std::function<RequestAnswers::RequestAnswer(int socket)>& processFn)
+	RequestAnswers::RequestAnswer prepareConnectionAndProcess(const char* serverAddress, const Network::AddressType serverAddressType, uint16_t port, const std::function<RequestAnswers::RequestAnswer(Network::RawSocket socket)>& processFn)
 	{
 		std::variant<Network::RawSocket, std::string> createSocketResult = Network::createSocket(Network::SocketType::Tcp, serverAddressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
@@ -134,7 +134,7 @@ namespace Requests
 
 	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, const uint16_t port, Request&& request)
 	{
-		return prepareConnectionAndProcess(serverAddress, serverAddressType, port, [&request](int socket) -> RequestAnswers::RequestAnswer {
+		return prepareConnectionAndProcess(serverAddress, serverAddressType, port, [&request](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
 			constexpr size_t MAX_MESSAGE_SIZE = Protocol::MaxRequestAnswerSize;
 			std::array<std::byte, MAX_MESSAGE_SIZE> buffer = {};
 			size_t messageSize = 0;
