@@ -7,5 +7,5 @@
 
 namespace Requests
 {
-	bool sendAndProcessPairingInteractiveRequest(RawSocket socket);
+	bool sendAndProcessPairingInteractiveRequest(Network::RawSocket socket);
 }
