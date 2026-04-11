@@ -5,6 +5,7 @@
 
 #include <array>
 #include <bit>
+#include <algorithm>
 
 namespace BStorage
 {
@@ -35,7 +36,7 @@ namespace BStorage
 			Object = 0x04,
 		};
 
-		TagBits getAssociatedTagBits(Tag tag)
+		static TagBits getAssociatedTagBits(Tag tag)
 		{
 			switch (tag)
 			{
@@ -64,53 +65,48 @@ namespace BStorage
 		}
 
 		template<typename T>
-		void writeUint(std::ostream& outputStream, T v)
+		static void writeUint(std::ostream& outputStream, T v)
 		{
 			if constexpr (sizeof(v) == 1)
 			{
 				// ReSharper disable once CppDFAUnreachableCode
-				outputStream.write(std::bit_cast<const char*>(&v), sizeof(v));
+				outputStream.write(reinterpret_cast<const char*>(&v), sizeof(v));
 			}
 			else if constexpr (std::endian::native == std::endian::big)
 			{
 				// ReSharper disable once CppDFAUnreachableCode
-				outputStream.write(std::bit_cast<const char*>(&v), sizeof(v));
+				outputStream.write(reinterpret_cast<const char*>(&v), sizeof(v));
 			}
 			else
 			{
 				// ReSharper disable once CppDFAUnreachableCode
-				std::array<char, sizeof(T)> temp = {};
-				for (size_t i = 0; i < sizeof(T); ++i)
-				{
-					temp[i] = (v >> ((sizeof(T) - (i + 1)) * 8)) & 0xFF;
-				}
-				outputStream.write(temp.data(), temp.size());
+				std::array<unsigned char, sizeof(T)> temp = std::bit_cast<std::array<unsigned char, sizeof(T)>>(v);
+				std::ranges::reverse(temp);
+				outputStream.write(reinterpret_cast<const char*>(temp.data()), temp.size());
 			}
 		}
 
 		template<typename T>
-		[[nodiscard]] T readUint(std::istream& inputStream)
+		static [[nodiscard]] T readUint(std::istream& inputStream)
 		{
 			T v = 0;
 			if constexpr (sizeof(v) == 1)
 			{
 				// ReSharper disable once CppDFAUnreachableCode
-				inputStream.read(std::bit_cast<char*>(&v), sizeof(v));
+				inputStream.read(reinterpret_cast<char*>(&v), sizeof(v));
 			}
 			else if constexpr (std::endian::native == std::endian::big)
 			{
 				// ReSharper disable once CppDFAUnreachableCode
-				inputStream.read(std::bit_cast<char*>(&v), sizeof(v));
+				inputStream.read(reinterpret_cast<char*>(&v), sizeof(v));
 			}
 			else
 			{
 				// ReSharper disable once CppDFAUnreachableCode
-				std::array<char, sizeof(T)> temp = {};
-				inputStream.read(temp.data(), temp.size());
-				for (size_t i = 0; i < sizeof(T); ++i)
-				{
-					v |= temp[i] << ((sizeof(T) - (i + 1)) * 8);
-				}
+				std::array<unsigned char, sizeof(T)> temp = {};
+				inputStream.read(reinterpret_cast<char*>(temp.data()), temp.size());
+				std::ranges::reverse(temp);
+				v = std::bit_cast<T>(temp);
 			}
 
 			return v;
@@ -118,7 +114,7 @@ namespace BStorage
 
 		constexpr size_t MaxContainerSize = 0x3FFFFFFF;
 
-		void writeSize(std::ostream& outputStream, size_t size)
+		static void writeSize(std::ostream& outputStream, size_t size)
 		{
 			// most arrays are within 127 elements
 			if (size <= 0x7F)
@@ -141,7 +137,7 @@ namespace BStorage
 			writeUint<uint32_t>(outputStream, bitRepresentation);
 		}
 
-		size_t readSize(std::istream& inputStream)
+		static [[nodiscard]] size_t readSize(std::istream& inputStream)
 		{
 			const size_t firstByte = readUint<uint8_t>(inputStream);
 
