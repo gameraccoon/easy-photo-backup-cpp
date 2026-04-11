@@ -30,6 +30,7 @@ target_include_directories(CommonShared PRIVATE
 
 target_sources(CommonShared
 	PRIVATE
+		${COMMON_SHARED_SRC_DIR}/bstorage/value.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/noise/internal/message_patterns.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/noise/internal/handshake_utils.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/noise/cipher_utils.cpp
@@ -52,6 +53,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/utils_internal.h
 
 	PUBLIC
+		${COMMON_SHARED_INCLUDE_DIR}/bstorage/value.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/internal/message_patterns.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/internal/handshake_utils.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/noise_xx_handshake.h
