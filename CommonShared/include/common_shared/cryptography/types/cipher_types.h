@@ -11,7 +11,7 @@ namespace Cryptography
 	constexpr size_t NonceSize = 8;
 	constexpr size_t MaxMessageSize = 65535;
 	constexpr size_t CipherAuthDataSize = 16; // mac
-	constexpr size_t MaxNonce = 0xFFFFFFFFFFFFFFFF;
+	constexpr uint64_t MaxNonce = 0xFFFFFFFFFFFFFFFF;
 
 	using CipherKey = ByteSequence<Tag::CipherKey, CipherKeySize>;
 	using Nonce = uint64_t;
