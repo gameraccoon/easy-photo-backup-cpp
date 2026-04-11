@@ -9,7 +9,7 @@ set(MAIN_ROOT ${CMAKE_CURRENT_LIST_DIR})
 project(EasyPhotoBackup)
 
 option(DEBUG_CHECKS "Enable debug checks and assertions" ON)
-option(WITH_TESTS "Built texts" ON)
+option(WITH_TESTS "Build tests" ON)
 
 # definitions
 if(DEBUG_CHECKS)
@@ -19,17 +19,6 @@ endif(DEBUG_CHECKS)
 if(WITH_TESTS)
 	add_definitions(-DWITH_TESTS)
 endif(WITH_TESTS)
-
-# mbedtls options
-set(ENABLE_TESTING OFF CACHE INTERNAL "")
-set(ENABLE_PROGRAMS OFF CACHE INTERNAL "")
-set(ENABLE_ZLIB_SUPPORT OFF CACHE INTERNAL "")
-set(LINK_WITH_PTHREAD OFF CACHE INTERNAL "")
-set(UNSAFE_BUILD OFF CACHE INTERNAL "")
-set(USE_PKCS11_HELPER_LIBRARY OFF CACHE INTERNAL "")
-set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE INTERNAL "")
-set(INSTALL_MBEDTLS_HEADERS OFF CACHE INTERNAL "")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DMBEDTLS_CONFIG_FILE=\\\"mbedtls_config.h\\\"")
 
 include(${MAIN_ROOT}/CommonShared/CMakeLists.txt)
 include(${MAIN_ROOT}/ClientShared/CMakeLists.txt)
