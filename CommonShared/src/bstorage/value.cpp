@@ -3,9 +3,9 @@
 
 #include "common_shared/bstorage/value.h"
 
+#include <algorithm>
 #include <array>
 #include <bit>
-#include <algorithm>
 
 namespace BStorage
 {
