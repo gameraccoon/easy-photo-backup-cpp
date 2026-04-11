@@ -1,6 +1,9 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
+#include <streambuf>
+
+#include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
 #include "common_shared/bstorage/value.h"
@@ -393,7 +396,7 @@ TEST(BStorageValue, string_move_test)
 
 TEST(BStorageValue, bytearray_test)
 {
-	const std::vector<uint8_t> bytes = { 0x01, 0x02, 0x03 };
+	const std::vector<std::byte> bytes = { std::byte(0x01), std::byte(0x02), std::byte(0x03) };
 
 	BStorage::Value v = BStorage::Value::makeByteArray(bytes);
 
@@ -420,7 +423,7 @@ TEST(BStorageValue, bytearray_test)
 
 TEST(BStorageValue, bytearray_const_test)
 {
-	const std::vector<uint8_t> bytes = { 0x01, 0x02, 0x03 };
+	const std::vector<std::byte> bytes = { std::byte(0x01), std::byte(0x02), std::byte(0x03) };
 
 	const BStorage::Value v = BStorage::Value::makeByteArray(bytes);
 
@@ -447,18 +450,18 @@ TEST(BStorageValue, bytearray_const_test)
 
 TEST(BStorageValue, bytearray_move_construct_test)
 {
-	std::vector<uint8_t> bytes = { 0xAA, 0xBB, 0xCC };
+	std::vector<std::byte> bytes = { std::byte(0xAA), std::byte(0xBB), std::byte(0xCC) };
 
 	BStorage::Value v = BStorage::Value::makeByteArray(std::move(bytes));
 
 	ASSERT_TRUE(v.isA(BStorage::Tag::ByteArray));
 	ASSERT_NE(v.asByteArray(), nullptr);
-	EXPECT_EQ((*v.asByteArray()), (std::vector<uint8_t>{ 0xAA, 0xBB, 0xCC }));
+	EXPECT_EQ((*v.asByteArray()), (std::vector<std::byte>{ std::byte(0xAA), std::byte(0xBB), std::byte(0xCC) }));
 }
 
 TEST(BStorageValue, bytearray_copy_test)
 {
-	const std::vector<uint8_t> bytes = { 0x01, 0x02, 0x03 };
+	const std::vector<std::byte> bytes = { std::byte(0x01), std::byte(0x02), std::byte(0x03) };
 	BStorage::Value v1 = BStorage::Value::makeByteArray(bytes);
 
 	BStorage::Value v2(v1);
@@ -473,7 +476,7 @@ TEST(BStorageValue, bytearray_copy_test)
 
 TEST(BStorageValue, bytearray_move_test)
 {
-	const std::vector<uint8_t> bytes = { 0x01, 0x02, 0x03 };
+	const std::vector<std::byte> bytes = { std::byte(0x01), std::byte(0x02), std::byte(0x03) };
 	BStorage::Value v1 = BStorage::Value::makeByteArray(bytes);
 
 	BStorage::Value v2(std::move(v1));
@@ -852,4 +855,106 @@ TEST(BStorageValue, object_move_test)
 	ASSERT_NE(v2.asObject(), nullptr);
 	EXPECT_EQ(v2.asObject()->size(), 1u);
 	EXPECT_EQ(*v2.asObject()->at("k").asU8(), static_cast<uint8_t>(9));
+}
+
+class VecStreamBuf : public std::streambuf
+{
+public:
+	explicit VecStreamBuf(std::vector<char>& vec)
+	{
+		setp(vec.data(), vec.data() + vec.size());
+		setg(vec.data(), vec.data(), vec.data() + vec.size());
+	}
+
+	// How many bytes were actually written?
+	std::size_t bytes_written() const noexcept
+	{
+		return pptr() - pbase();
+	}
+};
+
+TEST(BStorageValue, serialization_test)
+{
+	const BStorage::Value initial = BStorage::Value::makeObject({
+		{
+			"k1",
+			BStorage::Value::makeArray({
+				{
+					BStorage::Value::makeByteArray(std::vector<std::byte>({ std::byte(0x10), std::byte(0x20), std::byte(0x30) })),
+					BStorage::Value::makeU16(0x4567),
+					BStorage::Value::makeOption(nullptr),
+					BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeString("test"))),
+				},
+			}),
+		},
+		{
+			"k2",
+			BStorage::Value::makeArray({
+				{
+					BStorage::Value::makeU16(0x6789),
+					BStorage::Value::makeU16(0x1234),
+				},
+			}),
+		},
+		{
+			"k3",
+			BStorage::Value::makeArray({
+				{
+					BStorage::Value::makeOption(nullptr),
+					BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeU8(0xFF))),
+				},
+			}),
+		},
+		{
+			"k4",
+			BStorage::Value::makeArray({}),
+		},
+	});
+
+	const BStorage::Value expected = BStorage::Value::makeObject({
+		{
+			"k1",
+			BStorage::Value::makeArray({
+				{
+					BStorage::Value::makeByteArray(std::vector<std::byte>({ std::byte(0x10), std::byte(0x20), std::byte(0x30) })),
+					BStorage::Value::makeU16(0x4567),
+					BStorage::Value::makeOption(nullptr),
+					BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeString("test"))),
+				},
+			}),
+		},
+		{
+			"k2",
+			BStorage::Value::makeArray({
+				{
+					BStorage::Value::makeU16(0x6789),
+					BStorage::Value::makeU16(0x1234),
+				},
+			}),
+		},
+		{
+			"k3",
+			BStorage::Value::makeArray({
+				{
+					BStorage::Value::makeOption(nullptr),
+					BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeU8(0xFF))),
+				},
+			}),
+		},
+		{
+			"k4",
+			BStorage::Value::makeArray({}),
+		},
+	});
+
+	std::vector<char> buffer;
+	buffer.resize(1024);
+	VecStreamBuf buf(buffer);
+	std::ostream os(&buf);
+
+	EXPECT_EQ(initial.writeToStream(os), true);
+	std::istream is(&buf);
+	const std::optional<BStorage::Value> result = BStorage::Value::readFromStream(is);
+	ASSERT_TRUE(result.has_value());
+	EXPECT_TRUE(expected.isSameDeepCompare(*result));
 }

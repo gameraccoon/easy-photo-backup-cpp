@@ -3,7 +3,10 @@
 #pragma once
 
 #include <cstdint>
+#include <istream>
 #include <memory>
+#include <optional>
+#include <ostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -12,15 +15,15 @@ namespace BStorage
 {
 	enum class Tag : uint8_t
 	{
-		U8 = 0x01,
-		U16 = 0x02,
-		U32 = 0x03,
-		U64 = 0x04,
-		String = 0x05,
-		ByteArray = 0x06,
-		Option = 0x07,
-		Array = 0x08,
-		Object = 0x09,
+		U8,
+		U16,
+		U32,
+		U64,
+		String,
+		ByteArray,
+		Option,
+		Array,
+		Object,
 	};
 
 	class Value
@@ -32,8 +35,8 @@ namespace BStorage
 		[[nodiscard]] static Value makeU64(uint64_t v) noexcept;
 		[[nodiscard]] static Value makeString(const std::string& v) noexcept;
 		[[nodiscard]] static Value makeString(std::string&& v) noexcept;
-		[[nodiscard]] static Value makeByteArray(const std::vector<uint8_t>& v) noexcept;
-		[[nodiscard]] static Value makeByteArray(std::vector<uint8_t>&& v) noexcept;
+		[[nodiscard]] static Value makeByteArray(const std::vector<std::byte>& v) noexcept;
+		[[nodiscard]] static Value makeByteArray(std::vector<std::byte>&& v) noexcept;
 		[[nodiscard]] static Value makeOption(const std::unique_ptr<Value>& v) noexcept;
 		[[nodiscard]] static Value makeOption(std::unique_ptr<Value>&& v) noexcept;
 		[[nodiscard]] static Value makeArray(const std::vector<Value>& v) noexcept;
@@ -53,14 +56,20 @@ namespace BStorage
 		const uint64_t* asU64() const noexcept;
 		std::string* asString() noexcept;
 		const std::string* asString() const noexcept;
-		std::vector<uint8_t>* asByteArray() noexcept;
-		const std::vector<uint8_t>* asByteArray() const noexcept;
+		std::vector<std::byte>* asByteArray() noexcept;
+		const std::vector<std::byte>* asByteArray() const noexcept;
 		std::unique_ptr<Value>* asOption() noexcept;
 		const std::unique_ptr<Value>* asOption() const noexcept;
 		std::vector<Value>* asArray() noexcept;
 		const std::vector<Value>* asArray() const noexcept;
 		std::unordered_map<std::string, Value>* asObject() noexcept;
 		const std::unordered_map<std::string, Value>* asObject() const noexcept;
+
+		// sure, these are not the most optimal, but it should do for now
+		[[nodiscard]] bool writeToStream(std::ostream& outputStream, bool skipTag = false) const noexcept;
+		[[nodiscard]] static std::optional<Value> readFromStream(std::istream& inputStream, std::optional<uint8_t> forcedTag = {}) noexcept;
+
+		[[nodiscard]] bool isSameDeepCompare(const Value& other) const;
 
 		Value(const Value&) noexcept;
 		Value& operator=(const Value&) noexcept = delete;
@@ -76,7 +85,7 @@ namespace BStorage
 			uint32_t U32;
 			uint64_t U64;
 			std::string String;
-			std::vector<uint8_t> ByteArray;
+			std::vector<std::byte> ByteArray;
 			std::unique_ptr<Value> Option;
 			std::vector<Value> Array;
 			std::unordered_map<std::string, Value> Object;
