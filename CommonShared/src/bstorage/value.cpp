@@ -4,6 +4,7 @@
 #include "common_shared/bstorage/value.h"
 
 #include <array>
+#include <bit>
 
 namespace BStorage
 {
@@ -669,9 +670,9 @@ namespace BStorage
 			result.reserve(size);
 			for (size_t i = 0; i < size; ++i)
 			{
-				const uint16_t size = Internal::readSize(inputStream);
+				const size_t keySize = Internal::readSize(inputStream);
 				std::string key;
-				key.resize(size);
+				key.resize(keySize);
 				inputStream.read(key.data(), key.size());
 
 				std::optional<Value> internalValue = readFromStream(inputStream);
