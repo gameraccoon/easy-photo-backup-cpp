@@ -3,15 +3,8 @@
 
 #include "common_shared/cryptography/utils/erasable_data.h"
 
-#include <monocypher.h>
-
 namespace Cryptography
 {
-	void cryptoWipeRawData(std::span<std::byte> rawData) noexcept
-	{
-		crypto_wipe(rawData.data(), rawData.size());
-	}
-
 	using StaticAssertTestByteSequence = ByteSequence<Tag::TempInternalBuffer, 60>;
 	// these are important for some of the static asserts to work
 	// (some require using sizeof when passed by reference)

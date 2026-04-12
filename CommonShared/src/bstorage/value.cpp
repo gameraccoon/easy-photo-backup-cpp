@@ -7,6 +7,8 @@
 #include <array>
 #include <bit>
 
+#include "common_shared/cryptography/utils/crypto_wipe.h"
+
 namespace BStorage
 {
 	namespace Internal
@@ -849,10 +851,12 @@ namespace BStorage
 			// no need to do anything for trivial types
 			break;
 		case Tag::String: {
+			Cryptography::cryptoWipeRawMemory(mStorage.String.data(), mStorage.String.capacity());
 			mStorage.String.std::string::~string();
 			break;
 		}
 		case Tag::ByteArray: {
+			Cryptography::cryptoWipeRawMemory(mStorage.ByteArray.data(), mStorage.ByteArray.capacity());
 			mStorage.ByteArray.std::vector<std::byte>::~vector<std::byte>();
 			break;
 		}
@@ -865,6 +869,7 @@ namespace BStorage
 			break;
 		}
 		case Tag::Object: {
+			// we assume that Object keys don't have any confidential information to be securely erased
 			mStorage.Object.std::unordered_map<std::string, Value>::~unordered_map<std::string, Value>();
 			break;
 		}
@@ -884,6 +889,6 @@ namespace BStorage
 
 	Value::Storage::~Storage() noexcept
 	{
-		// do nothing as the proper destruction is handled in Value destructor
+		Cryptography::cryptoWipeRawMemory(this, sizeof(*this));
 	}
 } // namespace BStorage

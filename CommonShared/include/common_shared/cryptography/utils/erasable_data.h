@@ -8,6 +8,8 @@
 #include <span>
 #include <vector>
 
+#include "common_shared/cryptography/utils/crypto_wipe.h"
+
 namespace Cryptography
 {
 	// we plan to use this data for very speicific needs, and don't want to mix those needs
@@ -21,8 +23,6 @@ namespace Cryptography
 		Nonce,
 		TempInternalBuffer,
 	};
-
-	void cryptoWipeRawData(std::span<std::byte> rawData) noexcept;
 
 	template<Tag, std::size_t DataLen>
 	struct ByteSequence
