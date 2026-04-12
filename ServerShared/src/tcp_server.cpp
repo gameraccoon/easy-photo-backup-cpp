@@ -6,9 +6,7 @@
 #include <array>
 #include <cstring>
 #include <format>
-#include <functional>
 #include <thread>
-#include <unordered_map>
 
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
