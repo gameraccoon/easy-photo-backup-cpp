@@ -9,14 +9,14 @@
 
 TEST(CryptographyRandom, random_producesNonZeroArray)
 {
-	std::array<uint8_t, 50> data = {};
+	std::array<std::byte, 50> data = {};
 
 	Cryptography::fillWithRandomBytes(data);
 
 	bool onlyZeroes = true;
-	for (const uint8_t v : data)
+	for (const std::byte v : data)
 	{
-		if (v != 0) { onlyZeroes = false; }
+		if (v != std::byte(0)) { onlyZeroes = false; }
 	}
 
 	// this is of couse has a chance to fail, but a false positive once a decade still

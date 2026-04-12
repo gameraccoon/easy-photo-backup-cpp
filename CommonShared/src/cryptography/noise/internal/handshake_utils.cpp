@@ -3,8 +3,6 @@
 
 #include "common_shared/cryptography/noise/internal/handshake_utils.h"
 
-#include <bit>
-
 #include "common_shared/cryptography/noise/cipher_utils.h"
 #include "common_shared/cryptography/primitives/hash_functions.h"
 #include "common_shared/debug/assert.h"
@@ -26,14 +24,14 @@ namespace Noise::Utils
 		// see https://noiseprotocol.org/noise.html#the-symmetricstate-object
 		if (protocolName.length() <= HASHLEN)
 		{
-			std::copy(protocolName.begin(), protocolName.end(), h.raw.begin());
+			std::copy(reinterpret_cast<const std::byte*>(protocolName.begin()), reinterpret_cast<const std::byte*>(protocolName.end()), h.raw.begin());
 			// this isn't technically needed because the memory should already be zeroed
-			std::fill(h.raw.begin() + protocolName.length(), h.raw.end(), static_cast<uint8_t>(0));
+			std::fill(h.raw.begin() + protocolName.length(), h.raw.end(), static_cast<std::byte>(0));
 		}
 		else
 		{
 			static_assert(sizeof(*protocolName.data()) == sizeof(uint8_t), "String type should be UTF-8 string with 1 byte per character");
-			hash_blake2b(std::span<const uint8_t>(std::bit_cast<const uint8_t*>(protocolName.data()), protocolName.size()), h);
+			hash_blake2b(std::span<const std::byte>(reinterpret_cast<const std::byte*>(protocolName.data()), protocolName.size()), h);
 		}
 
 		return SymmetricState{
@@ -43,13 +41,13 @@ namespace Noise::Utils
 		};
 	}
 
-	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState) noexcept
+	void mixHash(const std::span<const std::byte> data, SymmetricState& inOutState) noexcept
 	{
 		// we could pass only handshakeHash to this function, however that would be a bit more error-prone
 		hashWithContext_blake2b(inOutState.handshakeHash, data, inOutState.handshakeHash);
 	}
 
-	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState) noexcept
+	void mixKey(const std::span<const std::byte> inputKeyMaterial, SymmetricState& inOutState) noexcept
 	{
 		HashResult tempKey;
 		Cryptography::HKDF_blake2b(inOutState.chainingKey, inputKeyMaterial, 2, inOutState.chainingKey, &tempKey, nullptr);
@@ -57,7 +55,7 @@ namespace Noise::Utils
 		TruncateAndInitializeKey(tempKey, *inOutState.cipherState);
 	}
 
-	Cryptography::EncryptResult encryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext)
+	Cryptography::EncryptResult encryptAndHash(SymmetricState& symmetricState, const std::span<const std::byte> plaintext, const std::span<std::byte> outCiphertext)
 	{
 		if (!symmetricState.cipherState.has_value())
 		{
@@ -73,7 +71,7 @@ namespace Noise::Utils
 		return result;
 	}
 
-	Cryptography::DecryptResult decryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext)
+	Cryptography::DecryptResult decryptAndHash(SymmetricState& symmetricState, const std::span<const std::byte> ciphertext, const std::span<std::byte> outPlaintext)
 	{
 		if (!symmetricState.cipherState.has_value()) [[unlikely]]
 		{
@@ -93,7 +91,7 @@ namespace Noise::Utils
 	{
 		HashResult tempKey1;
 		HashResult tempKey2;
-		Cryptography::HKDF_blake2b(symmetricState.chainingKey, std::span<uint8_t>{}, 2, tempKey1, &tempKey2, nullptr);
+		Cryptography::HKDF_blake2b(symmetricState.chainingKey, std::span<std::byte>{}, 2, tempKey1, &tempKey2, nullptr);
 
 		if (role == HandshakeRole::Initiator)
 		{
@@ -107,7 +105,7 @@ namespace Noise::Utils
 		}
 	}
 
-	int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos) noexcept
+	int writeDataToBuffer(const std::span<const std::byte> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos) noexcept
 	{
 		if (inOutBuffer.size() < (inOutWritePos + data.size()))
 		{
@@ -119,14 +117,13 @@ namespace Noise::Utils
 			return 0;
 		}
 
-		static_assert(sizeof(data[0]) == sizeof(inOutBuffer[0]), "Both data and buffer should be arrays of bytes");
-		std::copy(data.begin(), data.end(), std::bit_cast<uint8_t*>(inOutBuffer.data()) + inOutWritePos);
+		std::copy(data.begin(), data.end(), inOutBuffer.data() + inOutWritePos);
 		inOutWritePos += data.size();
 
 		return 0;
 	}
 
-	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t> outData, size_t& inOutReadPos) noexcept
+	int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<std::byte> outData, size_t& inOutReadPos) noexcept
 	{
 		if (buffer.size() < (inOutReadPos + outData.size()))
 		{
@@ -138,8 +135,7 @@ namespace Noise::Utils
 			return 0;
 		}
 
-		static_assert(sizeof(outData[0]) == sizeof(buffer[0]), "Both data and buffer should be arrays of bytes");
-		std::copy(buffer.begin() + inOutReadPos, buffer.begin() + (inOutReadPos + outData.size()), std::bit_cast<std::byte*>(outData.data()));
+		std::copy(buffer.begin() + inOutReadPos, buffer.begin() + (inOutReadPos + outData.size()), outData.data());
 		inOutReadPos += outData.size();
 
 		return 0;

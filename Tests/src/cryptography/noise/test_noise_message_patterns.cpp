@@ -422,7 +422,7 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_readInitiatorErrorTest)
 	{
 		Noise::InitiatorHandshakeState initiatorHandshakeState;
 		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize> messageBuffer = {};
-		vectorToByteArray(hexToBytes("ABDFE113C8864BEFC83335BF49AD8C1EC7A9535E771A10BBD6C5EAC82CE6A7FF82EF7E8C48C8034AF21A0DE20F29E3DD"), messageBuffer);
+		vectorToArray(hexToBytes("ABDFE113C8864BEFC83335BF49AD8C1EC7A9535E771A10BBD6C5EAC82CE6A7FF82EF7E8C48C8034AF21A0DE20F29E3DD"), messageBuffer);
 		initiatorHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
 		vectorToArray(hexToBytes("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), initiatorHandshakeState.symmetricState.cipherState->cipherKey.raw);
 		size_t writeCursor = 0;
@@ -480,7 +480,7 @@ TEST(CryptographyNoiseMessagePatterns, pattern_s_readResponderErrorTest)
 	{
 		Noise::ResponderHandshakeState responderHandshakeState;
 		std::array<std::byte, Cryptography::DHLEN + Cryptography::CipherAuthDataSize> messageBuffer = {};
-		vectorToByteArray(hexToBytes("ABDFE113C8864BEFC83335BF49AD8C1EC7A9535E771A10BBD6C5EAC82CE6A7FF82EF7E8C48C8034AF21A0DE20F29E3DD"), messageBuffer);
+		vectorToArray(hexToBytes("ABDFE113C8864BEFC83335BF49AD8C1EC7A9535E771A10BBD6C5EAC82CE6A7FF82EF7E8C48C8034AF21A0DE20F29E3DD"), messageBuffer);
 		responderHandshakeState.symmetricState.cipherState = Noise::CipherStateHandshake{};
 		vectorToArray(hexToBytes("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), responderHandshakeState.symmetricState.cipherState->cipherKey.raw);
 		size_t writeCursor = 0;

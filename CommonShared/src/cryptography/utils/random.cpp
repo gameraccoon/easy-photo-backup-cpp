@@ -21,7 +21,7 @@
 
 namespace Cryptography
 {
-	void fillWithRandomBytes(std::span<uint8_t> outNumber) noexcept
+	void fillWithRandomBytes(std::span<std::byte> outNumber) noexcept
 	{
 		// see https://monocypher.org/manual/#Random_number_generation
 #if defined(_WIN32) || defined(_WIN64)

@@ -16,25 +16,28 @@ namespace Cryptography
 	template<size_t len, Tag tag>
 	static void hashUpdate_blake2b(crypto_blake2b_ctx* context, const ByteSequence<tag, len>& data) noexcept
 	{
-		crypto_blake2b_update(context, data.raw.data(), data.raw.size());
+		static_assert(sizeof(*data.raw.data()) == sizeof(uint8_t), "Expected data to be a byte array");
+		crypto_blake2b_update(context, reinterpret_cast<const uint8_t*>(data.raw.data()), data.raw.size());
 	}
 
 	// dynamic len raw (avoid when possible)
-	static void hashUpdateDyn_blake2b(crypto_blake2b_ctx* context, const std::span<const uint8_t> data) noexcept
+	static void hashUpdateDyn_blake2b(crypto_blake2b_ctx* context, const std::span<const std::byte> data) noexcept
 	{
-		crypto_blake2b_update(context, data.data(), data.size());
+		static_assert(sizeof(*data.data()) == sizeof(uint8_t), "Expected data to be a byte array");
+		crypto_blake2b_update(context, reinterpret_cast<const uint8_t*>(data.data()), data.size());
 	}
 
 	template<size_t len, Tag tag>
 	static void hashFinal_blake2b(crypto_blake2b_ctx* context, ByteSequence<tag, len>& data) noexcept
 	{
+		static_assert(sizeof(*data.raw.data()) == sizeof(uint8_t), "Expected data to be a byte array");
 		static_assert(sizeof(data.raw) == len, "Unexpected result buffer size");
 		assertFatalRelease(data.raw.size() == len, "Unexpected result buffer size");
 		assertFatalRelease(context->hash_size == len, "The hash size is not same as the result buffer size");
-		crypto_blake2b_final(context, data.raw.data());
+		crypto_blake2b_final(context, reinterpret_cast<uint8_t*>(data.raw.data()));
 	}
 
-	void hash_blake2b(std::span<const uint8_t> data, HashResult& outHash) noexcept
+	void hash_blake2b(std::span<const std::byte> data, HashResult& outHash) noexcept
 	{
 		crypto_blake2b_ctx context{};
 		crypto_blake2b_init(&context, HASHLEN);
@@ -42,7 +45,7 @@ namespace Cryptography
 		hashFinal_blake2b<HASHLEN>(&context, outHash);
 	}
 
-	void hashWithContext_blake2b(std::span<const uint8_t> con, std::span<const uint8_t> data, HashResult& outHash) noexcept
+	void hashWithContext_blake2b(std::span<const std::byte> con, std::span<const std::byte> data, HashResult& outHash) noexcept
 	{
 		crypto_blake2b_ctx context{};
 		crypto_blake2b_init(&context, HASHLEN);
@@ -51,7 +54,7 @@ namespace Cryptography
 		hashFinal_blake2b<HASHLEN>(&context, outHash);
 	}
 
-	void HMAC_blake2b(const HashResult& key, const std::span<const uint8_t> data, HashResult& outMac) noexcept
+	void HMAC_blake2b(const HashResult& key, const std::span<const std::byte> data, HashResult& outMac) noexcept
 	{
 		// check https://www.ietf.org/rfc/rfc2104.txt
 
@@ -88,8 +91,8 @@ namespace Cryptography
 
 	void HKDF_blake2b(
 		const HashResult& chainingKey,
-		const std::span<const uint8_t> inputKeyMaterial,
-		uint8_t numOutputs,
+		const std::span<const std::byte> inputKeyMaterial,
+		int numOutputs,
 		HashResult& output1,
 		HashResult* output2,
 		HashResult* output3
@@ -103,7 +106,7 @@ namespace Cryptography
 		ByteSequence<Tag::HashResult, HASHLEN> tempKey;
 
 		HMAC_blake2b(chainingKey, inputKeyMaterial, tempKey);
-		HMAC_blake2b(tempKey, std::array<uint8_t, 1>{ { 0x01 } }, output1);
+		HMAC_blake2b(tempKey, std::array<std::byte, 1>{ { std::byte(0x01) } }, output1);
 
 		if (numOutputs == 1)
 		{
@@ -118,7 +121,7 @@ namespace Cryptography
 
 		ByteSequence<Tag::TempInternalBuffer, HASHLEN + 1> temp;
 		std::copy(output1.raw.begin(), output1.raw.end(), temp.raw.begin());
-		temp.raw[HASHLEN] = 0x02;
+		temp.raw[HASHLEN] = std::byte(0x02);
 		HMAC_blake2b(tempKey, temp, *output2);
 
 		if (numOutputs == 2)
@@ -133,7 +136,7 @@ namespace Cryptography
 		}
 
 		std::copy(output2->raw.begin(), output2->raw.end(), temp.raw.begin());
-		temp.raw[HASHLEN] = 0x03;
+		temp.raw[HASHLEN] = std::byte(0x03);
 		HMAC_blake2b(tempKey, temp, *output3);
 	}
 } // namespace Cryptography

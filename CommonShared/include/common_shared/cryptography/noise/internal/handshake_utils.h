@@ -19,13 +19,13 @@ namespace Noise::Utils
 	};
 
 	[[nodiscard]] SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept;
-	void mixHash(const std::span<const uint8_t> data, SymmetricState& inOutState) noexcept;
-	void mixKey(const std::span<const uint8_t> inputKeyMaterial, SymmetricState& inOutState) noexcept;
-	[[nodiscard]] Cryptography::EncryptResult encryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext);
-	[[nodiscard]] Cryptography::DecryptResult decryptAndHash(SymmetricState& symmetricState, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext);
+	void mixHash(const std::span<const std::byte> data, SymmetricState& inOutState) noexcept;
+	void mixKey(const std::span<const std::byte> inputKeyMaterial, SymmetricState& inOutState) noexcept;
+	[[nodiscard]] Cryptography::EncryptResult encryptAndHash(SymmetricState& symmetricState, const std::span<const std::byte> plaintext, const std::span<std::byte> outCiphertext);
+	[[nodiscard]] Cryptography::DecryptResult decryptAndHash(SymmetricState& symmetricState, const std::span<const std::byte> ciphertext, const std::span<std::byte> outPlaintext);
 	void split(const SymmetricState& symmetricState, CipherStateSending& c1, CipherStateReceiving& c2, HandshakeRole role);
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
-	[[nodiscard]] int writeDataToBuffer(const std::span<const uint8_t> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos) noexcept;
+	[[nodiscard]] int writeDataToBuffer(const std::span<const std::byte> data, const std::span<std::byte> inOutBuffer, size_t& inOutWritePos) noexcept;
 	// returns zero on success, non-zero on failure (not enough space in the buffer)
-	[[nodiscard]] int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<uint8_t> outData, size_t& inOutReadPos) noexcept;
+	[[nodiscard]] int readDataFromBuffer(const std::span<const std::byte> buffer, const std::span<std::byte> outData, size_t& inOutReadPos) noexcept;
 } // namespace Noise::Utils

@@ -9,11 +9,11 @@ namespace Noise::Utils
 {
 	// see the specification here: https://noiseprotocol.org/noise.html#processing-rules
 
-	[[nodiscard]] Cryptography::EncryptResult encryptWithAd(CipherStateSending& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext);
-	[[nodiscard]] Cryptography::DecryptResult decryptWithAd(CipherStateReceiving& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext);
+	[[nodiscard]] Cryptography::EncryptResult encryptWithAd(CipherStateSending& cipherState, const std::span<const std::byte> associatedData, const std::span<const std::byte> plaintext, const std::span<std::byte> outCiphertext);
+	[[nodiscard]] Cryptography::DecryptResult decryptWithAd(CipherStateReceiving& cipherState, const std::span<const std::byte> associatedData, const std::span<const std::byte> ciphertext, const std::span<std::byte> outPlaintext);
 
-	[[nodiscard]] Cryptography::EncryptResult encryptWithAd(CipherStateHandshake& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> plaintext, const std::span<uint8_t> outCiphertext);
-	[[nodiscard]] Cryptography::DecryptResult decryptWithAd(CipherStateHandshake& cipherState, const std::span<const uint8_t> associatedData, const std::span<const uint8_t> ciphertext, const std::span<uint8_t> outPlaintext);
+	[[nodiscard]] Cryptography::EncryptResult encryptWithAd(CipherStateHandshake& cipherState, const std::span<const std::byte> associatedData, const std::span<const std::byte> plaintext, const std::span<std::byte> outCiphertext);
+	[[nodiscard]] Cryptography::DecryptResult decryptWithAd(CipherStateHandshake& cipherState, const std::span<const std::byte> associatedData, const std::span<const std::byte> ciphertext, const std::span<std::byte> outPlaintext);
 
 	EncryptResult rekey(CipherStateSending& cipherState);
 	EncryptResult rekey(CipherStateReceiving& cipherState);

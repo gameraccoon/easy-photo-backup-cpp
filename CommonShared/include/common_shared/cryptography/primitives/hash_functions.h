@@ -3,25 +3,25 @@
 
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
 #include <span>
 
 #include "common_shared/cryptography/types/hash_types.h"
 
 namespace Cryptography
 {
-	void hash_blake2b(std::span<const uint8_t> data, HashResult& outHash) noexcept;
-	void hashWithContext_blake2b(std::span<const uint8_t> con, std::span<const uint8_t> data, HashResult& outHash) noexcept;
+	void hash_blake2b(std::span<const std::byte> data, HashResult& outHash) noexcept;
+	void hashWithContext_blake2b(std::span<const std::byte> con, std::span<const std::byte> data, HashResult& outHash) noexcept;
 
 #ifdef WITH_TESTS
 	// it is only used for the HKDF implementations, but we still want to test it
-	void HMAC_blake2b(const HashResult& key, std::span<const uint8_t> data, HashResult& outMac) noexcept;
+	void HMAC_blake2b(const HashResult& key, std::span<const std::byte> data, HashResult& outMac) noexcept;
 #endif
 
 	void HKDF_blake2b(
 		const HashResult& chainingKey,
-		const std::span<const uint8_t> inputKeyMaterial,
-		uint8_t numOutputs,
+		const std::span<const std::byte> inputKeyMaterial,
+		int numOutputs,
 		HashResult& output1,
 		HashResult* output2,
 		HashResult* output3

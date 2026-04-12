@@ -10,17 +10,17 @@ namespace Cryptography
 	[[nodiscard]] EncryptResult encrypt_chacha20poly1305(
 		const CipherKey& key,
 		const Nonce nonce,
-		const std::span<const uint8_t> associatedData,
-		const std::span<const uint8_t> plaintext,
-		const std::span<uint8_t> outCiphertext
+		const std::span<const std::byte> associatedData,
+		const std::span<const std::byte> plaintext,
+		const std::span<std::byte> outCiphertext
 	) noexcept;
 
 	// returns 0 if authentication succeeds, otherwise returns a non-zero error code
 	[[nodiscard]] DecryptResult decrypt_chacha20poly1305(
 		const CipherKey& key,
 		const Nonce nonce,
-		const std::span<const uint8_t> associatedData,
-		const std::span<const uint8_t> ciphertext,
-		const std::span<uint8_t> outPlaintext
+		const std::span<const std::byte> associatedData,
+		const std::span<const std::byte> ciphertext,
+		const std::span<std::byte> outPlaintext
 	) noexcept;
 }

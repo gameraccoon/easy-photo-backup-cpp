@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
 #include <span>
 
 namespace Cryptography
 {
 	// fills the span with random data produced by the operating system random (slow)
-	void fillWithRandomBytes(std::span<uint8_t> outNumber) noexcept;
+	void fillWithRandomBytes(std::span<std::byte> outNumber) noexcept;
 }

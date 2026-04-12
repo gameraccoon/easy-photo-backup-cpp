@@ -6,9 +6,9 @@
 
 #include "common_shared/cryptography/primitives/hash_functions.h"
 
-static void testHash_blake2b(const std::span<const uint8_t> dataVec, const std::span<const uint8_t> expectedHashVec)
+static void testHash_blake2b(const std::span<const std::byte> dataVec, const std::span<const std::byte> expectedHashVec)
 {
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult = {};
+	std::array<std::byte, Cryptography::HASHLEN> expectedResult = {};
 	vectorToArray(expectedHashVec, expectedResult);
 
 	Cryptography::HashResult actualResult;
@@ -17,9 +17,9 @@ static void testHash_blake2b(const std::span<const uint8_t> dataVec, const std::
 	EXPECT_EQ(actualResult.raw, expectedResult);
 }
 
-static void testHashWithContext_blake2b(const std::span<const uint8_t> contextVec, const std::span<const uint8_t> dataVec, const std::span<const uint8_t> expectedHashVec)
+static void testHashWithContext_blake2b(const std::span<const std::byte> contextVec, const std::span<const std::byte> dataVec, const std::span<const std::byte> expectedHashVec)
 {
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult = vectorToArray<Cryptography::HASHLEN>(expectedHashVec);
+	std::array<std::byte, Cryptography::HASHLEN> expectedResult = vectorToArray<Cryptography::HASHLEN>(expectedHashVec);
 
 	Cryptography::HashResult actualResult;
 	Cryptography::hashWithContext_blake2b(contextVec, dataVec, actualResult);
@@ -27,12 +27,12 @@ static void testHashWithContext_blake2b(const std::span<const uint8_t> contextVe
 	EXPECT_EQ(actualResult.raw, expectedResult);
 }
 
-static void testHmac_blake2b(const std::span<const uint8_t> keyVec, const std::span<const uint8_t> dataVec, const std::span<const uint8_t> expectedVec)
+static void testHmac_blake2b(const std::span<const std::byte> keyVec, const std::span<const std::byte> dataVec, const std::span<const std::byte> expectedVec)
 {
 	Cryptography::HashResult key;
 	vectorToArray(keyVec, key.raw);
 
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult = {};
+	std::array<std::byte, Cryptography::HASHLEN> expectedResult = {};
 	vectorToArray(expectedVec, expectedResult);
 
 	Cryptography::HashResult actualResult;
@@ -41,15 +41,15 @@ static void testHmac_blake2b(const std::span<const uint8_t> keyVec, const std::s
 	EXPECT_EQ(actualResult.raw, expectedResult);
 }
 
-static void testHkdf_blake2b(std::vector<uint8_t>&& chainingKeyVec, std::vector<uint8_t>&& inputKeyMaterial, int numOutputs, std::vector<uint8_t>&& expected1Vec, std::optional<std::vector<uint8_t>>&& expected2Vec, std::optional<std::vector<uint8_t>>&& expected3Vec)
+static void testHkdf_blake2b(std::vector<std::byte>&& chainingKeyVec, std::vector<std::byte>&& inputKeyMaterial, int numOutputs, std::vector<std::byte>&& expected1Vec, std::optional<std::vector<std::byte>>&& expected2Vec, std::optional<std::vector<std::byte>>&& expected3Vec)
 {
 	Cryptography::HashResult chainingKey;
 	vectorToArray(chainingKeyVec, chainingKey.raw);
 
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult1 = {};
+	std::array<std::byte, Cryptography::HASHLEN> expectedResult1 = {};
 	vectorToArray(expected1Vec, expectedResult1);
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult2 = {};
-	std::array<uint8_t, Cryptography::HASHLEN> expectedResult3 = {};
+	std::array<std::byte, Cryptography::HASHLEN> expectedResult2 = {};
+	std::array<std::byte, Cryptography::HASHLEN> expectedResult3 = {};
 	if (expected2Vec.has_value())
 	{
 		vectorToArray(*expected2Vec, expectedResult2);
@@ -66,7 +66,7 @@ static void testHkdf_blake2b(std::vector<uint8_t>&& chainingKeyVec, std::vector<
 	Cryptography::HKDF_blake2b(
 		chainingKey,
 		Cryptography::DynByteSequence::fromVector(std::move(inputKeyMaterial)),
-		static_cast<uint8_t>(numOutputs),
+		numOutputs,
 		actualResult1,
 		expected2Vec.has_value() ? &actualResult2 : nullptr,
 		expected3Vec.has_value() ? &actualResult3 : nullptr

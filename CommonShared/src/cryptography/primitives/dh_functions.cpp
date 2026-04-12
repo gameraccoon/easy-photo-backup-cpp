@@ -32,9 +32,11 @@ namespace Cryptography
 
 		fillWithRandomBytes(newKeypair.secretKey.raw);
 
+		static_assert(sizeof(*newKeypair.publicKey.raw.data()) == sizeof(uint8_t), "Expected public key to be a byte array");
+		static_assert(sizeof(*newKeypair.secretKey.raw.data()) == sizeof(uint8_t), "Expected secret key to be a byte array");
 		static_assert(newKeypair.publicKey.raw.size() == 32, "The crypto_x25519_public_key implementation supports only 32 byte keys");
 		static_assert(newKeypair.secretKey.raw.size() == 32, "The crypto_x25519_public_key implementation supports only 32 byte keys");
-		crypto_x25519_public_key(newKeypair.publicKey.raw.data(), newKeypair.secretKey.raw.data());
+		crypto_x25519_public_key(reinterpret_cast<uint8_t*>(newKeypair.publicKey.raw.data()), reinterpret_cast<uint8_t*>(newKeypair.secretKey.raw.data()));
 
 		return newKeypair;
 	}
@@ -43,11 +45,14 @@ namespace Cryptography
 	{
 		DhResult result;
 
+		static_assert(sizeof(*result.raw.data()) == sizeof(uint8_t), "Expected dh result to be a byte array");
+		static_assert(sizeof(*publicKey.raw.data()) == sizeof(uint8_t), "Expected public key to be a byte array");
+		static_assert(sizeof(*secretKey.raw.data()) == sizeof(uint8_t), "Expected secret key to be a byte array");
 		// static_assert doesn't work on constexpr functions on arguments for some reason, do sizeof to have at least something
 		static_assert(sizeof(publicKey.raw) == 32, "The crypto_x25519 implementation supports only 32 byte keys");
 		static_assert(sizeof(secretKey.raw) == 32, "The crypto_x25519 implementation supports only 32 byte keys");
 		static_assert(result.raw.size() == 32, "The crypto_x25519 implementation supports only 32 byte keys");
-		crypto_x25519(result.raw.data(), secretKey.raw.data(), publicKey.raw.data());
+		crypto_x25519(reinterpret_cast<uint8_t*>(result.raw.data()), reinterpret_cast<const uint8_t*>(secretKey.raw.data()), reinterpret_cast<const uint8_t*>(publicKey.raw.data()));
 
 		return result;
 	}
@@ -57,7 +62,7 @@ namespace Cryptography
 		static_assert(sizeof(publicKey.raw) == sizeof(ProhibitedPublicKeys[0]), "Public key size didn't match prohibited key size");
 		for (size_t i = 0; i < ProhibitedKeysCount; ++i)
 		{
-			if (crypto_verify32(publicKey.raw.data(), ProhibitedPublicKeys[i]) == 0) [[unlikely]]
+			if (crypto_verify32(reinterpret_cast<const uint8_t*>(publicKey.raw.data()), ProhibitedPublicKeys[i]) == 0) [[unlikely]]
 			{
 				return false;
 			}

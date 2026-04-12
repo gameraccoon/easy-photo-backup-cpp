@@ -3,8 +3,6 @@
 
 #include "common_shared/cryptography/noise/internal/message_patterns.h"
 
-#include <bit>
-
 #include "common_shared/cryptography/noise/internal/handshake_utils.h"
 #include "common_shared/cryptography/primitives/dh_functions.h"
 
@@ -79,13 +77,12 @@ namespace Noise::MessagePatterns
 		}
 
 		// to avoid extra copies, write the result of encryption directly to the message buffer
-		static_assert(sizeof(*outMessageBuffer.data()) == sizeof(uint8_t), "outMessageBuffer type should be a byte array");
 		if (Utils::encryptAndHash(
 				handshakeState.symmetricState,
 				handshakeState.staticKeys->publicKey,
 				std::span(
-					std::bit_cast<uint8_t*>(outMessageBuffer.data()) + inOutCursor,
-					std::bit_cast<uint8_t*>(outMessageBuffer.data()) + inOutCursor + DHLEN + CipherAuthDataSize
+					outMessageBuffer.data() + inOutCursor,
+					outMessageBuffer.data() + inOutCursor + DHLEN + CipherAuthDataSize
 				)
 			)
 			!= EncryptResult::Success)
@@ -111,12 +108,11 @@ namespace Noise::MessagePatterns
 		}
 
 		handshakeState.remoteStaticKey = PublicKey{};
-		static_assert(sizeof(*messageData.data()) == sizeof(uint8_t), "messageData type should be a byte array");
 		if (Utils::decryptAndHash(
 				handshakeState.symmetricState,
 				std::span(
-					std::bit_cast<uint8_t*>(messageData.data()) + inOutCursor,
-					std::bit_cast<uint8_t*>(messageData.data()) + inOutCursor + DHLEN + CipherAuthDataSize
+					messageData.data() + inOutCursor,
+					messageData.data() + inOutCursor + DHLEN + CipherAuthDataSize
 				),
 				*handshakeState.remoteStaticKey
 			)
