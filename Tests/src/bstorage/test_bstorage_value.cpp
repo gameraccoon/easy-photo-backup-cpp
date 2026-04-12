@@ -61,7 +61,7 @@ TEST(BStorageValue, u8_copy_test)
 {
 	BStorage::Value v1 = BStorage::Value::makeU8(4);
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::U8));
 	ASSERT_NE(v1.asU8(), nullptr);
@@ -136,7 +136,7 @@ TEST(BStorageValue, u16_copy_test)
 {
 	BStorage::Value v1 = BStorage::Value::makeU16(1000);
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::U16));
 	ASSERT_NE(v1.asU16(), nullptr);
@@ -211,7 +211,7 @@ TEST(BStorageValue, u32_copy_test)
 {
 	BStorage::Value v1 = BStorage::Value::makeU32(100000);
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::U32));
 	ASSERT_NE(v1.asU32(), nullptr);
@@ -286,7 +286,7 @@ TEST(BStorageValue, u64_copy_test)
 {
 	BStorage::Value v1 = BStorage::Value::makeU64(9999999999ULL);
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::U64));
 	ASSERT_NE(v1.asU64(), nullptr);
@@ -372,7 +372,7 @@ TEST(BStorageValue, string_copy_test)
 {
 	BStorage::Value v1 = BStorage::Value::makeString(std::string("hello"));
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::String));
 	ASSERT_NE(v1.asString(), nullptr);
@@ -397,7 +397,7 @@ TEST(BStorageValue, bytearray_test)
 {
 	const std::vector<std::byte> bytes = { std::byte(0x01), std::byte(0x02), std::byte(0x03) };
 
-	BStorage::Value v = BStorage::Value::makeByteArray(bytes);
+	BStorage::Value v = BStorage::Value::makeByteArray(std::vector<std::byte>(bytes));
 
 	EXPECT_FALSE(v.isA(BStorage::Tag::U8));
 	EXPECT_FALSE(v.isA(BStorage::Tag::U16));
@@ -424,7 +424,7 @@ TEST(BStorageValue, bytearray_const_test)
 {
 	const std::vector<std::byte> bytes = { std::byte(0x01), std::byte(0x02), std::byte(0x03) };
 
-	const BStorage::Value v = BStorage::Value::makeByteArray(bytes);
+	const BStorage::Value v = BStorage::Value::makeByteArray(std::vector<std::byte>(bytes));
 
 	EXPECT_FALSE(v.isA(BStorage::Tag::U8));
 	EXPECT_FALSE(v.isA(BStorage::Tag::U16));
@@ -461,9 +461,9 @@ TEST(BStorageValue, bytearray_move_construct_test)
 TEST(BStorageValue, bytearray_copy_test)
 {
 	const std::vector<std::byte> bytes = { std::byte(0x01), std::byte(0x02), std::byte(0x03) };
-	BStorage::Value v1 = BStorage::Value::makeByteArray(bytes);
+	BStorage::Value v1 = BStorage::Value::makeByteArray(std::vector<std::byte>(bytes));
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::ByteArray));
 	ASSERT_NE(v1.asByteArray(), nullptr);
@@ -476,7 +476,7 @@ TEST(BStorageValue, bytearray_copy_test)
 TEST(BStorageValue, bytearray_move_test)
 {
 	const std::vector<std::byte> bytes = { std::byte(0x01), std::byte(0x02), std::byte(0x03) };
-	BStorage::Value v1 = BStorage::Value::makeByteArray(bytes);
+	BStorage::Value v1 = BStorage::Value::makeByteArray(std::vector<std::byte>(bytes));
 
 	BStorage::Value v2(std::move(v1));
 
@@ -559,7 +559,7 @@ TEST(BStorageValue, option_copy_test)
 	auto inner = std::make_unique<BStorage::Value>(BStorage::Value::makeU32(42));
 	BStorage::Value v1 = BStorage::Value::makeOption(std::move(inner));
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::Option));
 	ASSERT_NE(v1.asOption(), nullptr);
@@ -577,7 +577,7 @@ TEST(BStorageValue, option_copy_test_null)
 {
 	BStorage::Value v1 = BStorage::Value::makeOption(nullptr);
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::Option));
 	ASSERT_NE(v1.asOption(), nullptr);
@@ -692,19 +692,6 @@ TEST(BStorageValue, array_different_types)
 	EXPECT_EQ(v.asObject(), nullptr);
 }
 
-TEST(BStorageValue, array_lvalue_construct_test)
-{
-	std::vector<BStorage::Value> elems;
-	elems.push_back(BStorage::Value::makeU16(7));
-
-	BStorage::Value v = BStorage::Value::makeArray(elems); // lvalue overload
-
-	ASSERT_TRUE(v.isA(BStorage::Tag::Array));
-	ASSERT_NE(v.asArray(), nullptr);
-	ASSERT_EQ(v.asArray()->size(), 1u);
-	EXPECT_EQ(*(*v.asArray())[0].asU16(), static_cast<uint16_t>(7));
-}
-
 TEST(BStorageValue, array_empty_test)
 {
 	BStorage::Value v = BStorage::Value::makeArray(std::vector<BStorage::Value>{});
@@ -720,7 +707,7 @@ TEST(BStorageValue, array_copy_test)
 	elems.push_back(BStorage::Value::makeU8(5));
 	BStorage::Value v1 = BStorage::Value::makeArray(std::move(elems));
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::Array));
 	ASSERT_NE(v1.asArray(), nullptr);
@@ -804,17 +791,6 @@ TEST(BStorageValue, object_const_test)
 	ASSERT_NE(v.asObject()->find("key"), v.asObject()->end());
 	EXPECT_EQ(*v.asObject()->at("key").asU64(), static_cast<uint64_t>(77));
 }
-TEST(BStorageValue, object_lvalue_construct_test)
-{
-	std::unordered_map<std::string, BStorage::Value> map;
-	map.emplace("x", BStorage::Value::makeString(std::string("val")));
-
-	BStorage::Value v = BStorage::Value::makeObject(map); // lvalue overload
-
-	ASSERT_TRUE(v.isA(BStorage::Tag::Object));
-	ASSERT_NE(v.asObject(), nullptr);
-	EXPECT_EQ(*v.asObject()->at("x").asString(), "val");
-}
 
 TEST(BStorageValue, object_empty_test)
 {
@@ -831,7 +807,7 @@ TEST(BStorageValue, object_copy_test)
 	map.emplace("k", BStorage::Value::makeU8(9));
 	BStorage::Value v1 = BStorage::Value::makeObject(std::move(map));
 
-	BStorage::Value v2(v1);
+	BStorage::Value v2(v1.deepCopy());
 
 	ASSERT_TRUE(v1.isA(BStorage::Tag::Object));
 	ASSERT_NE(v1.asObject(), nullptr);
@@ -874,77 +850,30 @@ public:
 
 TEST(BStorageValue, serialization_test)
 {
-	const BStorage::Value initial = BStorage::Value::makeObject({
-		{
-			"k1",
-			BStorage::Value::makeArray({
-				{
-					BStorage::Value::makeByteArray(std::vector<std::byte>({ std::byte(0x10), std::byte(0x20), std::byte(0x30) })),
-					BStorage::Value::makeU16(0x4567),
-					BStorage::Value::makeOption(nullptr),
-					BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeString("test"))),
-				},
-			}),
-		},
-		{
-			"k2",
-			BStorage::Value::makeArray({
-				{
-					BStorage::Value::makeU16(0x6789),
-					BStorage::Value::makeU16(0x1234),
-				},
-			}),
-		},
-		{
-			"k3",
-			BStorage::Value::makeArray({
-				{
-					BStorage::Value::makeOption(nullptr),
-					BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeU8(0xFF))),
-				},
-			}),
-		},
-		{
-			"k4",
-			BStorage::Value::makeArray({}),
-		},
-	});
+	std::vector<BStorage::Value> array1;
+	array1.reserve(4);
+	array1.push_back(BStorage::Value::makeByteArray(std::vector<std::byte>({ std::byte(0x10), std::byte(0x20), std::byte(0x30) })));
+	array1.push_back(BStorage::Value::makeU16(0x4567));
+	array1.push_back(BStorage::Value::makeOption(nullptr));
+	array1.push_back(BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeString(std::string_view("test")))));
 
-	const BStorage::Value expected = BStorage::Value::makeObject({
-		{
-			"k1",
-			BStorage::Value::makeArray({
-				{
-					BStorage::Value::makeByteArray(std::vector<std::byte>({ std::byte(0x10), std::byte(0x20), std::byte(0x30) })),
-					BStorage::Value::makeU16(0x4567),
-					BStorage::Value::makeOption(nullptr),
-					BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeString("test"))),
-				},
-			}),
-		},
-		{
-			"k2",
-			BStorage::Value::makeArray({
-				{
-					BStorage::Value::makeU16(0x6789),
-					BStorage::Value::makeU16(0x1234),
-				},
-			}),
-		},
-		{
-			"k3",
-			BStorage::Value::makeArray({
-				{
-					BStorage::Value::makeOption(nullptr),
-					BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeU8(0xFF))),
-				},
-			}),
-		},
-		{
-			"k4",
-			BStorage::Value::makeArray({}),
-		},
-	});
+	std::vector<BStorage::Value> array2;
+	array1.reserve(2);
+	array1.push_back(BStorage::Value::makeU16(0x6789));
+	array1.push_back(BStorage::Value::makeU16(0x1234));
+
+	std::vector<BStorage::Value> array3;
+	array1.reserve(2);
+	array1.push_back(BStorage::Value::makeOption(nullptr));
+	array1.push_back(BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeU8(0xFF))));
+
+	std::unordered_map<std::string, BStorage::Value> outherObject;
+	outherObject.emplace("k1", BStorage::Value::makeArray(std::move(array1)));
+	outherObject.emplace("k2", BStorage::Value::makeArray(std::move(array2)));
+	outherObject.emplace("k3", BStorage::Value::makeArray(std::move(array3)));
+	outherObject.emplace("k4", BStorage::Value::makeArray({}));
+
+	const BStorage::Value initial = BStorage::Value::makeObject(std::move(outherObject));
 
 	std::vector<char> buffer;
 	buffer.resize(1024);
@@ -955,5 +884,5 @@ TEST(BStorageValue, serialization_test)
 	std::istream is(&buf);
 	const std::optional<BStorage::Value> result = BStorage::Value::readFromStream(is);
 	ASSERT_TRUE(result.has_value());
-	EXPECT_TRUE(expected.isSameDeepCompare(*result));
+	EXPECT_TRUE(initial.isSameDeepCompare(*result));
 }

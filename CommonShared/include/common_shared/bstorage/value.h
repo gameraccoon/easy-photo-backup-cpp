@@ -33,15 +33,11 @@ namespace BStorage
 		[[nodiscard]] static Value makeU16(uint16_t v) noexcept;
 		[[nodiscard]] static Value makeU32(uint32_t v) noexcept;
 		[[nodiscard]] static Value makeU64(uint64_t v) noexcept;
-		[[nodiscard]] static Value makeString(const std::string& v) noexcept;
+		[[nodiscard]] static Value makeString(std::string_view v) noexcept;
 		[[nodiscard]] static Value makeString(std::string&& v) noexcept;
-		[[nodiscard]] static Value makeByteArray(const std::vector<std::byte>& v) noexcept;
 		[[nodiscard]] static Value makeByteArray(std::vector<std::byte>&& v) noexcept;
-		[[nodiscard]] static Value makeOption(const std::unique_ptr<Value>& v) noexcept;
 		[[nodiscard]] static Value makeOption(std::unique_ptr<Value>&& v) noexcept;
-		[[nodiscard]] static Value makeArray(const std::vector<Value>& v) noexcept;
 		[[nodiscard]] static Value makeArray(std::vector<Value>&& v) noexcept;
-		[[nodiscard]] static Value makeObject(const std::unordered_map<std::string, Value>& v) noexcept;
 		[[nodiscard]] static Value makeObject(std::unordered_map<std::string, Value>&& v) noexcept;
 
 		bool isA(Tag tag) const { return mTag == tag; }
@@ -69,9 +65,11 @@ namespace BStorage
 		[[nodiscard]] bool writeToStream(std::ostream& outputStream, bool skipTag = false) const noexcept;
 		[[nodiscard]] static std::optional<Value> readFromStream(std::istream& inputStream, std::optional<uint8_t> forcedTag = {}) noexcept;
 
-		[[nodiscard]] bool isSameDeepCompare(const Value& other) const;
+		[[nodiscard]] bool isSameDeepCompare(const Value& other) const noexcept;
 
-		Value(const Value&) noexcept;
+		[[nodiscard]] Value deepCopy() const noexcept;
+
+		Value(const Value&) noexcept = delete;
 		Value& operator=(const Value&) noexcept = delete;
 		Value(Value&&) noexcept;
 		Value& operator=(Value&&) noexcept = delete;

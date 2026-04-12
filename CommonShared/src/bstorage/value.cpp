@@ -186,7 +186,7 @@ namespace BStorage
 		return newValue;
 	}
 
-	Value Value::makeString(const std::string& v) noexcept
+	Value Value::makeString(std::string_view v) noexcept
 	{
 		Value newValue(Tag::String);
 		new (&newValue.mStorage.String) std::string(v);
@@ -200,31 +200,10 @@ namespace BStorage
 		return newValue;
 	}
 
-	Value Value::makeByteArray(const std::vector<std::byte>& v) noexcept
-	{
-		Value newValue(Tag::ByteArray);
-		new (&newValue.mStorage.ByteArray) std::vector<std::byte>(v);
-		return newValue;
-	}
-
 	Value Value::makeByteArray(std::vector<std::byte>&& v) noexcept
 	{
 		Value newValue(Tag::ByteArray);
 		new (&newValue.mStorage.ByteArray) std::vector<std::byte>(std::move(v));
-		return newValue;
-	}
-
-	Value Value::makeOption(const std::unique_ptr<Value>& v) noexcept
-	{
-		Value newValue(Tag::Option);
-		if (v)
-		{
-			new (&newValue.mStorage.Option) std::unique_ptr<Value>(new Value(*v));
-		}
-		else
-		{
-			new (&newValue.mStorage.Option) std::unique_ptr<Value>();
-		}
 		return newValue;
 	}
 
@@ -235,24 +214,10 @@ namespace BStorage
 		return newValue;
 	}
 
-	Value Value::makeArray(const std::vector<Value>& v) noexcept
-	{
-		Value newValue(Tag::Array);
-		new (&newValue.mStorage.Array) std::vector<Value>(v);
-		return newValue;
-	}
-
 	Value Value::makeArray(std::vector<Value>&& v) noexcept
 	{
 		Value newValue(Tag::Array);
 		new (&newValue.mStorage.Array) std::vector<Value>(std::move(v));
-		return newValue;
-	}
-
-	Value Value::makeObject(const std::unordered_map<std::string, Value>& v) noexcept
-	{
-		Value newValue(Tag::Object);
-		new (&newValue.mStorage.Object) std::unordered_map<std::string, Value>(v);
 		return newValue;
 	}
 
@@ -689,7 +654,7 @@ namespace BStorage
 		return std::nullopt;
 	}
 
-	[[nodiscard]] bool Value::isSameDeepCompare(const Value& other) const
+	[[nodiscard]] bool Value::isSameDeepCompare(const Value& other) const noexcept
 	{
 		if (mTag != other.mTag)
 		{
@@ -771,52 +736,65 @@ namespace BStorage
 		return false;
 	}
 
-	Value::Value(const Value& v) noexcept
-		: mTag(v.mTag)
-		, mStorage() // uninitialized
+	Value Value::deepCopy() const noexcept
 	{
-		switch (v.mTag)
+		Value result(mTag);
+
+		switch (mTag)
 		{
 		case Tag::U8:
-			mStorage.U8 = v.mStorage.U8;
+			result.mStorage.U8 = mStorage.U8;
 			break;
 		case Tag::U16:
-			mStorage.U16 = v.mStorage.U16;
+			result.mStorage.U16 = mStorage.U16;
 			break;
 		case Tag::U32:
-			mStorage.U32 = v.mStorage.U32;
+			result.mStorage.U32 = mStorage.U32;
 			break;
 		case Tag::U64:
-			mStorage.U64 = v.mStorage.U64;
+			result.mStorage.U64 = mStorage.U64;
 			break;
 		case Tag::String: {
-			new (&mStorage.String) std::string(v.mStorage.String);
+			new (&result.mStorage.String) std::string(mStorage.String);
 			break;
 		}
 		case Tag::ByteArray: {
-			new (&mStorage.ByteArray) std::vector<std::byte>(v.mStorage.ByteArray);
+			new (&result.mStorage.ByteArray) std::vector<std::byte>(mStorage.ByteArray);
 			break;
 		}
 		case Tag::Option: {
-			if (v.mStorage.Option)
+			if (mStorage.Option)
 			{
-				new (&mStorage.Option) std::unique_ptr<Value>(new Value(*v.mStorage.Option));
+				new (&result.mStorage.Option) std::unique_ptr<Value>();
+				result.mStorage.Option = std::make_unique<Value>(mStorage.Option->deepCopy());
 			}
 			else
 			{
-				new (&mStorage.Option) std::unique_ptr<Value>();
+				new (&result.mStorage.Option) std::unique_ptr<Value>();
 			}
 			break;
 		}
 		case Tag::Array: {
-			new (&mStorage.Array) std::vector<Value>(v.mStorage.Array);
+			new (&result.mStorage.Array) std::vector<Value>();
+			result.mStorage.Array.reserve(mStorage.Array.size());
+			for (const Value& v : mStorage.Array)
+			{
+				result.mStorage.Array.emplace_back(v.deepCopy());
+			}
 			break;
 		}
 		case Tag::Object: {
-			new (&mStorage.Object) std::unordered_map<std::string, Value>(v.mStorage.Object);
+			new (&result.mStorage.Object) std::unordered_map<std::string, Value>();
+			result.mStorage.Object.reserve(mStorage.Object.size());
+			for (const std::pair<const std::string, Value>& pair : mStorage.Object)
+			{
+				result.mStorage.Object.emplace(pair.first, pair.second.deepCopy());
+			}
 			break;
 		}
 		}
+
+		return result;
 	}
 
 	Value::Value(Value&& v) noexcept
