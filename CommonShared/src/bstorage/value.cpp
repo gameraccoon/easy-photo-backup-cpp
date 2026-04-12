@@ -467,7 +467,7 @@ namespace BStorage
 				return false;
 			}
 			Internal::writeSize(outputStream, mStorage.ByteArray.size());
-			outputStream.write(std::bit_cast<char*>(mStorage.ByteArray.data()), mStorage.ByteArray.size());
+			outputStream.write(reinterpret_cast<const char*>(mStorage.ByteArray.data()), mStorage.ByteArray.size());
 			return true;
 		}
 		case Tag::Option: {
@@ -603,7 +603,7 @@ namespace BStorage
 			const size_t size = Internal::readSize(inputStream);
 			std::vector<std::byte> result;
 			result.resize(size);
-			inputStream.read(std::bit_cast<char*>(result.data()), result.size());
+			inputStream.read(reinterpret_cast<char*>(result.data()), result.size());
 			return makeByteArray(std::move(result));
 		}
 		case static_cast<uint8_t>(Internal::TagBits::OptionNull):

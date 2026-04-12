@@ -4,7 +4,6 @@
 #include "common_shared/network/utils.h"
 
 #include <algorithm>
-#include <bit>
 #include <climits>
 #include <cstring>
 #include <format>
@@ -126,7 +125,7 @@ namespace Network
 	std::optional<std::string> setSocketOption(const RawSocket socket, const int optionName)
 	{
 		constexpr int flagTrue = 1;
-		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, std::bit_cast<const char*>(&flagTrue), sizeof(flagTrue)); errCode == -1) [[unlikely]]
+		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, reinterpret_cast<const char*>(&flagTrue), sizeof(flagTrue)); errCode == -1) [[unlikely]]
 		{
 			reportDebugError("Cannot set option {} to the socket, error code {}.", optionName, errno);
 			return std::format("Cannot set option {} to the socket, error code {}.", optionName, errno);
@@ -139,7 +138,7 @@ namespace Network
 		timeval socketTimeout{};
 		socketTimeout.tv_sec = seconds;
 		socketTimeout.tv_usec = microseconds;
-		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, std::bit_cast<const char*>(&socketTimeout), sizeof(socketTimeout)); errCode == -1) [[unlikely]]
+		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, reinterpret_cast<const char*>(&socketTimeout), sizeof(socketTimeout)); errCode == -1) [[unlikely]]
 		{
 			reportDebugError("Cannot set option {} to the socket, error code {}.", optionName, errno);
 			return std::format("Cannot set option {} to the socket, error code {}.", optionName, errno);
@@ -165,7 +164,7 @@ namespace Network
 				return std::format("Unexpected IPv4 address size {}", addrlen);
 			}
 
-			return ntohs(std::bit_cast<sockaddr_in*>(&address)->sin_port);
+			return ntohs(reinterpret_cast<sockaddr_in*>(&address)->sin_port);
 		}
 		else if (address.sa_family == AF_INET6)
 		{
@@ -175,7 +174,7 @@ namespace Network
 				return std::format("Unexpected IPv6 address size {}", addrlen);
 			}
 
-			return ntohs(std::bit_cast<sockaddr_in6*>(&address)->sin6_port);
+			return ntohs(reinterpret_cast<sockaddr_in6*>(&address)->sin6_port);
 		}
 
 		reportDebugError("Unknown address family {}", address.sa_family);
@@ -200,7 +199,7 @@ namespace Network
 		const int addressFamily = addressTypeToFamily(addressType);
 
 		auto innerBind = [](auto& address, RawSocket socket) -> std::optional<std::string> {
-			const int errCode = bind(socket, std::bit_cast<const sockaddr*>(&address), sizeof(address));
+			const int errCode = bind(socket, reinterpret_cast<const sockaddr*>(&address), sizeof(address));
 			if (errCode == -1) [[unlikely]]
 			{
 				reportDebugError("Cannot bind socket, error code {}.", errno);
@@ -330,7 +329,7 @@ namespace Network
 
 	std::optional<std::string> send(const RawSocket socket, std::span<std::byte> data)
 	{
-		const auto sentSize = ::send(socket, std::bit_cast<const char*>(data.data()), static_cast<int>(data.size()), 0);
+		const auto sentSize = ::send(socket, reinterpret_cast<const char*>(data.data()), static_cast<int>(data.size()), 0);
 		if (sentSize == -1) [[unlikely]]
 		{
 			return std::format("Failed to send data to socket, error code {}.", errno);
@@ -355,7 +354,7 @@ namespace Network
 
 	std::optional<std::string> recv(const RawSocket socket, std::span<std::byte> outData, size_t& receivedBytes)
 	{
-		const auto messageSize = ::recv(socket, std::bit_cast<char*>(outData.data()), static_cast<int>(outData.size()), 0);
+		const auto messageSize = ::recv(socket, reinterpret_cast<char*>(outData.data()), static_cast<int>(outData.size()), 0);
 		if (messageSize == -1) [[unlikely]]
 		{
 			return std::format("Failed to read response from TCP socket, error code {}.", errno);

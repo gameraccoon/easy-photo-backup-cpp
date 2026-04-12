@@ -3,12 +3,11 @@
 
 #include "common_shared/nsd/nsd_client.h"
 
+#include <algorithm>
 #include <array>
-#include <bit>
 #include <chrono>
 #include <cstring>
 #include <format>
-#include <ranges>
 #include <vector>
 
 #include "common_shared/debug/assert.h"
@@ -40,7 +39,7 @@ namespace NsdClient
 #else
 		using SendToResult = ssize_t;
 #endif
-		const SendToResult sentSize = sendto(socket, query.data(), static_cast<int>(query.size()), 0, std::bit_cast<const sockaddr*>(&address), sizeof(address));
+		const SendToResult sentSize = sendto(socket, query.data(), static_cast<int>(query.size()), 0, reinterpret_cast<const sockaddr*>(&address), sizeof(address));
 
 		if (sentSize == -1) [[unlikely]]
 		{
@@ -73,7 +72,7 @@ namespace NsdClient
 #else
 		using RecvFromResult = ssize_t;
 #endif
-		const RecvFromResult messageLength = recvfrom(socket, std::bit_cast<char*>(inOutBuffer), static_cast<int>(bufferSize), 0, &outNetAddress.addr, &outNetAddress.addrLen);
+		const RecvFromResult messageLength = recvfrom(socket, reinterpret_cast<char*>(inOutBuffer), static_cast<int>(bufferSize), 0, &outNetAddress.addr, &outNetAddress.addrLen);
 		if (messageLength == -1) [[unlikely]]
 		{
 			// either failure or timeout, we don't destinguish them right now
@@ -102,8 +101,8 @@ namespace NsdClient
 		const uint16_t receivedChecksum = Serialization::readUint16(inOutBuffer[5 + extraDataLen], inOutBuffer[6 + extraDataLen]);
 
 		const uint16_t actualChecksum = NsdInternalUtils::checksum16v1(std::span(
-			std::bit_cast<std::byte*>(inOutBuffer + 3),
-			std::bit_cast<std::byte*>(inOutBuffer + (3 + 2 + extraDataLen))
+			inOutBuffer + 3,
+			inOutBuffer + (3 + 2 + extraDataLen)
 		));
 
 		if (receivedChecksum != actualChecksum) [[unlikely]]
@@ -113,8 +112,8 @@ namespace NsdClient
 
 		outExtraData.clear();
 		std::copy(
-			std::bit_cast<std::byte*>(inOutBuffer + 5),
-			std::bit_cast<std::byte*>(inOutBuffer + 5 + extraDataLen),
+			inOutBuffer + 5,
+			inOutBuffer + 5 + extraDataLen,
 			std::back_inserter(outExtraData)
 		);
 

@@ -32,8 +32,8 @@ namespace Serialization
 		buffer[0] = static_cast<std::byte>(dataSize);
 
 		std::copy(
-			std::bit_cast<std::byte*>(data.data()),
-			std::bit_cast<std::byte*>(data.data() + dataSize),
+			data.data(),
+			data.data() + dataSize,
 			buffer.data() + 1
 		);
 

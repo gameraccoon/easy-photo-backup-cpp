@@ -31,9 +31,10 @@ namespace Serialization
 
 		buffer[0] = static_cast<std::byte>(stringSize);
 
+		static_assert(sizeof(*string.data()) == sizeof(std::byte), "Expected string to be a byte array");
 		std::copy(
-			std::bit_cast<std::byte*>(string.data()),
-			std::bit_cast<std::byte*>(string.data() + stringSize),
+			reinterpret_cast<const std::byte*>(string.data()),
+			reinterpret_cast<const std::byte*>(string.data() + stringSize),
 			buffer.data() + 1
 		);
 
@@ -66,7 +67,7 @@ namespace Serialization
 
 		outString.clear();
 		outString.reserve(providedStringSize);
-		std::copy(std::bit_cast<char*>(buffer.data() + 1), std::bit_cast<char*>(buffer.data() + providedStringSize + 1), std::back_inserter(outString));
+		std::copy(reinterpret_cast<const char*>(buffer.data() + 1), reinterpret_cast<const char*>(buffer.data() + providedStringSize + 1), std::back_inserter(outString));
 
 		return std::nullopt;
 	}

@@ -101,7 +101,7 @@ namespace TcpServer
 		else
 		{
 			// non-interactive requests
-			auto request = Requests::parseRequest(requestIdByte, std::span(std::bit_cast<std::byte*>(buffer.data() + 3), std::bit_cast<std::byte*>(buffer.data() + readBytes)));
+			auto request = Requests::parseRequest(requestIdByte, std::span(buffer.data() + 3, buffer.data() + readBytes));
 
 			std::visit(
 				VisitLambda{

@@ -110,7 +110,7 @@ namespace NsdServer
 				continue;
 			}
 
-			if (const auto sentSize = sendto(socket, std::bit_cast<const char*>(response.data()), static_cast<int>(responseSize), 0, &clientAddr, clientAddrLen); sentSize == -1)
+			if (const auto sentSize = sendto(socket, reinterpret_cast<const char*>(response.data()), static_cast<int>(responseSize), 0, &clientAddr, clientAddrLen); sentSize == -1)
 			{
 				return SocketError{ std::format("Failed to send response to UDP socket, error code {}.", errno) };
 			}
