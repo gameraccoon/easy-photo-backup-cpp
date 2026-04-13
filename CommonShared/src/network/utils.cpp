@@ -13,6 +13,8 @@
 
 namespace Network
 {
+	constexpr bool debugPrintBuffers = false;
+
 	[[noreturn]] static void unreachable()
 	{
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
@@ -349,6 +351,16 @@ namespace Network
 			return std::format("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
 		}
 
+		if constexpr (debugPrintBuffers)
+		{
+			printf("send: 0x");
+			for (std::byte b : data)
+			{
+				printf("%02X", static_cast<uint8_t>(b));
+			}
+			printf("\n");
+		}
+
 		return std::nullopt;
 	}
 
@@ -377,6 +389,16 @@ namespace Network
 		{
 			// we should have crashed already in the assert above, but just in case treat it as an error
 			return std::string{};
+		}
+
+		if constexpr (debugPrintBuffers)
+		{
+			printf("recv: 0x");
+			for (std::byte b : std::span(outData.begin(), messageSize))
+			{
+				printf("%02X", static_cast<uint8_t>(b));
+			}
+			printf("\n");
 		}
 
 		receivedBytes = static_cast<size_t>(messageSize);
