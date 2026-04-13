@@ -5,10 +5,12 @@
 #include <format>
 #include <thread>
 
+#include "common_shared/debug/assert.h"
 #include "common_shared/debug/log.h"
 #include "common_shared/nsd/nsd_client.h"
 #include "common_shared/template_utils.h"
 
+#include "client_shared/pairing_interactive_requests.h"
 #include "client_shared/requests.h"
 
 int main()
@@ -42,7 +44,7 @@ int main()
 							idString.push_back(static_cast<int>(b) + '0');
 						}
 
-						Debug::Log::printDebug(std::format("Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port));
+						Debug::Log::printDebug(std::format("NSD: Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port));
 						{
 							std::unique_lock lock(serversMutex);
 							servers.push_back(event.address);
@@ -51,7 +53,7 @@ int main()
 					}
 					else
 					{
-						Debug::Log::printDebug("Server removed");
+						Debug::Log::printDebug("NSD: Server removed");
 						{
 							std::unique_lock lock(serversMutex);
 							auto it = std::find_if(
@@ -97,15 +99,68 @@ int main()
 		break;
 	}
 
-	RequestAnswers::RequestAnswer answer = Requests::sendAndProcessRequest(foundServer.ip.data(), foundServer.addressType, foundServer.port, Requests::GetServerName{});
+	ClientStorage storage = ClientStorage::load();
 
+	RequestAnswers::RequestAnswer nameAnswer = Requests::sendAndProcessRequest(foundServer.ip.data(), foundServer.addressType, foundServer.port, Requests::GetServerName{});
+
+	std::string serverName;
 	std::visit(
 		VisitLambda{
 			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
 				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
 			},
-			[](RequestAnswers::GetServerName&& getServerName) {
+			[&serverName](RequestAnswers::GetServerName&& getServerName) {
+				serverName = getServerName.serverName;
 				Debug::Log::printDebug(getServerName.serverName);
+			},
+			[](RequestAnswers::Error&& answerReadError) {
+				Debug::Log::printDebug(answerReadError.errorMessage);
+			},
+			[](RequestAnswers::LogicalError&& answerReadError) {
+				Debug::Log::printDebug(answerReadError.errorMessage);
+			},
+			[](auto&&) {
+				Debug::Log::printDebug("logical error, unexpected answer");
+			},
+		},
+		std::move(nameAnswer)
+	);
+
+	RequestAnswers::RequestAnswer answer = Requests::prepareConnectionAndProcess(
+		foundServer.ip.data(),
+		foundServer.addressType,
+		foundServer.port,
+		[&storage, &serverName](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
+			const bool succeeded = Requests::sendAndProcessPairingInteractiveRequest(socket, storage, serverName);
+			if (succeeded)
+			{
+				return RequestAnswers::ExpectedNoAnswer{};
+			}
+			else
+			{
+				return RequestAnswers::Error{};
+			}
+		}
+	);
+
+	std::visit(
+		VisitLambda{
+			[&storage](RequestAnswers::ExpectedNoAnswer&&) {
+				std::string serverName;
+				storage.read([&serverName](const ClientStorageData& clientStorage) {
+					if (clientStorage.pendingConfirmationBindings.size() == 1)
+					{
+						serverName = clientStorage.pendingConfirmationBindings.begin()->first;
+					}
+				});
+				if (storage.save() == false)
+				{
+					reportDebugError("Could not save client data");
+				}
+				Debug::Log::printDebug(std::format("Successfully paired to server '{}'", serverName));
+			},
+			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
+				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
 			},
 			[](RequestAnswers::Error&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);

@@ -30,6 +30,7 @@ namespace Protocol
 		// as it should remain the same across all versions in order for it to work
 		GetProtocolVersion = 1,
 		GetServerName = 2,
+		Pair = 3,
 	};
 
 	constexpr size_t MaxRequestSize = 1024;

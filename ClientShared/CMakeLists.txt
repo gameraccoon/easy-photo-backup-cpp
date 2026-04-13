@@ -24,10 +24,12 @@ target_include_directories(ClientShared PRIVATE
 
 target_sources(ClientShared
 	PRIVATE
+		${CLIENT_SHARED_SRC_DIR}/client_storage.cpp
 		${CLIENT_SHARED_SRC_DIR}/requests.cpp
 		${CLIENT_SHARED_SRC_DIR}/pairing_interactive_requests.cpp
 
 	PUBLIC
+		${CLIENT_SHARED_INCLUDE_DIR}/client_storage.h
 		${CLIENT_SHARED_INCLUDE_DIR}/pairing_interactive_requests.h
 		${CLIENT_SHARED_INCLUDE_DIR}/request_answers.h
 		${CLIENT_SHARED_INCLUDE_DIR}/requests.h

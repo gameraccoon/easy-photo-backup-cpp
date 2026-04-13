@@ -6,25 +6,37 @@
 #include "common_shared/cryptography/noise/noise_xx_handshake.h"
 #include "common_shared/cryptography/primitives/dh_functions.h"
 #include "common_shared/debug/assert.h"
+#include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
+#include "common_shared/serialization/number_serialization.h"
 
 namespace Requests
 {
-	bool sendAndProcessPairingInteractiveRequest(Network::RawSocket socket)
+	bool sendAndProcessPairingInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, std::string_view serverName)
 	{
 		using namespace Noise;
 
-		const Keypair staticKeys = Cryptography::generateKeypair_x25519();
+		constexpr size_t FirstMessagePreludeSize = 3;
+		constexpr size_t SecondMessagePreludeSize = 1;
+
+		Keypair staticKeys = Cryptography::generateKeypair_x25519();
 
 		InitiatorHandshakeState handshakeState = NoiseXX::initializeInitiator(staticKeys);
 
-		std::array<std::byte, DHLEN + DHLEN + CipherAuthDataSize> buffer;
+		std::array<std::byte, SecondMessagePreludeSize + DHLEN + DHLEN + CipherAuthDataSize> buffer;
 
 		{
-			size_t cursor = 1;
+			static_assert(buffer.size() >= NoiseXX::Message1ExpectedSize + FirstMessagePreludeSize, "Buffer size is too small to fit the first XX message");
+
+			size_t cursor = 0;
+
+			Serialization::writeUint16(buffer[0], buffer[1], Protocol::NetworkProtocolVersion);
+			buffer[2] = static_cast<std::byte>(Protocol::RequestId::Pair);
+			cursor += FirstMessagePreludeSize;
+
 			NoiseXX::AppendHandshakeMessage1Result result = NoiseXX::appendHandshakeMessage1(
 				handshakeState,
-				std::span<std::byte>(buffer.data(), buffer.data() + NoiseXX::Message1ExpectedSize),
+				buffer,
 				cursor
 			);
 
@@ -34,13 +46,13 @@ namespace Requests
 				return false;
 			}
 
-			if (cursor != NoiseXX::Message1ExpectedSize)
+			if (cursor != NoiseXX::Message1ExpectedSize + FirstMessagePreludeSize)
 			{
 				reportDebugError("First XX message had unexpected size {}", cursor);
 				return false;
 			}
 
-			const auto sendResult = Network::send(socket, buffer);
+			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.data(), cursor));
 			if (sendResult.has_value())
 			{
 				reportDebugError("Could not send the first XX message");
@@ -48,23 +60,31 @@ namespace Requests
 		}
 
 		{
+			static_assert(buffer.size() >= NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize, "Buffer size is too small to fit the second XX message");
+
 			size_t readBytes = 0;
 			if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())
 			{
-				reportDebugError("Could not read the second XX message");
+				reportDebugError("Could not recv the second XX message");
 				return false;
 			}
 
-			if (readBytes != NoiseXX::Message2ExpectedSize)
+			if (readBytes != NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize)
 			{
 				reportDebugError("Unexpected message size for the second XX message {}", readBytes);
 				return false;
 			}
 
-			size_t cursor = 0;
+			if (buffer[0] != static_cast<std::byte>(Protocol::RequestAnswerId::Pair))
+			{
+				reportDebugError("Unexpected second XX message prelude {}", static_cast<uint8_t>(buffer[0]));
+				return false;
+			}
+
+			size_t cursor = SecondMessagePreludeSize;
 			const NoiseXX::ProcessHandshakeMessage2Result result = NoiseXX::processHandshakeMessage2(
 				handshakeState,
-				std::span<std::byte>(buffer.begin(), buffer.begin() + readBytes),
+				buffer,
 				cursor
 			);
 
@@ -82,16 +102,12 @@ namespace Requests
 		}
 
 		{
-			if (buffer.size() < NoiseXX::Message2ExpectedSize)
-			{
-				reportDebugError("Buffer size is too small to fit third XX message {}", buffer.size());
-				return false;
-			}
+			static_assert(buffer.size() >= NoiseXX::Message3ExpectedSize, "Buffer size is too small to fit the third XX message");
 
 			size_t cursor = 0;
-			const NoiseXX::AppendHandshakeMessage3Result result = NoiseXX::appendHandshakeMessage3(
+			NoiseXX::AppendHandshakeMessage3Result result = NoiseXX::appendHandshakeMessage3(
 				std::move(handshakeState),
-				std::span<std::byte>(buffer.begin(), buffer.begin() + NoiseXX::Message2ExpectedSize),
+				buffer,
 				cursor
 			);
 
@@ -107,7 +123,7 @@ namespace Requests
 				return false;
 			}
 
-			const auto sendResult = Network::send(socket, buffer);
+			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.data(), cursor));
 			if (sendResult.has_value())
 			{
 				reportDebugError("Could not send the third XX message");
@@ -116,9 +132,17 @@ namespace Requests
 
 			if (std::holds_alternative<NoiseXX::HandshakeResult>(result))
 			{
-				// std::get<NoiseXX::HandshakeResult>(result).handshakeHash;
-				// std::get<NoiseXX::HandshakeResult>(result).remoteStaticKey;
-				// staticKeys;
+				storage.mutate([&result, &staticKeys, &serverName](ClientStorageData& storage) {
+					storage.pendingConfirmationBindings.emplace(
+						serverName,
+						ClientStorageData::PendingServerBinding{
+							.remoteStaticKey = std::move(std::get<NoiseXX::HandshakeResult>(result).remoteStaticKey),
+							.staticKeys = std::move(staticKeys),
+							.handshakeHash = std::move(std::get<NoiseXX::HandshakeResult>(result).handshakeHash),
+							.expiryTime = std::chrono::system_clock::now(),
+						}
+					);
+				});
 			}
 		}
 

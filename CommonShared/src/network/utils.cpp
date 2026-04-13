@@ -327,7 +327,7 @@ namespace Network
 		}
 	}
 
-	std::optional<std::string> send(const RawSocket socket, std::span<std::byte> data)
+	std::optional<std::string> send(const RawSocket socket, std::span<const std::byte> data)
 	{
 		const auto sentSize = ::send(socket, reinterpret_cast<const char*>(data.data()), static_cast<int>(data.size()), 0);
 		if (sentSize == -1) [[unlikely]]

@@ -21,7 +21,7 @@ namespace Requests
 		GetProtocolVersion,
 		GetServerName>;
 
-	RequestAnswers::RequestAnswer prepareConnectionAndProcess(const char* serverAddress, const Network::AddressType serverAddressType, uint16_t port, const std::function<RequestAnswers::RequestAnswer(Network::RawSocket socket)>& processFn);
+	[[nodiscard]] RequestAnswers::RequestAnswer prepareConnectionAndProcess(const char* serverAddress, const Network::AddressType serverAddressType, uint16_t port, const std::function<RequestAnswers::RequestAnswer(Network::RawSocket socket)>& processFn);
 
-	RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, uint16_t port, Request&& request);
+	[[nodiscard]] RequestAnswers::RequestAnswer sendAndProcessRequest(const char* serverAddress, const Network::AddressType serverAddressType, uint16_t port, Request&& request);
 }

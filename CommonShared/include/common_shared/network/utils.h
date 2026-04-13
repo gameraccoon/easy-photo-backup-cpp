@@ -50,7 +50,7 @@ namespace Network
 	std::variant<NetworkAddress, std::string> getSocketAddress(RawSocket socket);
 	std::optional<std::string> bindSocket(RawSocket socket, const char* interfaceAddressStr, AddressType addressType, uint16_t port);
 	std::optional<std::string> connectToServer(RawSocket socket, const char* address, AddressType addressType, uint16_t port);
-	std::optional<std::string> send(RawSocket socket, std::span<std::byte> data);
+	std::optional<std::string> send(RawSocket socket, std::span<const std::byte> data);
 	// if the result is std::nullopt, receivedBytes is guaranteed to be greater than 0 and less than outData.size()
 	std::optional<std::string> recv(RawSocket socket, std::span<std::byte> outData, size_t& receivedBytes);
 	void closeSocket(RawSocket socket);

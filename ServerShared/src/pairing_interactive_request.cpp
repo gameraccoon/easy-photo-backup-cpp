@@ -14,20 +14,25 @@ namespace Requests
 	{
 		using namespace Noise;
 
+		constexpr size_t FirstMessagePreludeSize = 3;
+		constexpr size_t SecondMessagePreludeSize = 1;
+
 		const Cryptography::Keypair staticKeys = Cryptography::generateKeypair_x25519();
 		ResponderHandshakeState handshakeState = NoiseXX::initializeResponder(staticKeys);
 
 		{
-			if (readBytes != NoiseXX::Message1ExpectedSize)
+			assertFatalRelease(buffer.size() >= NoiseXX::Message1ExpectedSize + FirstMessagePreludeSize, "Buffer size is too small to fit the first XX message");
+
+			if (readBytes != NoiseXX::Message1ExpectedSize + FirstMessagePreludeSize)
 			{
 				reportDebugError("Unexpected message size for the first XX message {}", readBytes);
 				return;
 			}
 
-			size_t cursor = 0;
+			size_t cursor = FirstMessagePreludeSize;
 			const NoiseXX::ProcessHandshakeMessage1Result result = NoiseXX::processHandshakeMessage1(
 				handshakeState,
-				std::span<std::byte>(buffer.begin(), buffer.begin() + readBytes),
+				buffer,
 				cursor
 			);
 
@@ -58,16 +63,14 @@ namespace Requests
 		}
 
 		{
-			if (buffer.size() < NoiseXX::Message2ExpectedSize)
-			{
-				reportDebugError("Buffer size is too small to fit second XX message {}", buffer.size());
-				return;
-			}
+			assertFatalRelease(buffer.size() >= NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize, "Buffer size is too small to fit the second XX message");
 
-			size_t cursor = 0;
+			buffer[0] = static_cast<std::byte>(Protocol::RequestAnswerId::Pair);
+
+			size_t cursor = SecondMessagePreludeSize;
 			const NoiseXX::AppendHandshakeMessage2Result result = NoiseXX::appendHandshakeMessage2(
 				handshakeState,
-				std::span<std::byte>(buffer.begin(), buffer.begin() + NoiseXX::Message2ExpectedSize),
+				buffer,
 				cursor
 			);
 
@@ -77,7 +80,7 @@ namespace Requests
 				return;
 			}
 
-			if (cursor != NoiseXX::Message2ExpectedSize)
+			if (cursor != NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize)
 			{
 				reportDebugError("Second XX message had unexpected size {}", cursor);
 				return;
@@ -91,9 +94,11 @@ namespace Requests
 		}
 
 		{
+			assertFatalRelease(buffer.size() >= NoiseXX::Message3ExpectedSize, "Buffer size is too small to fit the third XX message");
+
 			if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())
 			{
-				reportDebugError("Could not read the third XX message");
+				reportDebugError("Could not recv the third XX message");
 				return;
 			}
 
