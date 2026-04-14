@@ -24,7 +24,7 @@ namespace Noise::Utils
 		// see https://noiseprotocol.org/noise.html#the-symmetricstate-object
 		if (protocolName.length() <= HASHLEN)
 		{
-			std::copy(reinterpret_cast<const std::byte*>(protocolName.begin()), reinterpret_cast<const std::byte*>(protocolName.end()), h.raw.begin());
+			std::copy(reinterpret_cast<const std::byte*>(protocolName.data()), reinterpret_cast<const std::byte*>(protocolName.data() + protocolName.size()), h.raw.begin());
 			// this isn't technically needed because the memory should already be zeroed
 			std::fill(h.raw.begin() + protocolName.length(), h.raw.end(), static_cast<std::byte>(0));
 		}
