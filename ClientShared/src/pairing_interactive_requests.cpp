@@ -23,7 +23,8 @@ namespace Requests
 
 		InitiatorHandshakeState handshakeState = NoiseXX::initializeInitiator(staticKeys);
 
-		std::array<std::byte, SecondMessagePreludeSize + DHLEN + DHLEN + CipherAuthDataSize> buffer;
+		constexpr size_t BufferSize = SecondMessagePreludeSize + DHLEN + DHLEN + CipherAuthDataSize;
+		std::array<std::byte, BufferSize> buffer;
 
 		{
 			static_assert(buffer.size() >= NoiseXX::Message1ExpectedSize + FirstMessagePreludeSize, "Buffer size is too small to fit the first XX message");
