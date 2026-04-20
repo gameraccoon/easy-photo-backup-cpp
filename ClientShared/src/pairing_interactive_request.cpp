@@ -1,7 +1,7 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "client_shared/pairing_interactive_requests.h"
+#include "client_shared/pairing_interactive_request.h"
 
 #include "common_shared/cryptography/noise/noise_xx_handshake.h"
 #include "common_shared/cryptography/primitives/dh_functions.h"
