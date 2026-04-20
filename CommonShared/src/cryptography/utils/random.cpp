@@ -25,7 +25,7 @@ namespace Cryptography
 	{
 		// see https://monocypher.org/manual/#Random_number_generation
 #if defined(_WIN32) || defined(_WIN64)
-		const NTSTATUS randStatus = BCryptGenRandom(BCRYPT_RNG_ALG_HANDLE, outNumber.data(), static_cast<ULONG>(outNumber.size()), 0);
+		const NTSTATUS randStatus = BCryptGenRandom(BCRYPT_RNG_ALG_HANDLE, static_cast<PUCHAR>(outNumber.data()), static_cast<ULONG>(outNumber.size()), 0);
 		assertFatalRelease(randStatus == 0, "Failed to generate random number {}", randStatus);
 #elif defined(__linux__) && !defined(__ANDROID__)
 		getrandom(outNumber.data(), outNumber.size(), 0);
