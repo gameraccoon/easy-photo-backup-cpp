@@ -11,7 +11,7 @@
 #include "common_shared/template_utils.h"
 
 #include "client_shared/client_storage.h"
-#include "client_shared/pairing_interactive_requests.h"
+#include "client_shared/pairing_interactive_request.h"
 #include "client_shared/requests.h"
 
 int main()
