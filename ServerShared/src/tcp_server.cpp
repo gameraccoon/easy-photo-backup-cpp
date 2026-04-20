@@ -18,10 +18,11 @@
 #include "server_shared/pairing_interactive_request.h"
 #include "server_shared/request_answers.h"
 #include "server_shared/requests.h"
+#include "server_shared/server_storage.h"
 
 namespace TcpServer
 {
-	static void handleClient(const Network::RawSocket socket, sockaddr /*clientAddr*/, socklen_t /*clientAddrLen*/)
+	static void handleClient(const Network::RawSocket socket, sockaddr /*clientAddr*/, socklen_t /*clientAddrLen*/, ServerStorage& storage)
 	{
 		// we need to make sure to have a timeout to not get DOS as soon as a couple of connections hangs
 		// we should have a shorter timeout now and increase it when we authentificate the user for the file transfer
@@ -100,8 +101,8 @@ namespace TcpServer
 						}
 					);
 				},
-				[socket](const Requests::Pair&& pairMessage) {
-					Requests::processPairingInteractiveRequest(pairMessage.firstMessage, socket);
+				[socket, &storage](const Requests::Pair&& pairMessage) {
+					Requests::processPairingInteractiveRequest(pairMessage.firstMessage, socket, storage);
 				},
 			},
 			std::move(request)
@@ -110,6 +111,8 @@ namespace TcpServer
 
 	std::optional<std::string> runServer(const char* interfaceAddressStr, const Network::AddressType addressType, std::promise<uint16_t>& portPromise)
 	{
+		ServerStorage storage = ServerStorage::load();
+
 		std::variant<Network::RawSocket, std::string> createSocketResult = createSocket(Network::SocketType::Tcp, addressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
 		{
@@ -167,9 +170,9 @@ namespace TcpServer
 			// ToDo: creating new threads here is silly, we need to use a thread pool
 			// to both not spend extra time on spinning up threads for small requests
 			// and avoid getting DOSed simply by spamming small requests
-			std::thread([connectionSocket, clientAddr, clientAddrLen] {
+			std::thread([connectionSocket, clientAddr, clientAddrLen, &storage] {
 				Network::AutoclosingSocket socketGuard(connectionSocket);
-				handleClient(connectionSocket, clientAddr, clientAddrLen);
+				handleClient(connectionSocket, clientAddr, clientAddrLen, storage);
 			}).detach();
 		}
 

@@ -7,7 +7,9 @@
 
 #include "common_shared/network/utils.h"
 
+class ServerStorage;
+
 namespace Requests
 {
-	void processPairingInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket);
+	void processPairingInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage);
 }

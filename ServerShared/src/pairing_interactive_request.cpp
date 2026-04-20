@@ -9,15 +9,17 @@
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/raw_sockets.h"
 
+#include "server_shared/server_storage.h"
+
 namespace Requests
 {
-	void processPairingInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket)
+	void processPairingInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage)
 	{
 		using namespace Noise;
 
 		constexpr size_t SecondMessagePreludeSize = 1;
 
-		const Cryptography::Keypair staticKeys = Cryptography::generateKeypair_x25519();
+		Cryptography::Keypair staticKeys = Cryptography::generateKeypair_x25519();
 		ResponderHandshakeState handshakeState = NoiseXX::initializeResponder(staticKeys);
 
 		{
@@ -110,7 +112,7 @@ namespace Requests
 			}
 
 			size_t cursor = 0;
-			const NoiseXX::ProcessHandshakeMessage3Result result = NoiseXX::processHandshakeMessage3(
+			NoiseXX::ProcessHandshakeMessage3Result result = NoiseXX::processHandshakeMessage3(
 				std::move(handshakeState),
 				std::span<std::byte>(buffer.begin(), buffer.begin() + readBytes),
 				cursor
@@ -124,9 +126,23 @@ namespace Requests
 
 			if (std::holds_alternative<NoiseXX::HandshakeResult>(result))
 			{
-				// std::get<NoiseXX::HandshakeResult>(result).handshakeHash;
-				// std::get<NoiseXX::HandshakeResult>(result).remoteStaticKey;
-				// staticKeys
+				storage.mutate([&result, &staticKeys](ServerStorageData& storageData) {
+					storageData.pendingConfirmationBindings.emplace(
+						"test_client",
+						ServerStorageData::PendingClientBinding{
+							.remoteStaticKey = std::move(std::get<NoiseXX::HandshakeResult>(result).remoteStaticKey),
+							.staticKeys = std::move(staticKeys),
+							.handshakeHash = std::move(std::get<NoiseXX::HandshakeResult>(result).handshakeHash),
+							.expiryTime = std::chrono::system_clock::now(),
+						}
+					);
+				});
+
+				const bool hasSavedSuccessfully = storage.save();
+				if (!hasSavedSuccessfully)
+				{
+					reportDebugError("Could not save ServerStorage");
+				}
 			}
 		}
 	}

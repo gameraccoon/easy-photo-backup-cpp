@@ -1,14 +1,14 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
-#include "client_shared/client_storage.h"
+#include "server_shared/server_storage.h"
 
 #include "common_shared/bstorage/storage.h"
 
-namespace ClientStorageInternal
+namespace ServerStorageInternal
 {
-	static constexpr uint16_t ClientStorageVersion = 0;
-	static const std::string ClientStoragePath = "./client_storage.bin";
+	static constexpr uint16_t ServerStorageVersion = 0;
+	static const std::string ServerStoragePath = "./server_storage.bin";
 	static constexpr std::string ConfirmedField = "confirmed";
 	static constexpr std::string PendingField = "pending";
 	static constexpr std::string NameField = "name";
@@ -64,11 +64,11 @@ namespace ClientStorageInternal
 		}
 	}
 
-	static BStorage::Value WriteConfirmedServerBindingsToValue(const std::unordered_multimap<std::string, ClientStorageData::ServerBinding>& confirmedServerBindings)
+	static BStorage::Value WriteConfirmedClientBindingsToValue(const std::unordered_multimap<std::string, ServerStorageData::ClientBinding>& confirmedClientBindings)
 	{
 		std::vector<BStorage::Value> vec;
-		vec.reserve(confirmedServerBindings.size());
-		for (auto& pair : confirmedServerBindings)
+		vec.reserve(confirmedClientBindings.size());
+		for (auto& pair : confirmedClientBindings)
 		{
 			std::unordered_map<std::string, BStorage::Value> record;
 			record.reserve(4);
@@ -82,32 +82,32 @@ namespace ClientStorageInternal
 		return BStorage::Value::makeArray(std::move(vec));
 	}
 
-	static void ReadConfirmedServerBindingsToValue(BStorage::Value&& value, std::unordered_multimap<std::string, ClientStorageData::ServerBinding>& confirmedServerBindings)
+	static void ReadConfirmedClientBindingsToValue(BStorage::Value&& value, std::unordered_multimap<std::string, ServerStorageData::ClientBinding>& confirmedClientBindings)
 	{
 		if (std::vector<BStorage::Value>* vec = value.asArray())
 		{
-			confirmedServerBindings.reserve(vec->size());
+			confirmedClientBindings.reserve(vec->size());
 			for (BStorage::Value& val : *vec)
 			{
 				if (std::unordered_map<std::string, BStorage::Value>* record = val.asObject())
 				{
-					ClientStorageData::ServerBinding newItem{};
+					ServerStorageData::ClientBinding newItem{};
 					std::string name;
 					tryConsumeObjectField<std::string>(*record, NameField, name);
 					tryConsumeObjectFieldArray(*record, StaticPublicKeyField, newItem.staticKeys.publicKey.raw);
 					tryConsumeObjectFieldArray(*record, StaticSecretKeyField, newItem.staticKeys.secretKey.raw);
 					tryConsumeObjectFieldArray(*record, RemoteStaticKeyField, newItem.remoteStaticKey.raw);
-					confirmedServerBindings.emplace(std::move(name), std::move(newItem));
+					confirmedClientBindings.emplace(std::move(name), std::move(newItem));
 				}
 			}
 		}
 	}
 
-	static BStorage::Value WritePendingServerBindingsToValue(const std::unordered_multimap<std::string, ClientStorageData::PendingServerBinding>& pendingServerBindings)
+	static BStorage::Value WritePendingClientBindingsToValue(const std::unordered_multimap<std::string, ServerStorageData::PendingClientBinding>& pendingClientBindings)
 	{
 		std::vector<BStorage::Value> vec;
-		vec.reserve(pendingServerBindings.size());
-		for (auto& pair : pendingServerBindings)
+		vec.reserve(pendingClientBindings.size());
+		for (auto& pair : pendingClientBindings)
 		{
 			std::unordered_map<std::string, BStorage::Value> record;
 			record.reserve(4);
@@ -123,16 +123,16 @@ namespace ClientStorageInternal
 		return BStorage::Value::makeArray(std::move(vec));
 	}
 
-	static void ReadPendingServerBindingsToValue(BStorage::Value&& value, std::unordered_multimap<std::string, ClientStorageData::PendingServerBinding>& pendingServerBindings)
+	static void ReadPendingClientBindingsToValue(BStorage::Value&& value, std::unordered_multimap<std::string, ServerStorageData::PendingClientBinding>& pendingClientBindings)
 	{
 		if (std::vector<BStorage::Value>* vec = value.asArray())
 		{
-			pendingServerBindings.reserve(vec->size());
+			pendingClientBindings.reserve(vec->size());
 			for (BStorage::Value& val : *vec)
 			{
 				if (std::unordered_map<std::string, BStorage::Value>* record = val.asObject())
 				{
-					ClientStorageData::PendingServerBinding newItem{};
+					ServerStorageData::PendingClientBinding newItem{};
 					std::string name;
 					tryConsumeObjectField<std::string>(*record, NameField, name);
 					tryConsumeObjectFieldArray(*record, StaticPublicKeyField, newItem.staticKeys.publicKey.raw);
@@ -142,87 +142,87 @@ namespace ClientStorageInternal
 					uint64_t ticksSinceEpoch;
 					tryConsumeObjectField(*record, ExpiryTimeField, ticksSinceEpoch);
 					newItem.expiryTime = std::chrono::system_clock::time_point(std::chrono::system_clock::duration(ticksSinceEpoch));
-					pendingServerBindings.emplace(std::move(name), std::move(newItem));
+					pendingClientBindings.emplace(std::move(name), std::move(newItem));
 				}
 			}
 		}
 	}
 
-	static BStorage::Value WriteClientStorageDataToValue(const ClientStorageData& data)
+	static BStorage::Value WriteServerStorageDataToValue(const ServerStorageData& data)
 	{
 		std::unordered_map<std::string, BStorage::Value> clientStorageDataObject;
 		clientStorageDataObject.reserve(2);
 		clientStorageDataObject.emplace(
 			ConfirmedField,
-			WriteConfirmedServerBindingsToValue(data.confirmedServerBindings)
+			WriteConfirmedClientBindingsToValue(data.confirmedClientBindings)
 		);
 		clientStorageDataObject.emplace(
 			PendingField,
-			WritePendingServerBindingsToValue(data.pendingConfirmationBindings)
+			WritePendingClientBindingsToValue(data.pendingConfirmationBindings)
 		);
 		return BStorage::Value::makeObject(std::move(clientStorageDataObject));
 	}
 
-	static ClientStorageData ReadClientStorageDataFromValue(BStorage::Value&& value)
+	static ServerStorageData ReadServerStorageDataFromValue(BStorage::Value&& value)
 	{
-		ClientStorageData result{};
+		ServerStorageData result{};
 		std::unordered_map<std::string, BStorage::Value>* object = value.asObject();
 		if (object != nullptr)
 		{
 			if (auto it = object->find(ConfirmedField); it != object->end())
 			{
-				ReadConfirmedServerBindingsToValue(std::move(it->second), result.confirmedServerBindings);
+				ReadConfirmedClientBindingsToValue(std::move(it->second), result.confirmedClientBindings);
 			}
 			if (auto it = object->find(PendingField); it != object->end())
 			{
-				ReadPendingServerBindingsToValue(std::move(it->second), result.pendingConfirmationBindings);
+				ReadPendingClientBindingsToValue(std::move(it->second), result.pendingConfirmationBindings);
 			}
 		}
 		return result;
 	}
 } // namespace ClientStorageInternal
 
-ClientStorage ClientStorage::load() noexcept
+ServerStorage ServerStorage::load() noexcept
 {
-	std::optional<std::tuple<BStorage::Value, uint16_t>> loaded = BStorage::loadStorage(ClientStorageInternal::ClientStoragePath);
+	std::optional<std::tuple<BStorage::Value, uint16_t>> loaded = BStorage::loadStorage(ServerStorageInternal::ServerStoragePath);
 
 	if (loaded.has_value())
 	{
-		if (std::get<1>(*loaded) != ClientStorageInternal::ClientStorageVersion)
+		if (std::get<1>(*loaded) != ServerStorageInternal::ServerStorageVersion)
 		{
 			// here we need to have an update path
-			return ClientStorage(BStorage::Value::makeObject({}));
+			return ServerStorage(BStorage::Value::makeObject({}));
 		}
 
-		return ClientStorage(std::get<0>(std::move(*loaded)));
+		return ServerStorage(std::get<0>(std::move(*loaded)));
 	}
 	else
 	{
-		return ClientStorage(BStorage::Value::makeObject({}));
+		return ServerStorage(BStorage::Value::makeObject({}));
 	}
 }
 
-bool ClientStorage::save() const noexcept
+bool ServerStorage::save() const noexcept
 {
-	using namespace ClientStorageInternal;
+	using namespace ServerStorageInternal;
 
 	std::lock_guard g(mMutex);
-	return BStorage::saveStorage(ClientStoragePath, WriteClientStorageDataToValue(mStorageData), ClientStorageVersion);
+	return BStorage::saveStorage(ServerStoragePath, WriteServerStorageDataToValue(mStorageData), ServerStorageVersion);
 }
 
-void ClientStorage::read(const std::function<void(const ClientStorageData&)>& readFn) const noexcept
+void ServerStorage::read(const std::function<void(const ServerStorageData&)>& readFn) const noexcept
 {
 	std::lock_guard g(mMutex);
 	readFn(mStorageData);
 }
 
-void ClientStorage::mutate(const std::function<void(ClientStorageData&)>& mutateFn) noexcept
+void ServerStorage::mutate(const std::function<void(ServerStorageData&)>& mutateFn) noexcept
 {
 	std::lock_guard g(mMutex);
 	mutateFn(mStorageData);
 }
 
-ClientStorage::ClientStorage(BStorage::Value&& value) noexcept
-	: mStorageData(ClientStorageInternal::ReadClientStorageDataFromValue(std::move(value)))
+ServerStorage::ServerStorage(BStorage::Value&& value) noexcept
+	: mStorageData(ServerStorageInternal::ReadServerStorageDataFromValue(std::move(value)))
 {
 }
