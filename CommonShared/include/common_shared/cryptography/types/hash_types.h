@@ -10,5 +10,5 @@ namespace Cryptography
 	constexpr std::size_t HASHLEN = 32;
 	constexpr std::size_t BLOCKLEN = 64;
 
-	using HashResult = ByteSequence<Tag::HashResult, HASHLEN>;
+	using HashResult = ByteSequence<ByteSequenceTag::HashResult, HASHLEN>;
 } // namespace Cryptography

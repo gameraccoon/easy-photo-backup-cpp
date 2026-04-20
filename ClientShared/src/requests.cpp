@@ -32,6 +32,11 @@ namespace Requests
 					outBytesWritten = 0;
 					return Protocol::RequestId::GetServerName;
 				},
+				[&outExpectsAnswer, &outBytesWritten](Requests::Pair&&) {
+					outExpectsAnswer = true;
+					outBytesWritten = 0;
+					return Protocol::RequestId::Pair;
+				},
 			},
 			std::move(request)
 		);

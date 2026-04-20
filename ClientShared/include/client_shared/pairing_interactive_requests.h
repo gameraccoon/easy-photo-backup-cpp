@@ -3,13 +3,11 @@
 
 #pragma once
 
-#include <string_view>
-
 #include "common_shared/network/utils.h"
 
-#include "client_shared/client_storage.h"
+#include "client_shared/request_answers.h"
 
 namespace Requests
 {
-	bool sendAndProcessPairingInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, std::string_view serverName);
+	RequestAnswers::RequestAnswer sendAndProcessPairingInteractiveRequest(Network::RawSocket socket);
 }

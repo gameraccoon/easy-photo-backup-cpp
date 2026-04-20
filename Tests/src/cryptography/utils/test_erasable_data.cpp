@@ -23,7 +23,7 @@ TEST(CryptographyErasableData, ArrayWithData_CryptoWipe_DataIsZeroed)
 
 TEST(CryptographyErasableData, ByteSequence_Created_Empty)
 {
-	using TestData = Cryptography::ByteSequence<Cryptography::Tag::TempInternalBuffer, 4>;
+	using TestData = Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 4>;
 
 	const TestData data;
 	ASSERT_EQ(data.size(), size_t(4));
@@ -90,7 +90,7 @@ TEST(CryptographyErasableData, DynByteSequenceWithData_ClearResizeToSameSize_Dat
 
 TEST(CryptographyErasableData, ByteSequenceWithData_AccessedAsMutSlice_AccessedCorrectData)
 {
-	using TestData = Cryptography::ByteSequence<Cryptography::Tag::TempInternalBuffer, 4>;
+	using TestData = Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 4>;
 
 	TestData data;
 	for (size_t i = 0; i < 4; ++i)
@@ -109,7 +109,7 @@ TEST(CryptographyErasableData, ByteSequenceWithData_AccessedAsMutSlice_AccessedC
 
 TEST(CryptographyErasableData, ByteSequenceWithData_AccessedAsConstSlice_AccessedCorrectData)
 {
-	using TestData = Cryptography::ByteSequence<Cryptography::Tag::TempInternalBuffer, 4>;
+	using TestData = Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 4>;
 
 	TestData data;
 	for (size_t i = 0; i < 4; ++i)
@@ -168,7 +168,7 @@ TEST(CryptographyErasableData, DynByteSequenceWithData_AccessedAsConstSlice_Acce
 
 TEST(CryptographyErasableData, ByteSequenceWithData_Move_MovedToArrayContainsData)
 {
-	using TestData = Cryptography::ByteSequence<Cryptography::Tag::TempInternalBuffer, 4>;
+	using TestData = Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 4>;
 
 	TestData data;
 	for (size_t i = 0; i < 4; ++i)
@@ -186,7 +186,7 @@ TEST(CryptographyErasableData, ByteSequenceWithData_Move_MovedToArrayContainsDat
 
 TEST(CryptographyErasableData, ByteSequenceWithData_MoveAssign_MovedToArrayContainsData)
 {
-	using TestData = Cryptography::ByteSequence<Cryptography::Tag::TempInternalBuffer, 4>;
+	using TestData = Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 4>;
 
 	TestData data;
 	for (size_t i = 0; i < 4; ++i)
@@ -205,7 +205,7 @@ TEST(CryptographyErasableData, ByteSequenceWithData_MoveAssign_MovedToArrayConta
 
 TEST(CryptographyErasableData, ByteSequenceWithData_Clone_ClonedToArrayContainsData)
 {
-	using TestData = Cryptography::ByteSequence<Cryptography::Tag::TempInternalBuffer, 4>;
+	using TestData = Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 4>;
 
 	TestData data;
 	for (size_t i = 0; i < 4; ++i)

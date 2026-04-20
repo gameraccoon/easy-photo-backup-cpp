@@ -19,7 +19,8 @@ namespace Requests
 	using RequestVariant = std::variant<
 		RequestReadError,
 		GetProtocolVersion,
-		GetServerName>;
+		GetServerName,
+		Pair>;
 
 	RequestVariant parseRequest(std::byte requestId, std::span<std::byte const> requestData);
 } // namespace Requests

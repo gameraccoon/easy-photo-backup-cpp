@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include "common_shared/network/protocol.h"
+#include <span>
+
 #include "common_shared/network/utils.h"
 
 namespace Requests
 {
-	void processPairingInteractiveRequest(std::array<std::byte, Protocol::MaxRequestSize>& buffer, size_t readBytes, const Network::RawSocket socket);
+	void processPairingInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket);
 }

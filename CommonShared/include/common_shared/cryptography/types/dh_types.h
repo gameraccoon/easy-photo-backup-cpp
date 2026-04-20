@@ -9,10 +9,10 @@ namespace Cryptography
 {
 	constexpr std::size_t DHLEN = 32;
 
-	using PublicKey = ByteSequence<Tag::PublicKey, DHLEN>;
-	using SecretKey = ByteSequence<Tag::SecretKey, DHLEN>;
+	using PublicKey = ByteSequence<ByteSequenceTag::PublicKey, DHLEN>;
+	using SecretKey = ByteSequence<ByteSequenceTag::SecretKey, DHLEN>;
 
-	using DhResult = ByteSequence<Tag::DhResult, DHLEN>;
+	using DhResult = ByteSequence<ByteSequenceTag::DhResult, DHLEN>;
 
 	struct Keypair
 	{

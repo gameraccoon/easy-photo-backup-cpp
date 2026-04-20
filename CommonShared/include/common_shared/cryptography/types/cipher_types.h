@@ -15,7 +15,7 @@ namespace Cryptography
 	constexpr size_t CipherAuthDataSize = 16; // mac
 	constexpr uint64_t MaxNonce = 0xFFFFFFFFFFFFFFFF;
 
-	using CipherKey = ByteSequence<Tag::CipherKey, CipherKeySize>;
+	using CipherKey = ByteSequence<ByteSequenceTag::CipherKey, CipherKeySize>;
 	using Nonce = uint64_t;
 
 	enum class EncryptResult

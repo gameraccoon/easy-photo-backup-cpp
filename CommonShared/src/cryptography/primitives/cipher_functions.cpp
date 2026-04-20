@@ -13,7 +13,7 @@ namespace Cryptography
 
 	// we use IETF version of ChaCha20 instead of XChaCha for compatibility with other implementations
 	static constexpr size_t ChaCha20NonceSize = 12;
-	using ChaCha20Nonce = ByteSequence<Tag::Nonce, ChaCha20NonceSize>;
+	using ChaCha20Nonce = ByteSequence<ByteSequenceTag::Nonce, ChaCha20NonceSize>;
 
 	static void prepareChaCha20Nonce(const Nonce inNonce, ChaCha20Nonce& outChaCha20Nonce)
 	{

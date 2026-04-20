@@ -22,6 +22,10 @@ namespace RequestAnswers
 		std::string errorMessage;
 	};
 
+	struct ErrorNoHandling
+	{
+	};
+
 	// the request expected no asnwer
 	struct ExpectedNoAnswer
 	{
@@ -30,8 +34,10 @@ namespace RequestAnswers
 	using RequestAnswer = std::variant<
 		Error,
 		LogicalError,
+		ErrorNoHandling,
 		ExpectedNoAnswer,
 		UnsupportedProtocolVersion,
 		GetProtocolVersion,
-		GetServerName>;
+		GetServerName,
+		Pair>;
 } // namespace RequestAnswers

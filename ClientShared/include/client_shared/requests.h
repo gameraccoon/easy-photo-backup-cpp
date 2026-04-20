@@ -19,7 +19,8 @@ namespace Requests
 
 	using Request = std::variant<
 		GetProtocolVersion,
-		GetServerName>;
+		GetServerName,
+		Pair>;
 
 	[[nodiscard]] RequestAnswers::RequestAnswer prepareConnectionAndProcess(const char* serverAddress, const Network::AddressType serverAddressType, uint16_t port, const std::function<RequestAnswers::RequestAnswer(Network::RawSocket socket)>& processFn);
 

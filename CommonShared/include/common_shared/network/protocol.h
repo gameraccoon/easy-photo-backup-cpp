@@ -3,9 +3,11 @@
 
 #pragma once
 
-#include <array>
 #include <cstdint>
 #include <string>
+
+#include "common_shared/cryptography/types/dh_types.h"
+#include "common_shared/cryptography/types/hash_types.h"
 
 namespace Protocol
 {
@@ -49,6 +51,11 @@ namespace Protocol
 		struct GetServerName
 		{
 		};
+
+		struct Pair
+		{
+			std::vector<std::byte> firstMessage;
+		};
 	} // namespace Requests
 
 	namespace RequestAnswers
@@ -71,11 +78,13 @@ namespace Protocol
 		{
 			std::string serverName;
 		};
-	} // namespace RequestAnswers
 
-	// interactive requests have their own internal implementation details
-	// changing the interaction details requires changing NetworkProtocolVersion
-	constexpr std::array<std::byte, 1> InteractiveRequests{
-		static_cast<std::byte>(RequestId::Pair),
-	};
+		struct Pair
+		{
+			// this is generated and (partially) exchanged during a NoiseXX handshake
+			Cryptography::Keypair staticKeys;
+			Cryptography::PublicKey remoteStaticKey;
+			Cryptography::HashResult handshakeHash;
+		};
+	} // namespace RequestAnswers
 } // namespace Protocol

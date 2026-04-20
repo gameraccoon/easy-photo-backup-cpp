@@ -83,42 +83,29 @@ namespace TcpServer
 
 		const std::byte requestIdByte = buffer[2];
 
-		if (std::ranges::find(Protocol::InteractiveRequests, requestIdByte) != Protocol::InteractiveRequests.end())
-		{
-			// interactive requests
-			if (requestIdByte == static_cast<std::byte>(Protocol::RequestId::Pair))
-			{
-				Requests::processPairingInteractiveRequest(buffer, readBytes, socket);
-			}
-			else
-			{
-				reportDebugError("Unknown interactive request id {}", static_cast<int>(requestIdByte));
-				return;
-			}
-		}
-		else
-		{
-			// non-interactive requests
-			auto request = Requests::parseRequest(requestIdByte, std::span(buffer.data() + 3, buffer.data() + readBytes));
+		auto request = Requests::parseRequest(requestIdByte, std::span(buffer.data() + 3, buffer.data() + readBytes));
 
-			std::visit(
-				VisitLambda{
-					[](const Requests::RequestReadError&&) {},
-					[](const Requests::GetProtocolVersion&&) {
-						// should be already handled above
-						reportFatalReleaseError("unreachable code");
-					},
-					[socket](const Requests::GetServerName&&) {
-						RequestAnswers::sendRequestAnswer(
-							socket,
-							RequestAnswers::GetServerName{
-								.serverName = std::string("test server"),
-							}
-						);
-					} },
-				std::move(request)
-			);
-		}
+		std::visit(
+			VisitLambda{
+				[](const Requests::RequestReadError&&) {},
+				[](const Requests::GetProtocolVersion&&) {
+					// should be already handled above
+					reportFatalReleaseError("unreachable code");
+				},
+				[socket](const Requests::GetServerName&&) {
+					RequestAnswers::sendRequestAnswer(
+						socket,
+						RequestAnswers::GetServerName{
+							.serverName = std::string("test server"),
+						}
+					);
+				},
+				[socket](const Requests::Pair&& pairMessage) {
+					Requests::processPairingInteractiveRequest(pairMessage.firstMessage, socket);
+				},
+			},
+			std::move(request)
+		);
 	}
 
 	std::optional<std::string> runServer(const char* interfaceAddressStr, const Network::AddressType addressType, std::promise<uint16_t>& portPromise)

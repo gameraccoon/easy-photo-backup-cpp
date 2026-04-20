@@ -5,7 +5,7 @@
 
 namespace Cryptography
 {
-	using StaticAssertTestByteSequence = ByteSequence<Tag::TempInternalBuffer, 60>;
+	using StaticAssertTestByteSequence = ByteSequence<ByteSequenceTag::TempInternalBuffer, 60>;
 	// these are important for some of the static asserts to work
 	// (some require using sizeof when passed by reference)
 	static_assert(sizeof(StaticAssertTestByteSequence::raw) == 60);

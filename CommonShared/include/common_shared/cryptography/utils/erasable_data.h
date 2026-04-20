@@ -13,7 +13,7 @@
 namespace Cryptography
 {
 	// we plan to use this data for very speicific needs, and don't want to mix those needs
-	enum class Tag
+	enum class ByteSequenceTag
 	{
 		PublicKey,
 		SecretKey,
@@ -24,7 +24,7 @@ namespace Cryptography
 		TempInternalBuffer,
 	};
 
-	template<Tag, std::size_t DataLen>
+	template<ByteSequenceTag, std::size_t DataLen>
 	struct ByteSequence
 	{
 		std::array<std::byte, DataLen> raw = {};

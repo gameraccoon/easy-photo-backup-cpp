@@ -9,12 +9,16 @@
 
 namespace Requests
 {
-	RequestVariant parseRequest(std::byte requestId, const std::span<const std::byte> /*requestData*/)
+	RequestVariant parseRequest(std::byte requestId, const std::span<const std::byte> requestData)
 	{
 		switch (static_cast<char>(requestId))
 		{
 		case static_cast<char>(Protocol::RequestId::GetServerName):
 			return GetServerName{};
+		case static_cast<char>(Protocol::RequestId::Pair):
+			return Pair{
+				.firstMessage = std::vector<std::byte>(requestData.begin(), requestData.end()),
+			};
 		default:
 			reportDebugError("Unknown request ID {}", static_cast<int>(requestId));
 			return RequestReadError{ std::format("Unknown request ID {}", static_cast<int>(requestId)) };

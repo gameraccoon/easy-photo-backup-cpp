@@ -13,7 +13,7 @@
 namespace Cryptography
 {
 	// compile-time checked len (prefer this when possible)
-	template<size_t len, Tag tag>
+	template<size_t len, ByteSequenceTag tag>
 	static void hashUpdate_blake2b(crypto_blake2b_ctx* context, const ByteSequence<tag, len>& data) noexcept
 	{
 		static_assert(sizeof(*data.raw.data()) == sizeof(uint8_t), "Expected data to be a byte array");
@@ -27,7 +27,7 @@ namespace Cryptography
 		crypto_blake2b_update(context, reinterpret_cast<const uint8_t*>(data.data()), data.size());
 	}
 
-	template<size_t len, Tag tag>
+	template<size_t len, ByteSequenceTag tag>
 	static void hashFinal_blake2b(crypto_blake2b_ctx* context, ByteSequence<tag, len>& data) noexcept
 	{
 		static_assert(sizeof(*data.raw.data()) == sizeof(uint8_t), "Expected data to be a byte array");
@@ -58,8 +58,8 @@ namespace Cryptography
 	{
 		// check https://www.ietf.org/rfc/rfc2104.txt
 
-		ByteSequence<Tag::TempInternalBuffer, BLOCKLEN> iPad; // inner padding
-		ByteSequence<Tag::TempInternalBuffer, BLOCKLEN> oPad; // outer padding
+		ByteSequence<ByteSequenceTag::TempInternalBuffer, BLOCKLEN> iPad; // inner padding
+		ByteSequence<ByteSequenceTag::TempInternalBuffer, BLOCKLEN> oPad; // outer padding
 		crypto_blake2b_ctx context{};
 
 		std::memset(iPad.raw.data(), 0x36, iPad.raw.size());
@@ -103,7 +103,7 @@ namespace Cryptography
 			reportFatalReleaseError("Wrong numOutputs value {}", numOutputs);
 		}
 
-		ByteSequence<Tag::HashResult, HASHLEN> tempKey;
+		ByteSequence<ByteSequenceTag::HashResult, HASHLEN> tempKey;
 
 		HMAC_blake2b(chainingKey, inputKeyMaterial, tempKey);
 		HMAC_blake2b(tempKey, std::array<std::byte, 1>{ { std::byte(0x01) } }, output1);
@@ -119,7 +119,7 @@ namespace Cryptography
 			return;
 		}
 
-		ByteSequence<Tag::TempInternalBuffer, HASHLEN + 1> temp;
+		ByteSequence<ByteSequenceTag::TempInternalBuffer, HASHLEN + 1> temp;
 		std::copy(output1.raw.begin(), output1.raw.end(), temp.raw.begin());
 		temp.raw[HASHLEN] = std::byte(0x02);
 		HMAC_blake2b(tempKey, temp, *output2);

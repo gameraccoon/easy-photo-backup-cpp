@@ -6,33 +6,31 @@
 #include "common_shared/cryptography/noise/noise_xx_handshake.h"
 #include "common_shared/cryptography/primitives/dh_functions.h"
 #include "common_shared/debug/assert.h"
+#include "common_shared/network/protocol.h"
 #include "common_shared/network/raw_sockets.h"
 
 namespace Requests
 {
-	void processPairingInteractiveRequest(std::array<std::byte, Protocol::MaxRequestSize>& buffer, size_t readBytes, const Network::RawSocket socket)
+	void processPairingInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket)
 	{
 		using namespace Noise;
 
-		constexpr size_t FirstMessagePreludeSize = 3;
 		constexpr size_t SecondMessagePreludeSize = 1;
 
 		const Cryptography::Keypair staticKeys = Cryptography::generateKeypair_x25519();
 		ResponderHandshakeState handshakeState = NoiseXX::initializeResponder(staticKeys);
 
 		{
-			assertFatalRelease(buffer.size() >= NoiseXX::Message1ExpectedSize + FirstMessagePreludeSize, "Buffer size is too small to fit the first XX message");
-
-			if (readBytes != NoiseXX::Message1ExpectedSize + FirstMessagePreludeSize)
+			if (firstMessage.size() != NoiseXX::Message1ExpectedSize)
 			{
-				reportDebugError("Unexpected message size for the first XX message {}", readBytes);
+				reportDebugError("Unexpected message size for the first XX message {}", firstMessage.size());
 				return;
 			}
 
-			size_t cursor = FirstMessagePreludeSize;
+			size_t cursor = 0;
 			const NoiseXX::ProcessHandshakeMessage1Result result = NoiseXX::processHandshakeMessage1(
 				handshakeState,
-				buffer,
+				firstMessage,
 				cursor
 			);
 
@@ -42,9 +40,9 @@ namespace Requests
 				return;
 			}
 
-			if (cursor != readBytes)
+			if (cursor != firstMessage.size())
 			{
-				reportDebugError("We read unexpected number of bytes for the first XX handshake message {} {}", readBytes, cursor);
+				reportDebugError("We read unexpected number of bytes for the first XX handshake message {} {}", firstMessage.size(), cursor);
 				return;
 			}
 		}
@@ -61,6 +59,8 @@ namespace Requests
 			reportDebugError("Could not set SO_SNDTIMEO to a connection socket");
 			return;
 		}
+
+		std::array<std::byte, NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize> buffer;
 
 		{
 			assertFatalRelease(buffer.size() >= NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize, "Buffer size is too small to fit the second XX message");
@@ -96,6 +96,7 @@ namespace Requests
 		{
 			assertFatalRelease(buffer.size() >= NoiseXX::Message3ExpectedSize, "Buffer size is too small to fit the third XX message");
 
+			size_t readBytes = 0;
 			if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())
 			{
 				reportDebugError("Could not recv the third XX message");
