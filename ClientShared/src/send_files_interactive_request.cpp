@@ -4,7 +4,6 @@
 #include "client_shared/send_files_interactive_request.h"
 
 #include "common_shared/cryptography/noise/noise_kk_handshake.h"
-#include "common_shared/cryptography/primitives/dh_functions.h"
 #include "common_shared/debug/assert.h"
 #include "common_shared/debug/log.h"
 #include "common_shared/network/protocol.h"
@@ -19,8 +18,8 @@ namespace Requests
 	{
 		using namespace Noise;
 
-		constexpr size_t FirstMessagePreludeSize = 3;
-		constexpr size_t SecondMessagePreludeSize = 1;
+		constexpr size_t FirstMessagePreludeSize = sizeof(Protocol::NetworkProtocolVersion) + sizeof(Protocol::RequestId);
+		constexpr size_t SecondMessagePreludeSize = sizeof(Protocol::RequestAnswerId);
 
 		InitiatorHandshakeState handshakeState;
 

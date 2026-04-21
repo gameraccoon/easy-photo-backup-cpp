@@ -16,6 +16,9 @@
 
 namespace Requests
 {
+	constexpr const int MessageTimeoutSeconds = 1;
+	constexpr const int MessagesTimeoutMicroseconds = 0;
+
 	static Protocol::RequestId prepareRequest(Request&& request, std::span<std::byte> /*outData*/, size_t& outBytesWritten, bool& outExpectsAnswer)
 	{
 		return std::visit(
@@ -113,12 +116,12 @@ namespace Requests
 
 		const Network::AutoclosingSocket socket = Network::AutoclosingSocket(std::get<Network::RawSocket>(std::move(createSocketResult)));
 
-		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, 1, 0); result.has_value())
+		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, MessageTimeoutSeconds, MessagesTimeoutMicroseconds); result.has_value())
 		{
 			reportDebugError("Could not set SO_RCVTIMEO to a client TCP socket");
 			return RequestAnswers::Error{ *result };
 		}
-		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, 1, 0); result.has_value())
+		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, MessageTimeoutSeconds, MessagesTimeoutMicroseconds); result.has_value())
 		{
 			reportDebugError("Could not set SO_SNDTIMEO to a client TCP socket");
 			return RequestAnswers::Error{ *result };

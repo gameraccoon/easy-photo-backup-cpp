@@ -16,8 +16,8 @@ namespace Requests
 	{
 		using namespace Noise;
 
-		constexpr size_t FirstMessagePreludeSize = 3;
-		constexpr size_t SecondMessagePreludeSize = 1;
+		constexpr size_t FirstMessagePreludeSize = sizeof(Protocol::NetworkProtocolVersion) + sizeof(Protocol::RequestId);
+		constexpr size_t SecondMessagePreludeSize = sizeof(Protocol::RequestAnswerId);
 
 		Keypair staticKeys = Cryptography::generateKeypair_x25519();
 

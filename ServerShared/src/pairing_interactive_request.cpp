@@ -13,11 +13,14 @@
 
 namespace Requests
 {
+	constexpr const int SubsequentMessagesTimeoutSeconds = 1;
+	constexpr const int SubsequentMessagesTimeoutMicroseconds = 0;
+
 	void processPairingInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage)
 	{
 		using namespace Noise;
 
-		constexpr size_t SecondMessagePreludeSize = 1;
+		constexpr size_t SecondMessagePreludeSize = sizeof(Protocol::RequestAnswerId);
 
 		Cryptography::Keypair staticKeys = Cryptography::generateKeypair_x25519();
 		ResponderHandshakeState handshakeState = NoiseXX::initializeResponder(staticKeys);
@@ -50,13 +53,13 @@ namespace Requests
 		}
 
 		// increase the timeouts for the rest of the handshake
-		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, 1, 0); result.has_value())
+		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, SubsequentMessagesTimeoutSeconds, SubsequentMessagesTimeoutMicroseconds); result.has_value())
 		{
 			reportDebugError("Could not set SO_RCVTIMEO to a connection socket");
 			return;
 		}
 
-		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, 1, 0); result.has_value())
+		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, SubsequentMessagesTimeoutSeconds, SubsequentMessagesTimeoutMicroseconds); result.has_value())
 		{
 			reportDebugError("Could not set SO_SNDTIMEO to a connection socket");
 			return;

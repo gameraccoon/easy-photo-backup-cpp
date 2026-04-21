@@ -13,11 +13,14 @@
 
 namespace Requests
 {
+	constexpr const int SubsequentMessagesTimeoutSeconds = 1;
+	constexpr const int SubsequentMessagesTimeoutMicroseconds = 0;
+
 	bool processKkHandshake(std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage, const std::string& clientName, Noise::CipherStateSending& outSendingCipherState, Noise::CipherStateReceiving& outReceivingCipherState)
 	{
 		using namespace Noise;
 
-		constexpr size_t SecondMessagePreludeSize = 1;
+		constexpr size_t SecondMessagePreludeSize = sizeof(Protocol::RequestAnswerId);
 
 		ResponderHandshakeState handshakeState;
 
@@ -64,13 +67,13 @@ namespace Requests
 		}
 
 		// increase the timeouts for the rest of the handshake
-		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, 1, 0); result.has_value())
+		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, SubsequentMessagesTimeoutSeconds, SubsequentMessagesTimeoutMicroseconds); result.has_value())
 		{
 			reportDebugError("Could not set SO_RCVTIMEO to a connection socket");
 			return false;
 		}
 
-		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, 1, 0); result.has_value())
+		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, SubsequentMessagesTimeoutSeconds, SubsequentMessagesTimeoutMicroseconds); result.has_value())
 		{
 			reportDebugError("Could not set SO_SNDTIMEO to a connection socket");
 			return false;

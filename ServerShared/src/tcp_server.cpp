@@ -23,18 +23,21 @@
 
 namespace TcpServer
 {
+	constexpr const int FirstMessageTimeoutSeconds = 0;
+	constexpr const int FirstMessageTimeoutMicroseconds = 100000;
+
 	static void handleClient(const Network::RawSocket socket, sockaddr /*clientAddr*/, socklen_t /*clientAddrLen*/, ServerStorage& storage)
 	{
 		// we need to make sure to have a timeout to not get DOS as soon as a couple of connections hangs
 		// we should have a shorter timeout now and increase it when we authentificate the user for the file transfer
 		// we may rethink this value if we are going to allow opening this service be accessed through direct connections over web
-		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, 0, 100000); result.has_value())
+		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, FirstMessageTimeoutSeconds, FirstMessageTimeoutMicroseconds); result.has_value())
 		{
 			reportDebugError("Could not set SO_RCVTIMEO to a connection socket");
 			return;
 		}
 
-		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, 0, 100000); result.has_value())
+		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, FirstMessageTimeoutSeconds, FirstMessageTimeoutMicroseconds); result.has_value())
 		{
 			reportDebugError("Could not set SO_SNDTIMEO to a connection socket");
 			return;
@@ -48,8 +51,10 @@ namespace TcpServer
 			return;
 		}
 
+		constexpr size_t MessagePreludeSize = sizeof(Protocol::NetworkProtocolVersion) + sizeof(Protocol::RequestId);
+
 		// each request needs to be at least three bytes (protocol version (2) and request ID (1))
-		if (readBytes < 3)
+		if (readBytes < MessagePreludeSize)
 		{
 			return;
 		}
@@ -85,7 +90,7 @@ namespace TcpServer
 
 		const std::byte requestIdByte = buffer[2];
 
-		auto request = Requests::parseRequest(requestIdByte, std::span(buffer.data() + 3, buffer.data() + readBytes));
+		auto request = Requests::parseRequest(requestIdByte, std::span(buffer.data() + MessagePreludeSize, buffer.data() + readBytes));
 
 		std::visit(
 			VisitLambda{
