@@ -8,6 +8,8 @@
 #include <cstring>
 #include <format>
 
+#include "common_shared/cryptography/noise/cipher_utils.h"
+#include "common_shared/cryptography/utils/crypto_wipe.h"
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/raw_sockets.h"
 
@@ -405,6 +407,86 @@ namespace Network
 
 		receivedBytes = static_cast<size_t>(messageSize);
 		return std::nullopt;
+	}
+
+	std::optional<std::string> sendEncrypted(RawSocket socket, std::span<std::byte> buffer, size_t bytesToSend, Noise::CipherStateSending& cipherState)
+	{
+		if (buffer.size() < bytesToSend + Cryptography::CipherAuthDataSize)
+		{
+			return std::format("The byffer is too small to fit the cyphertext to send, {} {}", buffer.size(), bytesToSend + Cryptography::CipherAuthDataSize);
+		}
+
+		const Cryptography::EncryptResult encryptResult = Noise::Utils::encryptWithAd(cipherState, {}, std::span<std::byte>(buffer.data(), bytesToSend), std::span<std::byte>(buffer.data(), bytesToSend + Cryptography::CipherAuthDataSize));
+
+		switch (encryptResult)
+		{
+		case Cryptography::EncryptResult::Success:
+			return send(socket, std::span<std::byte>(buffer.data(), bytesToSend + Cryptography::CipherAuthDataSize));
+		case Cryptography::EncryptResult::PlaintextBiggerThanMaxMessageSize:
+			return "Plaintext is too big to be encrypted";
+		case Cryptography::EncryptResult::CiphertextBufferTooSmall:
+			return "Cipthertext buffer is too small to fit the result";
+		case Cryptography::EncryptResult::CiphertextBufferTooBig:
+			return "Ciphertext buffer is bigger than expected";
+		case Cryptography::EncryptResult::IncorrectEncryptionKey:
+			return "Encryption key is not valid (empty)";
+		case Cryptography::EncryptResult::PartiallyOverlappingBuffers:
+			return "Plaintext and ciphertext buffers are not allowed to partially oveerlap";
+		case Cryptography::EncryptResult::NoEncryptionKey:
+			return "No encryption key was provided";
+		case Cryptography::EncryptResult::NonceExhausted:
+			return "Nonce has been exhausted, can't send any more data in this stream";
+		}
+
+		return "Unreachable code reached";
+	}
+
+	std::optional<std::string> recvEncrypted(RawSocket socket, std::span<std::byte> buffer, size_t& receivedBytes, Noise::CipherStateReceiving& cipherState)
+	{
+		if (buffer.size() <= Cryptography::CipherAuthDataSize)
+		{
+			return "Buffer is too small to fit any non-zero message";
+		}
+
+		if (auto recvResult = recv(socket, buffer, receivedBytes); recvResult.has_value())
+		{
+			return recvResult;
+		}
+
+		if (receivedBytes <= Cryptography::CipherAuthDataSize)
+		{
+			return "Received data is too small to be decrypted";
+		}
+
+		const Cryptography::DecryptResult decryptResult = Noise::Utils::decryptWithAd(cipherState, {}, std::span<std::byte>(buffer.data(), receivedBytes), std::span<std::byte>(buffer.data(), receivedBytes - Cryptography::CipherAuthDataSize));
+
+		switch (decryptResult)
+		{
+		case Cryptography::DecryptResult::Success:
+			receivedBytes -= Cryptography::CipherAuthDataSize;
+			Cryptography::cryptoWipeRawData(std::span(buffer.data() + receivedBytes, Cryptography::CipherAuthDataSize));
+			return std::nullopt;
+		case Cryptography::DecryptResult::AuthDataMismatch:
+			return "Auth data mismatch, the byte stream is corrupted or tempered with";
+		case Cryptography::DecryptResult::CiphertextSmallerThanMac:
+			return "Ciphertext is smaller than authentification data";
+		case Cryptography::DecryptResult::CiphertextBiggerThanMessageLimit:
+			return "Ciphertext is too big to be decrypted";
+		case Cryptography::DecryptResult::PlaintextBufferTooSmall:
+			return "Plaintext buffer is too small to fit the result";
+		case Cryptography::DecryptResult::PlaintextBufferTooBig:
+			return "Plaintext buffer is bigger than expected";
+		case Cryptography::DecryptResult::IncorrectEncryptionKey:
+			return "Encryption key is not valid (empty)";
+		case Cryptography::DecryptResult::PartiallyOverlappingBuffers:
+			return "Plaintext and ciphertext buffers are not allowed to partially oveerlap";
+		case Cryptography::DecryptResult::NoEncryptionKey:
+			return "No encryption key was provided";
+		case Cryptography::DecryptResult::NonceExhausted:
+			return "Nonce has been exhausted, can't send any more data in this stream";
+		}
+
+		return "Unreachable code reached";
 	}
 
 	void closeSocket(const RawSocket socket)
