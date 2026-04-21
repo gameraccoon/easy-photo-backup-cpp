@@ -359,6 +359,7 @@ namespace Network
 				printf("%02X", static_cast<uint8_t>(b));
 			}
 			printf("\n");
+			fflush(stdout);
 		}
 
 		return std::nullopt;
@@ -399,6 +400,7 @@ namespace Network
 				printf("%02X", static_cast<uint8_t>(b));
 			}
 			printf("\n");
+			fflush(stdout);
 		}
 
 		receivedBytes = static_cast<size_t>(messageSize);
