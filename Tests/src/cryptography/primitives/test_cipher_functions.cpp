@@ -232,7 +232,7 @@ TEST(CryptographyCipherFunctions, chacha20poly1305_encryptTest_partiallyOverlapp
 	std::vector<std::byte> plaintextVec = strToBytes(plaintextStr);
 	plaintextVec.resize(plaintextVec.size() + Cryptography::CipherAuthDataSize + 2);
 	// pad the plaintext with 1 byte from each side
-    std::rotate(plaintextVec.begin(), std::prev(plaintextVec.end(), 1), plaintextVec.end());
+	std::rotate(plaintextVec.begin(), std::prev(plaintextVec.end(), 1), plaintextVec.end());
 	Cryptography::DynByteSequence plaintext = Cryptography::DynByteSequence::fromVector(std::move(plaintextVec));
 
 	ASSERT_EQ(Cryptography::encrypt_chacha20poly1305(cipherKey, nonce, associatedData, std::span<std::byte>(plaintext.raw.data() + 1, plaintext.size() - Cryptography::CipherAuthDataSize - 2), std::span<std::byte>(plaintext.raw.data(), plaintext.size() - 2)), Cryptography::EncryptResult::PartiallyOverlappingBuffers);
