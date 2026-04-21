@@ -32,6 +32,8 @@ namespace Cryptography
 		CiphertextBufferTooBig,
 		// key of all zeros is not allowed and signals about a logical error
 		IncorrectEncryptionKey,
+		// plaintext and ciphertext buffer should either match or not overlap at all
+		PartiallyOverlappingBuffers,
 
 		// this error code used down the line, here for convenience
 		NoEncryptionKey,
@@ -57,6 +59,8 @@ namespace Cryptography
 		PlaintextBufferTooBig,
 		// key of all zeros is not allowed and signals about a logical error
 		IncorrectEncryptionKey,
+		// plaintext and ciphertext buffer should either match or not overlap at all
+		PartiallyOverlappingBuffers,
 
 		// this error code used down the line, here for convenience
 		NoEncryptionKey,

@@ -65,6 +65,13 @@ namespace Cryptography
 			return EncryptResult::IncorrectEncryptionKey;
 		}
 
+		if (plaintext.data() != outCiphertext.data()
+			&& ((std::less<>{}(outCiphertext.data(), plaintext.data()) && std::less<>{}(plaintext.data(), outCiphertext.data() + outCiphertext.size()))
+				|| (std::less<>{}(plaintext.data(), outCiphertext.data()) && std::less<>{}(outCiphertext.data(), plaintext.data() + plaintext.size()))))
+		{
+			return EncryptResult::PartiallyOverlappingBuffers;
+		}
+
 		const size_t macOffsetInCiphertext = plaintext.size();
 
 		ChaCha20Nonce chaCha20Nonce;
@@ -135,6 +142,13 @@ namespace Cryptography
 		if (crypto_verify32(reinterpret_cast<const uint8_t*>(key.raw.data()), reinterpret_cast<const uint8_t*>(EmptyKey.data())) == 0)
 		{
 			return DecryptResult::IncorrectEncryptionKey;
+		}
+
+		if (outPlaintext.data() != ciphertext.data()
+			&& ((std::less<>{}(ciphertext.data(), outPlaintext.data()) && std::less<>{}(outPlaintext.data(), ciphertext.data() + ciphertext.size()))
+				|| (std::less<>{}(outPlaintext.data(), ciphertext.data()) && std::less<>{}(ciphertext.data(), outPlaintext.data() + outPlaintext.size()))))
+		{
+			return DecryptResult::PartiallyOverlappingBuffers;
 		}
 
 		const size_t macOffsetInCiphertext = ciphertext.size() - CipherAuthDataSize;
