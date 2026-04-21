@@ -20,16 +20,7 @@ struct ClientStorageData
 		Cryptography::Keypair staticKeys;
 	};
 
-	struct PendingServerBinding
-	{
-		Cryptography::PublicKey remoteStaticKey;
-		Cryptography::Keypair staticKeys;
-		Cryptography::HashResult handshakeHash;
-		std::chrono::time_point<std::chrono::system_clock> expiryTime;
-	};
-
 	std::unordered_multimap<std::string, ServerBinding> confirmedServerBindings;
-	std::unordered_multimap<std::string, PendingServerBinding> pendingConfirmationBindings;
 };
 
 class ClientStorage

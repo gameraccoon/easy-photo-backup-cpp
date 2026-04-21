@@ -25,8 +25,7 @@ namespace Requests
 		ResponderHandshakeState handshakeState;
 
 		storage.read([&clientName, &handshakeState](const ServerStorageData& storageData) {
-			// TODO: this is very wrong, only for testing
-			if (auto it = storageData.pendingConfirmationBindings.find(clientName); it != storageData.pendingConfirmationBindings.end())
+			if (auto it = storageData.confirmedClientBindings.find(clientName); it != storageData.confirmedClientBindings.end())
 			{
 				// for now only apply first found
 				handshakeState = NoiseKK::initializeResponder(it->second.staticKeys, it->second.remoteStaticKey);

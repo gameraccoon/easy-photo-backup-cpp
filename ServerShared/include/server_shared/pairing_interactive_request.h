@@ -3,13 +3,21 @@
 
 #pragma once
 
+#include <optional>
 #include <span>
 
+#include "common_shared/cryptography/types/dh_types.h"
+#include "common_shared/cryptography/types/hash_types.h"
 #include "common_shared/network/utils.h"
-
-class ServerStorage;
 
 namespace Requests
 {
-	void processPairingInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage);
+	struct PendingClientBinding
+	{
+		Cryptography::Keypair staticKeys;
+		Cryptography::PublicKey remoteStaticKey;
+		Cryptography::HashResult handshakeHash;
+	};
+
+	[[nodiscard]] std::optional<PendingClientBinding> processPairingInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket);
 }

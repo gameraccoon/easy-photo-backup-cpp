@@ -15,6 +15,13 @@
 #include "client_shared/requests.h"
 #include "client_shared/send_files_interactive_request.h"
 
+struct PendingServerBinding
+{
+	Cryptography::Keypair staticKeys;
+	Cryptography::PublicKey remoteStaticKey;
+	Cryptography::HashResult handshakeHash;
+};
+
 int main()
 {
 	std::atomic_bool nsdStopFlag{};
@@ -133,7 +140,7 @@ int main()
 		std::move(nameAnswer)
 	);
 
-	RequestAnswers::RequestAnswer answer = Requests::prepareConnectionAndProcess(
+	RequestAnswers::RequestAnswer pairAnswer = Requests::prepareConnectionAndProcess(
 		foundServer.ip.data(),
 		foundServer.addressType,
 		foundServer.port,
@@ -142,26 +149,17 @@ int main()
 		}
 	);
 
+	std::optional<PendingServerBinding> pendingServerBinding;
+
 	std::visit(
 		VisitLambda{
-			[&storage, &serverName](RequestAnswers::Pair&& pair) {
-				storage.mutate([&serverName, &pair](ClientStorageData& storage) {
-					storage.pendingConfirmationBindings.emplace(
-						serverName,
-						ClientStorageData::PendingServerBinding{
-							.remoteStaticKey = std::move(pair.remoteStaticKey),
-							.staticKeys = std::move(pair.staticKeys),
-							.handshakeHash = std::move(pair.handshakeHash),
-							.expiryTime = std::chrono::system_clock::now(),
-						}
-					);
-				});
-
-				if (storage.save() == false)
-				{
-					reportDebugError("Could not save client data");
-				}
-				Debug::Log::printDebug(std::format("Successfully paired to server '{}'", serverName));
+			[&pendingServerBinding, &serverName](RequestAnswers::Pair&& pair) {
+				pendingServerBinding = PendingServerBinding{
+					.staticKeys = std::move(pair.staticKeys),
+					.remoteStaticKey = std::move(pair.remoteStaticKey),
+					.handshakeHash = std::move(pair.handshakeHash),
+				};
+				Debug::Log::printDebug(std::format("Received pairing information from '{}'", serverName));
 			},
 			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
 				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
@@ -180,10 +178,38 @@ int main()
 				exit(0);
 			},
 		},
-		std::move(answer)
+		std::move(pairAnswer)
 	);
 
-	RequestAnswers::RequestAnswer answer2 = Requests::prepareConnectionAndProcess(
+	// approve automatically for now
+	{
+		if (!pendingServerBinding.has_value())
+		{
+			Debug::Log::printDebug("pendingServerBinding is not set, this is incorrect");
+			exit(0);
+		}
+
+		storage.mutate([&serverName, &pendingServerBinding](ClientStorageData& storage) {
+			storage.confirmedServerBindings.emplace(
+				serverName,
+				ClientStorageData::ServerBinding{
+					.remoteStaticKey = std::move(pendingServerBinding->remoteStaticKey),
+					.staticKeys = std::move(pendingServerBinding->staticKeys),
+				}
+			);
+		});
+
+		pendingServerBinding = std::nullopt;
+
+		if (storage.save() == false)
+		{
+			reportDebugError("Could not save client data");
+		}
+
+		Debug::Log::printDebug("The server got automatically approved for testing purposes");
+	}
+
+	RequestAnswers::RequestAnswer SendFilesAnswer = Requests::prepareConnectionAndProcess(
 		foundServer.ip.data(),
 		foundServer.addressType,
 		foundServer.port,
@@ -214,7 +240,7 @@ int main()
 				exit(0);
 			},
 		},
-		std::move(answer2)
+		std::move(SendFilesAnswer)
 	);
 
 	// wait for the thread to finish

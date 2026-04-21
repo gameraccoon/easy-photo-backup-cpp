@@ -108,7 +108,32 @@ namespace TcpServer
 					);
 				},
 				[socket, &storage](const Requests::Pair&& pair) {
-					Requests::processPairingInteractiveRequest(pair.firstMessage, socket, storage);
+					auto pendingClientBinding = Requests::processPairingInteractiveRequest(pair.firstMessage, socket);
+
+					// approve automatically for now
+					{
+						if (!pendingClientBinding.has_value())
+						{
+							return;
+						}
+
+						storage.mutate([&pendingClientBinding](ServerStorageData& storage) {
+							storage.confirmedClientBindings.emplace(
+								"test_client",
+								ServerStorageData::ClientBinding{
+									.remoteStaticKey = std::move(pendingClientBinding->remoteStaticKey),
+									.staticKeys = std::move(pendingClientBinding->staticKeys),
+								}
+							);
+						});
+
+						if (storage.save() == false)
+						{
+							reportDebugError("Could not save client data");
+						}
+
+						Debug::Log::printDebug("The client got automatically approved for testing purposes");
+					}
 				},
 				[socket, &storage](const Requests::SendFiles&& sendFiles) {
 					Requests::processSendFilesInteractiveRequest(sendFiles.firstMessage, socket, storage, "test_client");

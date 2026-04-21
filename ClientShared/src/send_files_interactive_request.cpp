@@ -24,8 +24,7 @@ namespace Requests
 		InitiatorHandshakeState handshakeState;
 
 		clientStorage.read([&handshakeState, &serverName](const ClientStorageData& storageData) {
-			// TODO: this is very wrong, only for testing
-			if (auto it = storageData.pendingConfirmationBindings.find(serverName); it != storageData.pendingConfirmationBindings.end())
+			if (auto it = storageData.confirmedServerBindings.find(serverName); it != storageData.confirmedServerBindings.end())
 			{
 				handshakeState = NoiseKK::initializeInitiator(it->second.staticKeys, it->second.remoteStaticKey);
 			}

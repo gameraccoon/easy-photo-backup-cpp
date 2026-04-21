@@ -10,13 +10,10 @@ namespace ServerStorageInternal
 	static constexpr uint16_t ServerStorageVersion = 0;
 	static const std::string ServerStoragePath = "./server_storage.bin";
 	static constexpr std::string ConfirmedField = "confirmed";
-	static constexpr std::string PendingField = "pending";
 	static constexpr std::string NameField = "name";
 	static constexpr std::string RemoteStaticKeyField = "rs";
 	static constexpr std::string StaticPublicKeyField = "s_pub";
 	static constexpr std::string StaticSecretKeyField = "s_secret";
-	static constexpr std::string HandshakeHashField = "h";
-	static constexpr std::string ExpiryTimeField = "exp";
 
 	template<size_t N>
 	static void tryConsumeObjectFieldArray(std::unordered_map<std::string, BStorage::Value>& record, const std::string& name, std::array<std::byte, N>& result)
@@ -103,51 +100,6 @@ namespace ServerStorageInternal
 		}
 	}
 
-	static BStorage::Value WritePendingClientBindingsToValue(const std::unordered_multimap<std::string, ServerStorageData::PendingClientBinding>& pendingClientBindings)
-	{
-		std::vector<BStorage::Value> vec;
-		vec.reserve(pendingClientBindings.size());
-		for (auto& pair : pendingClientBindings)
-		{
-			std::unordered_map<std::string, BStorage::Value> record;
-			record.reserve(4);
-			record.emplace(NameField, BStorage::Value::makeString(pair.first));
-			record.emplace(StaticPublicKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.staticKeys.publicKey.raw.begin(), pair.second.staticKeys.publicKey.raw.end())));
-			record.emplace(StaticSecretKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.staticKeys.secretKey.raw.begin(), pair.second.staticKeys.secretKey.raw.end())));
-			record.emplace(RemoteStaticKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.remoteStaticKey.raw.begin(), pair.second.remoteStaticKey.raw.end())));
-			record.emplace(HandshakeHashField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.handshakeHash.raw.begin(), pair.second.handshakeHash.raw.end())));
-			record.emplace(ExpiryTimeField, BStorage::Value::makeU64(pair.second.expiryTime.time_since_epoch().count()));
-			vec.push_back(BStorage::Value::makeObject(std::move(record)));
-		}
-
-		return BStorage::Value::makeArray(std::move(vec));
-	}
-
-	static void ReadPendingClientBindingsToValue(BStorage::Value&& value, std::unordered_multimap<std::string, ServerStorageData::PendingClientBinding>& pendingClientBindings)
-	{
-		if (std::vector<BStorage::Value>* vec = value.asArray())
-		{
-			pendingClientBindings.reserve(vec->size());
-			for (BStorage::Value& val : *vec)
-			{
-				if (std::unordered_map<std::string, BStorage::Value>* record = val.asObject())
-				{
-					ServerStorageData::PendingClientBinding newItem{};
-					std::string name;
-					tryConsumeObjectField<std::string>(*record, NameField, name);
-					tryConsumeObjectFieldArray(*record, StaticPublicKeyField, newItem.staticKeys.publicKey.raw);
-					tryConsumeObjectFieldArray(*record, StaticSecretKeyField, newItem.staticKeys.secretKey.raw);
-					tryConsumeObjectFieldArray(*record, RemoteStaticKeyField, newItem.remoteStaticKey.raw);
-					tryConsumeObjectFieldArray(*record, HandshakeHashField, newItem.handshakeHash.raw);
-					uint64_t ticksSinceEpoch;
-					tryConsumeObjectField(*record, ExpiryTimeField, ticksSinceEpoch);
-					newItem.expiryTime = std::chrono::system_clock::time_point(std::chrono::system_clock::duration(ticksSinceEpoch));
-					pendingClientBindings.emplace(std::move(name), std::move(newItem));
-				}
-			}
-		}
-	}
-
 	static BStorage::Value WriteServerStorageDataToValue(const ServerStorageData& data)
 	{
 		std::unordered_map<std::string, BStorage::Value> clientStorageDataObject;
@@ -155,10 +107,6 @@ namespace ServerStorageInternal
 		clientStorageDataObject.emplace(
 			ConfirmedField,
 			WriteConfirmedClientBindingsToValue(data.confirmedClientBindings)
-		);
-		clientStorageDataObject.emplace(
-			PendingField,
-			WritePendingClientBindingsToValue(data.pendingConfirmationBindings)
 		);
 		return BStorage::Value::makeObject(std::move(clientStorageDataObject));
 	}
@@ -172,10 +120,6 @@ namespace ServerStorageInternal
 			if (auto it = object->find(ConfirmedField); it != object->end())
 			{
 				ReadConfirmedClientBindingsToValue(std::move(it->second), result.confirmedClientBindings);
-			}
-			if (auto it = object->find(PendingField); it != object->end())
-			{
-				ReadPendingClientBindingsToValue(std::move(it->second), result.pendingConfirmationBindings);
 			}
 		}
 		return result;
