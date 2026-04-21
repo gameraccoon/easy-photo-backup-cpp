@@ -18,6 +18,7 @@
 #include "server_shared/pairing_interactive_request.h"
 #include "server_shared/request_answers.h"
 #include "server_shared/requests.h"
+#include "server_shared/send_files_interactive_request.h"
 #include "server_shared/server_storage.h"
 
 namespace TcpServer
@@ -101,8 +102,11 @@ namespace TcpServer
 						}
 					);
 				},
-				[socket, &storage](const Requests::Pair&& pairMessage) {
-					Requests::processPairingInteractiveRequest(pairMessage.firstMessage, socket, storage);
+				[socket, &storage](const Requests::Pair&& pair) {
+					Requests::processPairingInteractiveRequest(pair.firstMessage, socket, storage);
+				},
+				[socket, &storage](const Requests::SendFiles&& sendFiles) {
+					Requests::processSendFilesInteractiveRequest(sendFiles.firstMessage, socket, storage, "test_client");
 				},
 			},
 			std::move(request)

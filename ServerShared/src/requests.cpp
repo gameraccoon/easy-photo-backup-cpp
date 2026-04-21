@@ -19,6 +19,10 @@ namespace Requests
 			return Pair{
 				.firstMessage = std::vector<std::byte>(requestData.begin(), requestData.end()),
 			};
+		case static_cast<char>(Protocol::RequestId::SendFiles):
+			return SendFiles{
+				.firstMessage = std::vector<std::byte>(requestData.begin(), requestData.end()),
+			};
 		default:
 			reportDebugError("Unknown request ID {}", static_cast<int>(requestId));
 			return RequestReadError{ std::format("Unknown request ID {}", static_cast<int>(requestId)) };

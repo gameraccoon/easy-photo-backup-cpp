@@ -21,6 +21,7 @@ namespace Protocol
 		GetProtocolVersion = 0,
 		GetServerName = 1,
 		Pair = 2,
+		SendFiles = 3,
 	};
 
 	enum class RequestAnswerId : uint8_t
@@ -33,6 +34,7 @@ namespace Protocol
 		GetProtocolVersion = 1,
 		GetServerName = 2,
 		Pair = 3,
+		SendFiles = 4,
 	};
 
 	constexpr size_t MaxRequestSize = 1024;
@@ -53,6 +55,11 @@ namespace Protocol
 		};
 
 		struct Pair
+		{
+			std::vector<std::byte> firstMessage;
+		};
+
+		struct SendFiles
 		{
 			std::vector<std::byte> firstMessage;
 		};
@@ -85,6 +92,10 @@ namespace Protocol
 			Cryptography::Keypair staticKeys;
 			Cryptography::PublicKey remoteStaticKey;
 			Cryptography::HashResult handshakeHash;
+		};
+
+		struct SendFiles
+		{
 		};
 	} // namespace RequestAnswers
 } // namespace Protocol

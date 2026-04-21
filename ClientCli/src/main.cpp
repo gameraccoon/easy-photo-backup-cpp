@@ -13,6 +13,7 @@
 #include "client_shared/client_storage.h"
 #include "client_shared/pairing_interactive_request.h"
 #include "client_shared/requests.h"
+#include "client_shared/send_files_interactive_request.h"
 
 int main()
 {
@@ -180,6 +181,40 @@ int main()
 			},
 		},
 		std::move(answer)
+	);
+
+	RequestAnswers::RequestAnswer answer2 = Requests::prepareConnectionAndProcess(
+		foundServer.ip.data(),
+		foundServer.addressType,
+		foundServer.port,
+		[&storage, &serverName](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
+			return Requests::sendAndProcessSendFilesInteractiveRequest(socket, storage, serverName);
+		}
+	);
+
+	std::visit(
+		VisitLambda{
+			[](RequestAnswers::SendFiles&&) {
+				Debug::Log::printDebug(std::format("Successfully sent files"));
+			},
+			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
+				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
+				exit(0);
+			},
+			[](RequestAnswers::Error&& answerReadError) {
+				Debug::Log::printDebug(answerReadError.errorMessage);
+				exit(0);
+			},
+			[](RequestAnswers::LogicalError&& answerReadError) {
+				Debug::Log::printDebug(answerReadError.errorMessage);
+				exit(0);
+			},
+			[](auto&&) {
+				Debug::Log::printDebug("logical error, unexpected answer");
+				exit(0);
+			},
+		},
+		std::move(answer2)
 	);
 
 	// wait for the thread to finish

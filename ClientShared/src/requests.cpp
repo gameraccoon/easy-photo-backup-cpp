@@ -93,7 +93,8 @@ namespace Requests
 			break;
 		}
 		case Protocol::RequestId::Pair:
-			// expects no answer, fall through to the error
+		case Protocol::RequestId::SendFiles:
+			// no answer expected, fall through to the error
 			break;
 		}
 

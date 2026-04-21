@@ -39,5 +39,6 @@ namespace RequestAnswers
 		UnsupportedProtocolVersion,
 		GetProtocolVersion,
 		GetServerName,
-		Pair>;
+		Pair,
+		SendFiles>;
 } // namespace RequestAnswers

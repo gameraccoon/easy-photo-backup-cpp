@@ -20,7 +20,8 @@ namespace Requests
 		RequestReadError,
 		GetProtocolVersion,
 		GetServerName,
-		Pair>;
+		Pair,
+		SendFiles>;
 
 	RequestVariant parseRequest(std::byte requestId, std::span<std::byte const> requestData);
 } // namespace Requests
