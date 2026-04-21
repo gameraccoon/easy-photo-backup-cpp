@@ -180,7 +180,7 @@ namespace ServerStorageInternal
 		}
 		return result;
 	}
-} // namespace ClientStorageInternal
+} // namespace ServerStorageInternal
 
 ServerStorage ServerStorage::load() noexcept
 {
