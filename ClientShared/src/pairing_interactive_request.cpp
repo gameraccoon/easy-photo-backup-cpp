@@ -57,6 +57,7 @@ namespace Requests
 			if (sendResult.has_value())
 			{
 				reportDebugError("Could not send the first XX message");
+				return RequestAnswers::ErrorNoHandling{};
 			}
 		}
 

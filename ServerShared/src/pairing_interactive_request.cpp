@@ -92,6 +92,7 @@ namespace Requests
 			if (sendResult.has_value())
 			{
 				reportDebugError("Could not send the second XX message");
+				return;
 			}
 		}
 
