@@ -78,12 +78,12 @@ namespace Requests
 			return false;
 		}
 
-		std::array<std::byte, NoiseKK::Message2ExpectedSize + SecondMessagePreludeSize> buffer;
+		Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, NoiseKK::Message2ExpectedSize + SecondMessagePreludeSize> buffer;
 
 		{
 			assertFatalRelease(buffer.size() >= NoiseKK::Message2ExpectedSize + SecondMessagePreludeSize, "Buffer size is too small to fit the second KK message");
 
-			buffer[0] = static_cast<std::byte>(Protocol::RequestAnswerId::SendFiles);
+			buffer.raw[0] = static_cast<std::byte>(Protocol::RequestAnswerId::SendFiles);
 
 			size_t cursor = SecondMessagePreludeSize;
 			NoiseKK::AppendHandshakeMessage2Result result = NoiseKK::appendHandshakeMessage2(

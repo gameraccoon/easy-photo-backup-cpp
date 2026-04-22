@@ -24,15 +24,15 @@ namespace Requests
 		InitiatorHandshakeState handshakeState = NoiseXX::initializeInitiator(staticKeys);
 
 		constexpr size_t BufferSize = SecondMessagePreludeSize + DHLEN + DHLEN + CipherAuthDataSize;
-		std::array<std::byte, BufferSize> buffer;
+		Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, BufferSize> buffer;
 
 		{
 			static_assert(buffer.size() >= NoiseXX::Message1ExpectedSize + FirstMessagePreludeSize, "Buffer size is too small to fit the first XX message");
 
 			size_t cursor = 0;
 
-			Serialization::writeUint16(buffer[0], buffer[1], Protocol::NetworkProtocolVersion);
-			buffer[2] = static_cast<std::byte>(Protocol::RequestId::Pair);
+			Serialization::writeUint16(buffer.raw[0], buffer.raw[1], Protocol::NetworkProtocolVersion);
+			buffer.raw[2] = static_cast<std::byte>(Protocol::RequestId::Pair);
 			cursor += FirstMessagePreludeSize;
 
 			NoiseXX::AppendHandshakeMessage1Result result = NoiseXX::appendHandshakeMessage1(
@@ -53,7 +53,7 @@ namespace Requests
 				return RequestAnswers::ErrorNoHandling{};
 			}
 
-			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.data(), cursor));
+			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.raw.data(), cursor));
 			if (sendResult.has_value())
 			{
 				reportDebugError("Could not send the first XX message");
@@ -77,9 +77,9 @@ namespace Requests
 				return RequestAnswers::ErrorNoHandling{};
 			}
 
-			if (buffer[0] != static_cast<std::byte>(Protocol::RequestAnswerId::Pair))
+			if (buffer.raw[0] != static_cast<std::byte>(Protocol::RequestAnswerId::Pair))
 			{
-				reportDebugError("Unexpected second XX message prelude {}", static_cast<uint8_t>(buffer[0]));
+				reportDebugError("Unexpected second XX message prelude {}", static_cast<uint8_t>(buffer.raw[0]));
 				return RequestAnswers::ErrorNoHandling{};
 			}
 
@@ -125,7 +125,7 @@ namespace Requests
 				return RequestAnswers::ErrorNoHandling{};
 			}
 
-			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.data(), cursor));
+			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.raw.data(), cursor));
 			if (sendResult.has_value())
 			{
 				reportDebugError("Could not send the third XX message");

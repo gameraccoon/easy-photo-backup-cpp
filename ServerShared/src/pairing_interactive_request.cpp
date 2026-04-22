@@ -63,12 +63,12 @@ namespace Requests
 			return std::nullopt;
 		}
 
-		std::array<std::byte, NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize> buffer;
+		Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize> buffer;
 
 		{
 			assertFatalRelease(buffer.size() >= NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize, "Buffer size is too small to fit the second XX message");
 
-			buffer[0] = static_cast<std::byte>(Protocol::RequestAnswerId::Pair);
+			buffer.raw[0] = static_cast<std::byte>(Protocol::RequestAnswerId::Pair);
 
 			size_t cursor = SecondMessagePreludeSize;
 			const NoiseXX::AppendHandshakeMessage2Result result = NoiseXX::appendHandshakeMessage2(
@@ -116,7 +116,7 @@ namespace Requests
 			size_t cursor = 0;
 			NoiseXX::ProcessHandshakeMessage3Result result = NoiseXX::processHandshakeMessage3(
 				std::move(handshakeState),
-				std::span<std::byte>(buffer.begin(), buffer.begin() + readBytes),
+				std::span<std::byte>(buffer.raw.data(), readBytes),
 				cursor
 			);
 

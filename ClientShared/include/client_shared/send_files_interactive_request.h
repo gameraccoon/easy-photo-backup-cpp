@@ -11,5 +11,5 @@ class ClientStorage;
 
 namespace Requests
 {
-	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName);
+	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName) noexcept;
 }

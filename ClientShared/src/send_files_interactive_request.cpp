@@ -14,7 +14,7 @@
 
 namespace Requests
 {
-	bool processKkHandshake(Network::RawSocket socket, ClientStorage& clientStorage, const std::string& serverName, Noise::CipherStateSending& outSendingCipherState, Noise::CipherStateReceiving& outReceivingCipherState)
+	bool processKkHandshake(Network::RawSocket socket, ClientStorage& clientStorage, const std::string& serverName, Noise::CipherStateSending& outSendingCipherState, Noise::CipherStateReceiving& outReceivingCipherState) noexcept
 	{
 		using namespace Noise;
 
@@ -36,15 +36,15 @@ namespace Requests
 		}
 
 		constexpr size_t BufferSize = SecondMessagePreludeSize + DHLEN + DHLEN + CipherAuthDataSize;
-		std::array<std::byte, BufferSize> buffer;
+		Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, BufferSize> buffer;
 
 		{
 			static_assert(buffer.size() >= NoiseKK::Message1ExpectedSize + FirstMessagePreludeSize, "Buffer size is too small to fit the first KK message");
 
 			size_t cursor = 0;
 
-			Serialization::writeUint16(buffer[0], buffer[1], Protocol::NetworkProtocolVersion);
-			buffer[2] = static_cast<std::byte>(Protocol::RequestId::SendFiles);
+			Serialization::writeUint16(buffer.raw[0], buffer.raw[1], Protocol::NetworkProtocolVersion);
+			buffer.raw[2] = static_cast<std::byte>(Protocol::RequestId::SendFiles);
 			cursor += FirstMessagePreludeSize;
 
 			NoiseKK::AppendHandshakeMessage1Result result = NoiseKK::appendHandshakeMessage1(
@@ -65,7 +65,7 @@ namespace Requests
 				return false;
 			}
 
-			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.data(), cursor));
+			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.raw.data(), cursor));
 			if (sendResult.has_value())
 			{
 				reportDebugError("Could not send the first KK message");
@@ -89,9 +89,9 @@ namespace Requests
 				return false;
 			}
 
-			if (buffer[0] != static_cast<std::byte>(Protocol::RequestAnswerId::SendFiles))
+			if (buffer.raw[0] != static_cast<std::byte>(Protocol::RequestAnswerId::SendFiles))
 			{
-				reportDebugError("Unexpected second KK message prelude {}", static_cast<uint8_t>(buffer[0]));
+				reportDebugError("Unexpected second KK message prelude {}", static_cast<uint8_t>(buffer.raw[0]));
 				return false;
 			}
 
@@ -122,7 +122,7 @@ namespace Requests
 		return false;
 	}
 
-	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName)
+	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName) noexcept
 	{
 		Noise::CipherStateSending sendingCipherState;
 		Noise::CipherStateReceiving receivingCipherState;
