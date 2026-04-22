@@ -423,6 +423,17 @@ namespace Network
 			return std::format("Tried to send zero bytes, this signals about a logical error");
 		}
 
+		if constexpr (debugPrintBuffers)
+		{
+			printf("send (before encryption): 0x");
+			for (std::byte b : std::span(buffer.data(), bytesToSend))
+			{
+				printf("%02X", static_cast<uint8_t>(b));
+			}
+			printf("\n");
+			fflush(stdout);
+		}
+
 		const Cryptography::EncryptResult encryptResult = Noise::Utils::encryptWithAd(cipherState, {}, std::span<std::byte>(buffer.data(), bytesToSend), std::span<std::byte>(buffer.data(), bytesToSend + Cryptography::CipherAuthDataSize));
 
 		switch (encryptResult)
@@ -470,6 +481,17 @@ namespace Network
 		switch (decryptResult)
 		{
 		case Cryptography::DecryptResult::Success:
+			if constexpr (debugPrintBuffers)
+			{
+				printf("recv (after decryption): 0x");
+				for (std::byte b : std::span<std::byte>(buffer.data(), receivedBytes - Cryptography::CipherAuthDataSize))
+				{
+					printf("%02X", static_cast<uint8_t>(b));
+				}
+				printf("\n");
+				fflush(stdout);
+			}
+
 			receivedBytes -= Cryptography::CipherAuthDataSize;
 			Cryptography::cryptoWipeRawData(std::span(buffer.data() + receivedBytes, Cryptography::CipherAuthDataSize));
 			return std::nullopt;
