@@ -5,12 +5,12 @@
 
 #include "common_shared/cryptography/noise/noise_kk_handshake.h"
 #include "common_shared/debug/assert.h"
-#include "common_shared/debug/log.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
 
 #include "client_shared/client_storage.h"
+#include "client_shared/file_send_utils.h"
 
 namespace Requests
 {
@@ -132,31 +132,7 @@ namespace Requests
 			return RequestAnswers::ErrorNoHandling{};
 		}
 
-		{
-			std::array<std::byte, 4 + Cryptography::CipherAuthDataSize> buffer;
-			buffer[0] = static_cast<std::byte>('a');
-			buffer[1] = static_cast<std::byte>('b');
-			buffer[2] = static_cast<std::byte>('c');
-			buffer[3] = static_cast<std::byte>('d');
-
-			const auto sendResult = Network::sendEncrypted(socket, buffer, 4, sendingCipherState);
-			if (sendResult.has_value())
-			{
-				reportDebugError("Could not send the test encrypted message: {}", *sendResult);
-			}
-		}
-
-		{
-			std::array<std::byte, 4 + Cryptography::CipherAuthDataSize> buffer;
-			size_t readBytes = 0;
-			if (auto result = Network::recvEncrypted(socket, buffer, readBytes, receivingCipherState); result.has_value())
-			{
-				reportDebugError("Could not read test message: {}", *result);
-				return RequestAnswers::ErrorNoHandling{};
-			}
-
-			Debug::Log::printDebug("Received message: " + std::string(reinterpret_cast<const char*>(buffer.data()), readBytes));
-		}
+		FileSendUtils::sendDirectory(std::filesystem::path("./client_files_to_send"), socket, sendingCipherState, receivingCipherState);
 
 		return Protocol::RequestAnswers::SendFiles{};
 	}

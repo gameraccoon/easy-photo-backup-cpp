@@ -3,12 +3,12 @@
 
 #include "server_shared/send_files_interactive_request.h"
 
-#include "common_shared/cryptography/noise/cipher_utils.h"
 #include "common_shared/cryptography/noise/noise_kk_handshake.h"
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/raw_sockets.h"
 
+#include "server_shared/file_receive_utils.h"
 #include "server_shared/server_storage.h"
 
 namespace Requests
@@ -126,30 +126,8 @@ namespace Requests
 			return;
 		}
 
-		{
-			std::array<std::byte, 4 + Cryptography::CipherAuthDataSize> buffer;
-			size_t readBytes = 0;
-			if (auto result = Network::recvEncrypted(socket, buffer, readBytes, receivingCipherState); result.has_value())
-			{
-				reportDebugError("Could not read test message: {}", *result);
-				return;
-			}
+		FileReceiveUtils::receiveFiles("./server_target_directory", socket, sendingCipherState, receivingCipherState);
 
-			Debug::Log::printDebug("Received message: " + std::string(reinterpret_cast<const char*>(buffer.data()), readBytes));
-		}
-
-		{
-			std::array<std::byte, 4 + Cryptography::CipherAuthDataSize> buffer;
-			buffer[0] = static_cast<std::byte>('t');
-			buffer[1] = static_cast<std::byte>('e');
-			buffer[2] = static_cast<std::byte>('s');
-			buffer[3] = static_cast<std::byte>('t');
-
-			const auto sendResult = Network::sendEncrypted(socket, buffer, 4, sendingCipherState);
-			if (sendResult.has_value())
-			{
-				reportDebugError("Could not send the test encrypted message: {}", *sendResult);
-			}
-		}
+		Debug::Log::printDebug("Finished receiving files");
 	}
 } // namespace Requests
