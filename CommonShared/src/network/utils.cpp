@@ -333,7 +333,7 @@ namespace Network
 
 	std::optional<std::string> send(const RawSocket socket, std::span<const std::byte> data)
 	{
-		const auto sentSize = ::send(socket, reinterpret_cast<const char*>(data.data()), static_cast<int>(data.size()), 0);
+		const auto sentSize = ::send(socket, reinterpret_cast<const char*>(data.data()), static_cast<int>(data.size()), MSG_NOSIGNAL);
 		if (sentSize == -1) [[unlikely]]
 		{
 			return std::format("Failed to send data to socket, error code {}.", errno);
@@ -413,7 +413,14 @@ namespace Network
 	{
 		if (buffer.size() < bytesToSend + Cryptography::CipherAuthDataSize)
 		{
-			return std::format("The byffer is too small to fit the cyphertext to send, {} {}", buffer.size(), bytesToSend + Cryptography::CipherAuthDataSize);
+			reportDebugError("The buffer is too small to fit the cyphertext to send, {} {}", buffer.size(), bytesToSend + Cryptography::CipherAuthDataSize);
+			return std::format("The buffer is too small to fit the cyphertext to send, {} {}", buffer.size(), bytesToSend + Cryptography::CipherAuthDataSize);
+		}
+
+		if (bytesToSend == 0)
+		{
+			reportDebugError("Tried to send zero bytes, this signals about a logical error");
+			return std::format("Tried to send zero bytes, this signals about a logical error");
 		}
 
 		const Cryptography::EncryptResult encryptResult = Noise::Utils::encryptWithAd(cipherState, {}, std::span<std::byte>(buffer.data(), bytesToSend), std::span<std::byte>(buffer.data(), bytesToSend + Cryptography::CipherAuthDataSize));
