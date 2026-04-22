@@ -123,6 +123,10 @@ namespace Network
 			return std::format("Error when creating socket, error code {}.", errno);
 		}
 
+#if defined(__APPLE__)
+		setSocketOption(SOL_SOCKET, SO_NOSIGPIPE);
+#endif
+
 		return newSocket;
 	}
 
@@ -333,7 +337,13 @@ namespace Network
 
 	std::optional<std::string> send(const RawSocket socket, std::span<const std::byte> data)
 	{
-		const auto sentSize = ::send(socket, reinterpret_cast<const char*>(data.data()), static_cast<int>(data.size()), MSG_NOSIGNAL);
+#if defined(__linux__) || defined(__ANDROID__)
+		const int flags = MSG_NOSIGNAL;
+#else
+		const int flags = 0;
+#endif
+
+		const auto sentSize = ::send(socket, reinterpret_cast<const char*>(data.data()), static_cast<int>(data.size()), flags);
 		if (sentSize == -1) [[unlikely]]
 		{
 			return std::format("Failed to send data to socket, error code {}.", errno);
