@@ -3,7 +3,10 @@
 
 #include "common_shared/serialization/number_serialization.h"
 
+#include <algorithm>
 #include <bit>
+
+#include "common_shared/debug/assert.h"
 
 namespace Serialization
 {
@@ -61,5 +64,63 @@ namespace Serialization
 			// ReSharper disable once CppDFAUnreachableCode
 			return static_cast<uint16_t>(byte1) | (static_cast<uint16_t>(byte2) << 8);
 		}
+	}
+
+	void writeUint64(std::span<std::byte> outSerializedData, uint64_t value)
+	{
+		if (outSerializedData.size() != 8)
+		{
+			reportDebugError("Unexpected buffer size to write uint64_t to: {}", outSerializedData.size());
+			return;
+		}
+
+		if constexpr (std::endian::native == std::endian::big)
+		{
+			// ReSharper disable once CppDFAUnreachableCode
+			std::ranges::copy(
+				std::bit_cast<std::array<std::byte, 8>>(value),
+				outSerializedData.begin()
+			);
+		}
+		else
+		{
+			// ReSharper disable once CppDFAUnreachableCode
+			std::array<std::byte, 8> temp = std::bit_cast<std::array<std::byte, 8>>(value);
+			std::ranges::reverse(temp);
+			std::ranges::copy(
+				temp,
+				outSerializedData.begin()
+			);
+		}
+	}
+
+	uint64_t readUint64(std::span<std::byte> serializedData)
+	{
+		if (serializedData.size() != 8)
+		{
+			reportDebugError("Unexpected buffer size to read uint64_t from: {}", serializedData.size());
+			return 0;
+		}
+
+		uint64_t v = 0;
+
+		if constexpr (std::endian::native == std::endian::big)
+		{
+			// ReSharper disable once CppDFAUnreachableCode
+			std::ranges::copy(
+				serializedData,
+				reinterpret_cast<std::array<std::byte, 8>*>(&v)->begin()
+			);
+		}
+		else
+		{
+			// ReSharper disable once CppDFAUnreachableCode
+			std::array<std::byte, 8> temp;
+			std::ranges::copy(serializedData, temp.begin());
+			std::ranges::reverse(temp);
+			v = std::bit_cast<uint64_t>(temp);
+		}
+
+		return v;
 	}
 } // namespace Serialization
