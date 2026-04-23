@@ -4,6 +4,7 @@
 #include "common_shared/serialization/number_serialization.h"
 
 #include <algorithm>
+#include <array>
 #include <bit>
 
 #include "common_shared/debug/assert.h"
