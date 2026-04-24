@@ -7,6 +7,7 @@
 
 #include "common_shared/cryptography/noise/cipher_utils.h"
 #include "common_shared/debug/assert.h"
+#include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
 
@@ -21,8 +22,8 @@ namespace FileReceiveUtils
 	/// An answer is sent each 32 chunks (but can be read one chunk later), or at the end of the transmission.
 	struct FileReceivingState
 	{
-		constexpr static size_t ChunkSize = 1024;
-		constexpr static size_t ChunksBetweenAnswers = 32;
+		constexpr static size_t ChunkSize = Protocol::FileExchange::ChunkSize;
+		constexpr static size_t ChunksBetweenAnswers = Protocol::FileExchange::ChunksBetweenAnswers;
 
 		Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, ChunkSize + Cryptography::CipherAuthDataSize> buffer;
 		std::ofstream file;

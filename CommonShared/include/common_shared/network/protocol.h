@@ -98,4 +98,10 @@ namespace Protocol
 		{
 		};
 	} // namespace RequestAnswers
+
+	namespace FileExchange
+	{
+		constexpr static size_t ChunkSize = 1024;
+		constexpr static size_t ChunksBetweenAnswers = 32;
+	}
 } // namespace Protocol
