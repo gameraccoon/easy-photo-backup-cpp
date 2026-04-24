@@ -81,27 +81,28 @@ TEST(FileSendReceiveUtils, RoundtripSendAndReceiveTwentyFiles)
 		paths.push_back(std::format("path{}", i));
 	}
 	std::vector<size_t> sizes{
-		// try out sizes differently alligned to the 1024 chunk size
-		size_t(1023), // -1
-		size_t(1025), // 0
-		size_t(1024), // 0
-		size_t(1025), // +1
-		size_t(1025), // +2
-		size_t(1027), // +5
-		size_t(1027), // +8
-		size_t(1024), // +8
-		size_t(1026), // +10
-		size_t(1024), // +10
-		size_t(1025), // +11
+		// try out sizes differently alligned to the 1024 chunk size (with metadata size of 10 + file name)
+		size_t(1024 - (10 + 5) - 1), // -1 "path1"
+		size_t(1024 - (10 + 5) + 1), // 0 "path2"
+		size_t(1024 - (10 + 5) + 0), // 0 "path3"
+		size_t(1024 - (10 + 5) + 1), // +1 "path4"
+		size_t(1024 - (10 + 5) + 1), // +2 "path5"
+		size_t(1024 - (10 + 5) + 3), // +5 "path6"
+		size_t(1024 - (10 + 5) + 3), // +8 "path7"
+		size_t(1024 - (10 + 5) + 2), // +10 "path8"
+		size_t(1024 - (10 + 5) + 1), // +11 "path9"
+		// try out some odd sizes
+		size_t(1),
 		size_t(0),
 		size_t(8),
 		size_t(2),
 		size_t(13),
+		size_t(3),
 		size_t(64),
 		size_t(128),
 		size_t(10000),
 		size_t(5),
-		size_t(13),
+		size_t(23),
 	};
 	ASSERT_EQ(paths.size(), sizes.size());
 
