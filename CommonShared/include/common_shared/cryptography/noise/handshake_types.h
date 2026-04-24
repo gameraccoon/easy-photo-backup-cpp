@@ -13,10 +13,6 @@ namespace Noise
 {
 	using namespace Cryptography;
 
-	using CipherStateHandshake = CipherState<CipherStateInstanceTag::Handshake>;
-	using CipherStateSending = CipherState<CipherStateInstanceTag::Sending>;
-	using CipherStateReceiving = CipherState<CipherStateInstanceTag::Receiving>;
-
 	// temporary state that exists only during the handshake phase (on both sides)
 	struct SymmetricState
 	{
