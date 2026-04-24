@@ -6,8 +6,9 @@
 #include <filesystem>
 
 #include "common_shared/cryptography/noise/cipher_types.h"
+#include "common_shared/network/utils.h"
 
 namespace FileSendUtils
 {
-	void sendDirectory(const std::filesystem::path& directoryPath, int socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState) noexcept;
+	void sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState) noexcept;
 }

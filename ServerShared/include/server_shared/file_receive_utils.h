@@ -6,8 +6,9 @@
 #include <filesystem>
 
 #include "common_shared/cryptography/noise/cipher_types.h"
+#include "common_shared/network/utils.h"
 
 namespace FileReceiveUtils
 {
-	void receiveFiles(const std::filesystem::path& targetDirectory, int socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState);
+	void receiveFiles(const std::filesystem::path& targetDirectory, Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState);
 } // namespace FileReceiveUtils

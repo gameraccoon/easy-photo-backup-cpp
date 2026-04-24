@@ -165,7 +165,7 @@ namespace FileReceiveUtils
 			return bytesWrittenToFile != fileSizeBytes;
 		}
 
-		[[nodiscard]] bool receiveChunk(int socket, Noise::CipherStateReceiving& receivingCipherstate) noexcept
+		[[nodiscard]] bool receiveChunk(Network::RawSocket socket, Noise::CipherStateReceiving& receivingCipherstate) noexcept
 		{
 			if (bytesReadInChunk != ChunkSize)
 			{
@@ -206,7 +206,7 @@ namespace FileReceiveUtils
 		}
 	};
 
-	void receiveFiles(const std::filesystem::path& targetDirectory, int socket, Noise::CipherStateSending& /*sendingCipherstate*/, Noise::CipherStateReceiving& receivingCipherstate)
+	void receiveFiles(const std::filesystem::path& targetDirectory, Network::RawSocket socket, Noise::CipherStateSending& /*sendingCipherstate*/, Noise::CipherStateReceiving& receivingCipherstate)
 	{
 		FileReceivingState receivingState;
 		receivingState.rootPath = targetDirectory;

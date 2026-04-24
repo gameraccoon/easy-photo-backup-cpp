@@ -116,7 +116,7 @@ namespace FileSendUtils
 			return bytesReadFromFile != fileSizeBytes;
 		}
 
-		[[nodiscard]] bool sendChunk(int socket, Noise::CipherStateSending& sendingCipherstate) noexcept
+		[[nodiscard]] bool sendChunk(Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate) noexcept
 		{
 			if (bytesFilledInChunk != ChunkSize)
 			{
@@ -151,7 +151,7 @@ namespace FileSendUtils
 		}
 	};
 
-	void sendDirectory(const std::filesystem::path& directoryPath, int socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& /*receivingCipherState*/) noexcept
+	void sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& /*receivingCipherState*/) noexcept
 	{
 		FileSendingState sendingState;
 
