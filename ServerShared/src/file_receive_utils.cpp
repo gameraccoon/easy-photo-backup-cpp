@@ -25,6 +25,9 @@ namespace FileReceiveUtils
 		constexpr static size_t ChunkSize = Protocol::FileExchange::ChunkSize;
 		constexpr static size_t ChunksBetweenAnswers = Protocol::FileExchange::ChunksBetweenAnswers;
 
+#ifdef WITH_TESTS
+		Mocks mocks;
+#endif
 		Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, ChunkSize + Cryptography::CipherAuthDataSize> buffer;
 		std::ofstream file;
 		std::filesystem::path rootPath;
@@ -40,6 +43,56 @@ namespace FileReceiveUtils
 		[[nodiscard]] bool isBufferFullyRead() const noexcept
 		{
 			return bytesReadInChunk == ChunkSize;
+		}
+
+		std::optional<std::string> recvBuffer(Network::RawSocket socket, std::span<std::byte> bufferSpan, size_t& bytesReceived, Noise::CipherStateReceiving& receivingCipherstate)
+		{
+#ifdef WITH_TESTS
+			if (mocks.recvBuffer)
+			{
+				return mocks.recvBuffer(socket, bufferSpan, bytesReceived, receivingCipherstate);
+			}
+#endif
+
+			return Network::recvEncrypted(socket, bufferSpan, bytesReceived, receivingCipherstate);
+		}
+
+		void openFile(std::ofstream& stream, const std::filesystem::path& path)
+		{
+#ifdef WITH_TESTS
+			if (mocks.openFile)
+			{
+				mocks.openFile(stream, path);
+				return;
+			}
+#endif
+
+			stream.open(path, std::ios::binary | std::ios::out);
+		}
+
+		bool isFileOpen(std::ofstream& stream) const
+		{
+#ifdef WITH_TESTS
+			if (mocks.isFileOpen)
+			{
+				return mocks.isFileOpen(stream);
+			}
+#endif
+
+			return stream.is_open();
+		}
+
+		void writeSpanIntoStream(std::ofstream& stream, std::span<const std::byte> bufferSpan)
+		{
+#ifdef WITH_TESTS
+			if (mocks.openFile)
+			{
+				mocks.writeSpanIntoStream(stream, bufferSpan);
+				return;
+			}
+#endif
+
+			stream.write(reinterpret_cast<const char*>(bufferSpan.data()), bufferSpan.size());
 		}
 
 		[[nodiscard]] size_t partiallyReadDataFromChunk(std::span<std::byte> data, size_t alreadyReadBytes) noexcept
@@ -62,7 +115,7 @@ namespace FileReceiveUtils
 
 		void newFile() noexcept
 		{
-			if (file.is_open())
+			if (isFileOpen(file))
 			{
 				file.close();
 			}
@@ -133,9 +186,9 @@ namespace FileReceiveUtils
 
 				// ToDo: sanitize the path
 
-				file.open(rootPath / filePath, std::ios::binary | std::ios::out);
+				openFile(file, rootPath / filePath);
 
-				if (!file.is_open())
+				if (!isFileOpen(file))
 				{
 					reportDebugError("Could not open file for writing {}", filePath);
 					// ToDo: report unsuccessful file saving
@@ -158,7 +211,7 @@ namespace FileReceiveUtils
 			}
 
 			const size_t bytesToWrite = std::min(fileSizeBytes - bytesWrittenToFile, ChunkSize - bytesReadInChunk);
-			file.write(reinterpret_cast<char*>(buffer.raw.data() + bytesReadInChunk), bytesToWrite);
+			writeSpanIntoStream(file, std::span<std::byte>(buffer.raw.data() + bytesReadInChunk, bytesToWrite));
 			bytesWrittenToFile += bytesToWrite;
 			bytesReadInChunk += bytesToWrite;
 			assertFatalRelease(bytesWrittenToFile <= fileSizeBytes, "File read size bigger than file size, this should never happen");
@@ -175,7 +228,7 @@ namespace FileReceiveUtils
 			}
 
 			size_t bytesReceived = 0;
-			auto readResult = Network::recvEncrypted(socket, buffer, bytesReceived, receivingCipherstate);
+			auto readResult = recvBuffer(socket, buffer, bytesReceived, receivingCipherstate);
 			if (readResult.has_value())
 			{
 				reportDebugError("Could not recv file part: {}", *readResult);
@@ -207,10 +260,14 @@ namespace FileReceiveUtils
 		}
 	};
 
-	void receiveFiles(const std::filesystem::path& targetDirectory, Network::RawSocket socket, Noise::CipherStateSending& /*sendingCipherstate*/, Noise::CipherStateReceiving& receivingCipherstate)
+	void receiveFiles(const std::filesystem::path& targetDirectory, Network::RawSocket socket, Noise::CipherStateSending& /*sendingCipherstate*/, Noise::CipherStateReceiving& receivingCipherstate, [[maybe_unused]] Mocks mocks)
 	{
 		FileReceivingState receivingState;
 		receivingState.rootPath = targetDirectory;
+
+#ifdef WITH_TESTS
+		receivingState.mocks = std::move(mocks);
+#endif
 
 		Debug::Log::printDebug("start receiving files");
 

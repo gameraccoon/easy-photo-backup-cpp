@@ -25,6 +25,9 @@ namespace FileSendUtils
 		constexpr static size_t ChunkSize = Protocol::FileExchange::ChunkSize;
 		constexpr static size_t ChunksBetweenAnswers = Protocol::FileExchange::ChunksBetweenAnswers;
 
+#ifdef WITH_TESTS
+		Mocks mocks;
+#endif
 		Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, ChunkSize + Cryptography::CipherAuthDataSize> buffer;
 		std::string filePath;
 		size_t bytesFilledInChunk = 0;
@@ -44,6 +47,85 @@ namespace FileSendUtils
 		[[nodiscard]] bool isBufferFull() const noexcept
 		{
 			return bytesFilledInChunk == ChunkSize;
+		}
+
+		void openFile(std::ifstream& stream, const std::filesystem::path& path)
+		{
+#ifdef WITH_TESTS
+			if (mocks.openFile)
+			{
+				mocks.openFile(stream, path);
+				return;
+			}
+#endif
+			stream.open(path, std::ios::binary | std::ios::in);
+		}
+
+		bool isFileOpen(std::ifstream& stream) const
+		{
+#ifdef WITH_TESTS
+			if (mocks.isFileOpen)
+			{
+				return mocks.isFileOpen(stream);
+			}
+#endif
+
+			return stream.is_open();
+		}
+
+		void readFileStreamIntoSpan(std::ifstream& stream, std::span<std::byte> bufferSpan)
+		{
+#ifdef WITH_TESTS
+			if (mocks.readFileStreamIntoSpan)
+			{
+				mocks.readFileStreamIntoSpan(stream, bufferSpan);
+				return;
+			}
+#endif
+
+			stream.read(reinterpret_cast<char*>(bufferSpan.data()), buffer.size());
+		}
+
+		std::optional<std::string> sendBuffer(Network::RawSocket socket, std::span<std::byte> bufferSpan, size_t bytesFilledInBuffer, Noise::CipherStateSending& sendingCipherstate)
+		{
+#ifdef WITH_TESTS
+			if (mocks.sendBuffer)
+			{
+				return mocks.sendBuffer(socket, bufferSpan, bytesFilledInBuffer, sendingCipherstate);
+			}
+#endif
+
+			return Network::sendEncrypted(socket, bufferSpan, bytesFilledInBuffer, sendingCipherstate);
+		}
+
+		void getAllFiles(const std::filesystem::path& rootPath, std::vector<std::filesystem::path>& outPaths)
+		{
+#ifdef WITH_TESTS
+			if (mocks.getAllFiles)
+			{
+				return mocks.getAllFiles(outPaths);
+			}
+#endif
+
+			for (auto dirEntry : std::filesystem::recursive_directory_iterator(rootPath))
+			{
+				outPaths.push_back(dirEntry.path());
+			}
+		}
+
+		size_t getFileLength(std::ifstream& file) const
+		{
+#ifdef WITH_TESTS
+			if (mocks.getFileLength)
+			{
+				return mocks.getFileLength(file);
+			}
+#endif
+
+			file.seekg(0, std::ios::end);
+			const size_t size = static_cast<size_t>(file.tellg());
+			file.seekg(0, std::ios::beg);
+			return size;
 		}
 
 		[[nodiscard]] size_t partiallyWriteDataToChunk(std::span<const std::byte> data, size_t alreadyWrittenBytes) noexcept
@@ -110,7 +192,7 @@ namespace FileSendUtils
 			}
 
 			const size_t bytesToRead = std::min(fileSizeBytes - bytesReadFromFile, ChunkSize - bytesFilledInChunk);
-			file.read(reinterpret_cast<char*>(buffer.raw.data() + bytesFilledInChunk), bytesToRead);
+			readFileStreamIntoSpan(file, std::span(buffer.raw.data() + bytesFilledInChunk, bytesToRead));
 			bytesReadFromFile += bytesToRead;
 			bytesFilledInChunk += bytesToRead;
 			assertFatalRelease(bytesReadFromFile <= fileSizeBytes, "File read size bigger than file size, this should never happen");
@@ -125,7 +207,7 @@ namespace FileSendUtils
 				return false;
 			}
 
-			auto sendResult = Network::sendEncrypted(socket, buffer, bytesFilledInChunk, sendingCipherstate);
+			auto sendResult = sendBuffer(socket, buffer, bytesFilledInChunk, sendingCipherstate);
 			if (sendResult.has_value())
 			{
 				reportDebugError("Could not send file part: {}", *sendResult);
@@ -152,28 +234,33 @@ namespace FileSendUtils
 		}
 	};
 
-	void sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& /*receivingCipherState*/) noexcept
+	void sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& /*receivingCipherState*/, [[maybe_unused]] Mocks mocks) noexcept
 	{
 		FileSendingState sendingState;
 
+#ifdef WITH_TESTS
+		sendingState.mocks = std::move(mocks);
+#endif
+
 		Debug::Log::printDebug("start sending files");
+
+		std::vector<std::filesystem::path> files;
+		sendingState.getAllFiles(directoryPath, files);
 
 		try
 		{
-			for (const auto& dirEntry : std::filesystem::recursive_directory_iterator(directoryPath))
+			for (const auto& dirEntry : files)
 			{
 				std::ifstream file;
-				file.open(dirEntry.path(), std::ios::binary | std::ios::in);
+				sendingState.openFile(file, dirEntry);
 
-				if (!file.is_open())
+				if (!sendingState.isFileOpen(file))
 				{
-					reportDebugError("Could not open file for reading: {}", dirEntry.path().string());
+					reportDebugError("Could not open file for reading: {}", dirEntry.string());
 					return;
 				}
 
-				file.seekg(0, std::ios::end);
-				sendingState.newFile(dirEntry.path().filename(), static_cast<size_t>(file.tellg()));
-				file.seekg(0, std::ios::beg);
+				sendingState.newFile(dirEntry.filename(), sendingState.getFileLength(file));
 
 				while (sendingState.readFileIntoBuffer(file))
 				{

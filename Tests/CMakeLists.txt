@@ -22,7 +22,9 @@ endif()
 
 target_include_directories(Tests PRIVATE
 	${TESTS_ROOT}/include
+	${MAIN_ROOT}/ClientShared/include
 	${MAIN_ROOT}/CommonShared/include
+	${MAIN_ROOT}/ServerShared/include
 	${TESTS_ROOT}/deps/googletest/googletest
 	${TESTS_ROOT}/deps/googletest/googletest/include
 )
@@ -36,6 +38,8 @@ target_sources(Tests PRIVATE
 
 target_link_libraries(Tests
 	PRIVATE
+		ClientShared
+		ServerShared
 		CommonShared
 )
 
