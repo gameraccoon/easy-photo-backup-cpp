@@ -2,11 +2,12 @@
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
 #include <format>
+#include <numeric>
 
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
-#include "common_shared/cryptography/types/cipher_types.h"
+#include "common_shared/cryptography/noise/cipher_utils.h"
 #include "common_shared/network/protocol.h"
 
 #include "client_shared/file_send_utils.h"
@@ -75,12 +76,13 @@ TEST(FileSendReceiveUtils, ReceiveChunkOfZeros_SaveNoFiles)
 TEST(FileSendReceiveUtils, RoundtripSendAndReceiveTwentyFiles)
 {
 	std::vector<std::filesystem::path> paths;
-	paths.reserve(10);
-	for (size_t i = 0; i < 20; ++i)
+	constexpr const size_t NumberOfFiles = 20;
+	paths.reserve(NumberOfFiles);
+	for (size_t i = 0; i < NumberOfFiles; ++i)
 	{
 		paths.push_back(std::format("path{}", i));
 	}
-	std::vector<size_t> sizes{
+	std::array<size_t, NumberOfFiles> sizes{
 		// try out sizes differently alligned to the 1024 chunk size (with metadata size of 10 + file name)
 		size_t(1024 - (10 + 5) - 1), // -1 "path1"
 		size_t(1024 - (10 + 5) + 1), // 0 "path2"
@@ -105,10 +107,10 @@ TEST(FileSendReceiveUtils, RoundtripSendAndReceiveTwentyFiles)
 		size_t(23),
 	};
 	ASSERT_EQ(paths.size(), sizes.size());
+	const size_t totalFileSize = std::accumulate(sizes.begin(), sizes.end(), size_t(0));
 
 	std::vector<std::byte> rawData;
-	// roughly enough to fit all of the above
-	rawData.reserve(1024 * 11 + 10000 + 1000);
+	rawData.reserve(totalFileSize + (totalFileSize / Protocol::FileExchange::ChunkSize + 1) * Cryptography::CipherAuthDataSize + NumberOfFiles * 10);
 	size_t readPosition = 0;
 	int fileToWriteIdx = -1;
 
@@ -126,20 +128,24 @@ TEST(FileSendReceiveUtils, RoundtripSendAndReceiveTwentyFiles)
 		.getFileLength = [&sizes, &fileToWriteIdx](std::ifstream&) -> size_t { return sizes[fileToWriteIdx]; },
 		.isFileOpen = [](std::ifstream&) -> bool { return true; },
 		.readFileStreamIntoSpan = [&fileToWriteIdx](std::ifstream&, std::span<std::byte> buffer) { std::fill(buffer.begin(), buffer.end(), std::byte(fileToWriteIdx)); },
-		.sendBuffer = [&rawData](Network::RawSocket, std::span<std::byte> buffer, size_t bytesToWrite, Noise::CipherStateSending&) -> std::optional<std::string> {
+		.sendBuffer = [&rawData](Network::RawSocket, std::span<std::byte> buffer, size_t bytesToWrite, Noise::CipherStateSending& sendingState) -> std::optional<std::string> {
 			EXPECT_EQ(buffer.size(), Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize);
 			EXPECT_EQ(bytesToWrite, Protocol::FileExchange::ChunkSize);
-			std::copy(buffer.begin(), buffer.begin() + bytesToWrite, std::back_inserter(rawData));
+			EXPECT_EQ(Noise::Utils::encryptTransportMessageInplace(sendingState, buffer), Cryptography::EncryptResult::Success);
+			std::copy(buffer.begin(), buffer.begin() + buffer.size(), std::back_inserter(rawData));
 			return std::nullopt;
 		},
 	};
 	FileReceiveUtils::Mocks receiveMocks{
-		.recvBuffer = [&rawData, &readPosition](Network::RawSocket, std::span<std::byte> buffer, size_t& bytesReceived, Noise::CipherStateReceiving&) -> std::optional<std::string> {
-			EXPECT_EQ(buffer.size(), Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize);
-			std::copy(rawData.begin() + readPosition, rawData.begin() + readPosition + Protocol::FileExchange::ChunkSize, buffer.begin());
-			readPosition += Protocol::FileExchange::ChunkSize;
+		.recvBuffer = [&rawData, &readPosition](Network::RawSocket, std::span<std::byte> buffer, size_t& bytesReceived, Noise::CipherStateReceiving& receivingState) -> std::optional<std::string> {
+			constexpr const size_t BytesToRead = Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize;
+			constexpr const size_t BytesToReturn = Protocol::FileExchange::ChunkSize;
+			EXPECT_EQ(buffer.size(), BytesToRead);
+			std::copy(rawData.begin() + readPosition, rawData.begin() + readPosition + BytesToRead, buffer.begin());
+			EXPECT_EQ(Noise::Utils::decryptTransportMessageInplace(receivingState, std::span<std::byte>(buffer.data(), BytesToRead)), Cryptography::DecryptResult::Success);
+			readPosition += BytesToRead;
 			EXPECT_LE(readPosition, rawData.size());
-			bytesReceived = Protocol::FileExchange::ChunkSize;
+			bytesReceived = BytesToReturn;
 			return std::nullopt;
 		},
 		.openFile = [&paths, &outFileContents](std::ofstream&, const std::filesystem::path& path) {
