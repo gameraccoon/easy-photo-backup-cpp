@@ -45,6 +45,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_SRC_DIR}/cryptography/utils/random.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/assert.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/log.cpp
+		${COMMON_SHARED_SRC_DIR}/debug/debug_print_helpers.cpp
 		${COMMON_SHARED_SRC_DIR}/network/utils.cpp
 		${COMMON_SHARED_SRC_DIR}/nsd/nsd_client.cpp
 		${COMMON_SHARED_SRC_DIR}/nsd/nsd_server.cpp
@@ -75,6 +76,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/random.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/assert.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h
+		${COMMON_SHARED_INCLUDE_DIR}/debug/debug_print_helpers.h
 		${COMMON_SHARED_INCLUDE_DIR}/network/utils.h
 		${COMMON_SHARED_INCLUDE_DIR}/network/protocol.h
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/nsd_client.h
