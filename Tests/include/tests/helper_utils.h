@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstring>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -16,6 +17,7 @@ std::vector<std::byte> hexToBytes(const std::string_view inString);
 std::vector<std::byte> strToBytes(const std::string_view inString);
 void appendHexBytes(const std::string_view inString, std::vector<std::byte>& inOutVec);
 bool isAllZeroes(const std::span<const std::byte> data);
+bool areSpansEqual(std::span<const std::byte> span1, std::span<const std::byte> span2);
 
 template<size_t Size>
 void vectorToArray(const std::span<const std::byte> inVector, std::array<std::byte, Size>& outArray)

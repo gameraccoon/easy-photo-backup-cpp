@@ -82,3 +82,13 @@ bool isAllZeroes(const std::span<const std::byte> data)
 {
 	return std::all_of(data.begin(), data.end(), [](std::byte v) { return v == static_cast<std::byte>(0); });
 }
+
+bool areSpansEqual(std::span<const std::byte> span1, std::span<const std::byte> span2)
+{
+	if (span1.size() != span2.size())
+	{
+		return false;
+	}
+
+	return std::memcmp(span1.data(), span2.data(), span1.size()) != 0;
+}
