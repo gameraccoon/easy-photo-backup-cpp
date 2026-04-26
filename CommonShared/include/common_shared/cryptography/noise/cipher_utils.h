@@ -12,6 +12,10 @@ namespace Noise::Utils
 	[[nodiscard]] Cryptography::EncryptResult encryptWithAd(CipherStateSending& cipherState, const std::span<const std::byte> associatedData, const std::span<const std::byte> plaintext, const std::span<std::byte> outCiphertext);
 	[[nodiscard]] Cryptography::DecryptResult decryptWithAd(CipherStateReceiving& cipherState, const std::span<const std::byte> associatedData, const std::span<const std::byte> ciphertext, const std::span<std::byte> outPlaintext);
 
+	// convenience functions
+	[[nodiscard]] Cryptography::EncryptResult encryptTransportMessageInplace(CipherStateSending& cipherState, const std::span<std::byte> inOutData);
+	[[nodiscard]] Cryptography::DecryptResult decryptTransportMessageInplace(CipherStateReceiving& cipherState, const std::span<std::byte> inOutData);
+
 	[[nodiscard]] Cryptography::EncryptResult encryptWithAd(CipherStateHandshake& cipherState, const std::span<const std::byte> associatedData, const std::span<const std::byte> plaintext, const std::span<std::byte> outCiphertext);
 	[[nodiscard]] Cryptography::DecryptResult decryptWithAd(CipherStateHandshake& cipherState, const std::span<const std::byte> associatedData, const std::span<const std::byte> ciphertext, const std::span<std::byte> outPlaintext);
 

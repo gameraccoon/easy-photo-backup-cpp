@@ -51,6 +51,26 @@ namespace Noise::Utils
 		return decryptWithAdGeneric(cipherState, associatedData, ciphertext, outPlaintext);
 	}
 
+	Cryptography::EncryptResult encryptTransportMessageInplace(CipherStateSending& cipherState, const std::span<std::byte> inOutData)
+	{
+		if (inOutData.size() < Cryptography::CipherAuthDataSize)
+		{
+			return Cryptography::EncryptResult::CiphertextBufferTooSmall;
+		}
+
+		return encryptWithAd(cipherState, {}, std::span<std::byte>(inOutData.data(), inOutData.size() - Cryptography::CipherAuthDataSize), inOutData);
+	}
+
+	Cryptography::DecryptResult decryptTransportMessageInplace(CipherStateReceiving& cipherState, const std::span<std::byte> inOutData)
+	{
+		if (inOutData.size() < Cryptography::CipherAuthDataSize)
+		{
+			return Cryptography::DecryptResult::CiphertextSmallerThanMac;
+		}
+
+		return decryptWithAd(cipherState, {}, inOutData, std::span<std::byte>(inOutData.data(), inOutData.size() - Cryptography::CipherAuthDataSize));
+	}
+
 	Cryptography::EncryptResult encryptWithAd(CipherStateHandshake& cipherState, const std::span<const std::byte> associatedData, const std::span<const std::byte> plaintext, const std::span<std::byte> outCiphertext)
 	{
 		return encryptWithAdGeneric(cipherState, associatedData, plaintext, outCiphertext);

@@ -444,7 +444,7 @@ namespace Network
 			fflush(stdout);
 		}
 
-		const Cryptography::EncryptResult encryptResult = Noise::Utils::encryptWithAd(cipherState, {}, std::span<std::byte>(buffer.data(), bytesToSend), std::span<std::byte>(buffer.data(), bytesToSend + Cryptography::CipherAuthDataSize));
+		const Cryptography::EncryptResult encryptResult = Noise::Utils::encryptTransportMessageInplace(cipherState, std::span<std::byte>(buffer.data(), bytesToSend + Cryptography::CipherAuthDataSize));
 
 		switch (encryptResult)
 		{
@@ -486,7 +486,7 @@ namespace Network
 			return "Received data is too small to be decrypted";
 		}
 
-		const Cryptography::DecryptResult decryptResult = Noise::Utils::decryptWithAd(cipherState, {}, std::span<std::byte>(buffer.data(), receivedBytes), std::span<std::byte>(buffer.data(), receivedBytes - Cryptography::CipherAuthDataSize));
+		const Cryptography::DecryptResult decryptResult = Noise::Utils::decryptTransportMessageInplace(cipherState, std::span<std::byte>(buffer.data(), receivedBytes));
 
 		switch (decryptResult)
 		{
