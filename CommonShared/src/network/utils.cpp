@@ -11,11 +11,15 @@
 #include "common_shared/cryptography/noise/cipher_utils.h"
 #include "common_shared/cryptography/utils/crypto_wipe.h"
 #include "common_shared/debug/assert.h"
+#include "common_shared/debug/debug_print_helpers.h"
 #include "common_shared/network/raw_sockets.h"
 
 namespace Network
 {
+
+#ifdef DEBUG_CHECKS
 	constexpr bool debugPrintBuffers = false;
+#endif // DEBUG_CHECKS
 
 	[[noreturn]] static void unreachable()
 	{
@@ -363,16 +367,12 @@ namespace Network
 			return std::format("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
 		}
 
+#ifdef DEBUG_CHECKS
 		if constexpr (debugPrintBuffers)
 		{
-			printf("send: 0x");
-			for (std::byte b : data)
-			{
-				printf("%02X", static_cast<uint8_t>(b));
-			}
-			printf("\n");
-			fflush(stdout);
+			Debug::Print::printSpan("send", data);
 		}
+#endif // DEBUG_CHECKS
 
 		return std::nullopt;
 	}
@@ -404,16 +404,12 @@ namespace Network
 			return std::string{};
 		}
 
+#ifdef DEBUG_CHECKS
 		if constexpr (debugPrintBuffers)
 		{
-			printf("recv: 0x");
-			for (std::byte b : std::span(outData.begin(), messageSize))
-			{
-				printf("%02X", static_cast<uint8_t>(b));
-			}
-			printf("\n");
-			fflush(stdout);
+			Debug::Print::printSpan("recv", std::span(outData.begin(), messageSize));
 		}
+#endif // DEBUG_CHECKS
 
 		receivedBytes = static_cast<size_t>(messageSize);
 		return std::nullopt;
@@ -433,16 +429,12 @@ namespace Network
 			return std::format("Tried to send zero bytes, this signals about a logical error");
 		}
 
+#ifdef DEBUG_CHECKS
 		if constexpr (debugPrintBuffers)
 		{
-			printf("send (before encryption): 0x");
-			for (std::byte b : std::span(buffer.data(), bytesToSend))
-			{
-				printf("%02X", static_cast<uint8_t>(b));
-			}
-			printf("\n");
-			fflush(stdout);
+			Debug::Print::printSpan("send (before encryption)", std::span(buffer.data(), bytesToSend));
 		}
+#endif // DEBUG_CHECKS
 
 		const Cryptography::EncryptResult encryptResult = Noise::Utils::encryptTransportMessageInplace(cipherState, std::span<std::byte>(buffer.data(), bytesToSend + Cryptography::CipherAuthDataSize));
 
@@ -491,19 +483,16 @@ namespace Network
 		switch (decryptResult)
 		{
 		case Cryptography::DecryptResult::Success:
-			if constexpr (debugPrintBuffers)
-			{
-				printf("recv (after decryption): 0x");
-				for (std::byte b : std::span<std::byte>(buffer.data(), receivedBytes - Cryptography::CipherAuthDataSize))
-				{
-					printf("%02X", static_cast<uint8_t>(b));
-				}
-				printf("\n");
-				fflush(stdout);
-			}
-
 			receivedBytes -= Cryptography::CipherAuthDataSize;
 			Cryptography::cryptoWipeRawData(std::span(buffer.data() + receivedBytes, Cryptography::CipherAuthDataSize));
+
+#ifdef DEBUG_CHECKS
+			if constexpr (debugPrintBuffers)
+			{
+				Debug::Print::printSpan("recv (after decryption)", std::span<std::byte>(buffer.data(), receivedBytes));
+			}
+#endif // DEBUG_CHECKS
+
 			return std::nullopt;
 		case Cryptography::DecryptResult::AuthDataMismatch:
 			return "Auth data mismatch, the byte stream is corrupted or tempered with";

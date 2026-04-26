@@ -17,6 +17,7 @@ namespace Debug::Print
 			printf("%02X", static_cast<char>(data[j]));
 		}
 		printf("\n");
+		fflush(stdout);
 	}
 }
 
