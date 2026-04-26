@@ -5,19 +5,23 @@
 
 #ifdef DEBUG_CHECKS
 
-#include <cstdio>
+#include <format>
+#include <iostream>
+#include <syncstream>
 
 namespace Debug::Print
 {
 	void printSpan(const char* name, std::span<const std::byte> data)
 	{
-		printf("%s: 0x", name);
-		for (size_t j = 0; j < data.size(); j++)
+		std::osyncstream syncStream(std::cout);
+		syncStream << name << ": 0x";
+		// incredibly slow but threadsafe
+		for (size_t i = 0; i < data.size(); i++)
 		{
-			printf("%02X", static_cast<char>(data[j]));
+			syncStream << std::format("{:02x}", static_cast<char>(data[i]));
 		}
-		printf("\n");
-		fflush(stdout);
+		syncStream << '\n'
+				   << std::flush;
 	}
 }
 
