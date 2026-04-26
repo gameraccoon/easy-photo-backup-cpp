@@ -49,6 +49,21 @@ namespace FileSendUtils
 			return bytesFilledInChunk == ChunkSize;
 		}
 
+		void getAllFiles(const std::filesystem::path& rootPath, std::vector<std::filesystem::path>& outPaths)
+		{
+#ifdef WITH_TESTS
+			if (mocks.getAllFiles)
+			{
+				return mocks.getAllFiles(outPaths);
+			}
+#endif
+
+			for (auto dirEntry : std::filesystem::recursive_directory_iterator(rootPath))
+			{
+				outPaths.push_back(dirEntry.path());
+			}
+		}
+
 		void openFile(std::ifstream& stream, const std::filesystem::path& path)
 		{
 #ifdef WITH_TESTS
@@ -59,6 +74,21 @@ namespace FileSendUtils
 			}
 #endif
 			stream.open(path, std::ios::binary | std::ios::in);
+		}
+
+		size_t getFileLength(std::ifstream& file) const
+		{
+#ifdef WITH_TESTS
+			if (mocks.getFileLength)
+			{
+				return mocks.getFileLength(file);
+			}
+#endif
+
+			file.seekg(0, std::ios::end);
+			const size_t size = static_cast<size_t>(file.tellg());
+			file.seekg(0, std::ios::beg);
+			return size;
 		}
 
 		bool isFileOpen(std::ifstream& stream) const
@@ -96,36 +126,6 @@ namespace FileSendUtils
 #endif
 
 			return Network::sendEncrypted(socket, bufferSpan, bytesFilledInBuffer, sendingCipherstate);
-		}
-
-		void getAllFiles(const std::filesystem::path& rootPath, std::vector<std::filesystem::path>& outPaths)
-		{
-#ifdef WITH_TESTS
-			if (mocks.getAllFiles)
-			{
-				return mocks.getAllFiles(outPaths);
-			}
-#endif
-
-			for (auto dirEntry : std::filesystem::recursive_directory_iterator(rootPath))
-			{
-				outPaths.push_back(dirEntry.path());
-			}
-		}
-
-		size_t getFileLength(std::ifstream& file) const
-		{
-#ifdef WITH_TESTS
-			if (mocks.getFileLength)
-			{
-				return mocks.getFileLength(file);
-			}
-#endif
-
-			file.seekg(0, std::ios::end);
-			const size_t size = static_cast<size_t>(file.tellg());
-			file.seekg(0, std::ios::beg);
-			return size;
 		}
 
 		[[nodiscard]] size_t partiallyWriteDataToChunk(std::span<const std::byte> data, size_t alreadyWrittenBytes) noexcept
