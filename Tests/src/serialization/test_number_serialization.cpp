@@ -68,6 +68,12 @@ TEST(NumberSerialization, SerializeDeserializeU64Rountrip)
 	Serialization::writeUint64(buffer, 257);
 	EXPECT_EQ(static_cast<uint64_t>(257), Serialization::readUint64(buffer));
 
+	Serialization::writeUint64(buffer, 2000000042);
+	EXPECT_EQ(static_cast<uint64_t>(2000000042), Serialization::readUint64(buffer));
+
+	Serialization::writeUint64(buffer, 7777777777777777777);
+	EXPECT_EQ(static_cast<uint64_t>(7777777777777777777), Serialization::readUint64(buffer));
+
 	Serialization::writeUint64(buffer, std::numeric_limits<uint64_t>::max());
 	EXPECT_EQ(std::numeric_limits<uint64_t>::max(), Serialization::readUint64(buffer));
 }

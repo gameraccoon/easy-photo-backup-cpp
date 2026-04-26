@@ -3,10 +3,6 @@
 
 #include "common_shared/serialization/number_serialization.h"
 
-#include <algorithm>
-#include <array>
-#include <bit>
-
 #include "common_shared/debug/assert.h"
 
 namespace Serialization
@@ -23,48 +19,19 @@ namespace Serialization
 
 	void appendUint16(std::vector<std::byte>& inOutStream, uint16_t value)
 	{
-		if constexpr (std::endian::native == std::endian::little)
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			inOutStream.push_back(static_cast<std::byte>((value >> 8) & 0xff));
-			inOutStream.push_back(static_cast<std::byte>(value & 0xff));
-		}
-		else
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			inOutStream.push_back(static_cast<std::byte>(value & 0xff));
-			inOutStream.push_back(static_cast<std::byte>((value >> 8) & 0xff));
-		}
+		inOutStream.push_back(static_cast<std::byte>((value >> 8) & 0xff));
+		inOutStream.push_back(static_cast<std::byte>(value & 0xff));
 	}
 
 	void writeUint16(std::byte& outByte1, std::byte& outByte2, uint16_t value)
 	{
-		if constexpr (std::endian::native == std::endian::little)
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			outByte1 = static_cast<std::byte>((value >> 8) & 0xff);
-			outByte2 = static_cast<std::byte>(value & 0xff);
-		}
-		else
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			outByte1 = static_cast<std::byte>(value & 0xff);
-			outByte2 = static_cast<std::byte>((value >> 8) & 0xff);
-		}
+		outByte1 = static_cast<std::byte>((value >> 8) & 0xff);
+		outByte2 = static_cast<std::byte>(value & 0xff);
 	}
 
 	uint16_t readUint16(std::byte byte1, std::byte byte2)
 	{
-		if constexpr (std::endian::native == std::endian::little)
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			return (static_cast<uint16_t>(byte1) << 8) | static_cast<uint16_t>(byte2);
-		}
-		else
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			return static_cast<uint16_t>(byte1) | (static_cast<uint16_t>(byte2) << 8);
-		}
+		return (static_cast<uint16_t>(byte1) << 8) | static_cast<uint16_t>(byte2);
 	}
 
 	void writeUint64(std::span<std::byte> outSerializedData, uint64_t value)
@@ -75,23 +42,9 @@ namespace Serialization
 			return;
 		}
 
-		if constexpr (std::endian::native == std::endian::big)
+		for (int i = 0; i < 8; ++i)
 		{
-			// ReSharper disable once CppDFAUnreachableCode
-			std::ranges::copy(
-				std::bit_cast<std::array<std::byte, 8>>(value),
-				outSerializedData.begin()
-			);
-		}
-		else
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			std::array<std::byte, 8> temp = std::bit_cast<std::array<std::byte, 8>>(value);
-			std::ranges::reverse(temp);
-			std::ranges::copy(
-				temp,
-				outSerializedData.begin()
-			);
+			outSerializedData[i] = static_cast<std::byte>((value >> (0x38 - 0x8 * i)) & 0xFF);
 		}
 	}
 
@@ -104,22 +57,9 @@ namespace Serialization
 		}
 
 		uint64_t v = 0;
-
-		if constexpr (std::endian::native == std::endian::big)
+		for (size_t i = 0; i < 8; ++i)
 		{
-			// ReSharper disable once CppDFAUnreachableCode
-			std::ranges::copy(
-				serializedData,
-				reinterpret_cast<std::array<std::byte, 8>*>(&v)->begin()
-			);
-		}
-		else
-		{
-			// ReSharper disable once CppDFAUnreachableCode
-			std::array<std::byte, 8> temp;
-			std::ranges::copy(serializedData, temp.begin());
-			std::ranges::reverse(temp);
-			v = std::bit_cast<uint64_t>(temp);
+			v |= (static_cast<uint64_t>(serializedData[i]) << (0x38 - 0x8 * i));
 		}
 
 		return v;
