@@ -180,16 +180,16 @@ namespace FileReceiveUtils
 			stream.write(reinterpret_cast<const char*>(bufferSpan.data()), bufferSpan.size());
 		}
 
-		std::optional<std::string> sendAnswerBuffer(Network::RawSocket socket, std::span<std::byte> buffer, size_t bytesToSend, Noise::CipherStateSending& sendingCipherstate)
+		std::optional<std::string> sendAnswerBuffer(Network::RawSocket socket, std::span<std::byte> bufferToSend, size_t bytesToSend, Noise::CipherStateSending& sendingCipherstate)
 		{
 #ifdef WITH_TESTS
 			if (mocks.sendAnswerBuffer)
 			{
-				return mocks.sendAnswerBuffer(socket, buffer, bytesToSend, sendingCipherstate);
+				return mocks.sendAnswerBuffer(socket, bufferToSend, bytesToSend, sendingCipherstate);
 			}
 #endif
 
-			return Network::sendEncrypted(socket, buffer, bytesToSend, sendingCipherstate);
+			return Network::sendEncrypted(socket, bufferToSend, bytesToSend, sendingCipherstate);
 		}
 
 		[[nodiscard]] size_t partiallyReadDataFromChunk(std::span<std::byte> data, size_t alreadyReadBytes) noexcept

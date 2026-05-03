@@ -409,7 +409,7 @@ namespace FileSendUtils
 			{
 				for (size_t j = 0; j < 8; ++j)
 				{
-					if ((size_t(receivingBuffer.raw[BitsetOffset + i]) & (1 << (7 - j))) != 0)
+					if ((size_t(receivingBuffer.raw[BitsetOffset + i]) & (size_t(1) << (7 - j))) != 0)
 					{
 						errorFileIndexes.push_back(i * 8 + j);
 					}
@@ -428,9 +428,9 @@ namespace FileSendUtils
 				for (; errorIndex < errorFileIndexes.size() && posInChunk < AnswerChunkSize; ++errorIndex, ++posInChunk)
 				{
 					const size_t fileIdx = errorFileIndexes[errorIndex];
-					switch (receivingBuffer.raw[posInChunk])
+					switch (static_cast<uint8_t>(receivingBuffer.raw[posInChunk]))
 					{
-					case static_cast<std::byte>(Protocol::FileExchange::FileReceiveStatus::BadFilePath):
+					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::BadFilePath):
 						break;
 					default:
 						reportDebugError("Unknown file error status {}", static_cast<uint8_t>(receivingBuffer.raw[posInChunk]));
