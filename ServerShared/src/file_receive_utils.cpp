@@ -8,6 +8,7 @@
 
 #include "common_shared/cryptography/noise/cipher_utils.h"
 #include "common_shared/debug/assert.h"
+#include "common_shared/files/file_utils.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
@@ -210,33 +211,6 @@ namespace FileReceiveUtils
 			return filePathSize == 0 && fileSizeBytes == 0;
 		}
 
-		static bool isFilePathAcceptable(const std::filesystem::path& path) noexcept
-		{
-			if (path.empty())
-			{
-				return false;
-			}
-
-			if (path.is_absolute())
-			{
-				return false;
-			}
-
-			// make sure the path doesn't contain /./ and /../ parts in the middle
-			if (path.lexically_normal() != path)
-			{
-				return false;
-			}
-
-			// check that the path doesn't start with ..
-			std::filesystem::path parent = path;
-			while (parent.has_parent_path())
-			{
-				parent = parent.parent_path();
-			}
-			return parent != "..";
-		}
-
 		void newFile() noexcept
 		{
 			if (isFileOpen(file))
@@ -317,7 +291,7 @@ namespace FileReceiveUtils
 					return true;
 				}
 
-				if (isFilePathAcceptable(filePath))
+				if (Files::isFilePathAcceptable(filePath))
 				{
 					openFile(file, rootPath / filePath);
 
