@@ -7,21 +7,24 @@
 
 #include <format>
 #include <iostream>
-#include <syncstream>
+#include <mutex>
+
+#include "common_shared/debug/log.h"
 
 namespace Debug::Print
 {
 	void printSpan(const char* name, std::span<const std::byte> data)
 	{
-		std::osyncstream syncStream(std::cout);
-		syncStream << name << ": 0x";
+		std::lock_guard<std::mutex> lock(Debug::Log::Internal::getDebugLogMutex());
+
+		std::cout << name << ": 0x";
 		// incredibly slow but threadsafe
 		for (size_t i = 0; i < data.size(); i++)
 		{
-			syncStream << std::format("{:02x}", static_cast<char>(data[i]));
+			std::cout << std::format("{:02x}", static_cast<char>(data[i]));
 		}
-		syncStream << '\n'
-				   << std::flush;
+		std::cout << '\n'
+				  << std::flush;
 	}
 } // namespace Debug::Print
 

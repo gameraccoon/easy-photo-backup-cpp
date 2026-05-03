@@ -4,10 +4,16 @@
 #pragma once
 
 #include <format>
+#include <mutex>
 #include <string_view>
 
 namespace Debug::Log
 {
+	namespace Internal
+	{
+		std::mutex& getDebugLogMutex();
+	} // namespace Internal
+
 	void printDebug(std::string_view text);
 
 	template<typename... Args>
