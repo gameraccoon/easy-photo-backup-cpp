@@ -113,7 +113,7 @@ namespace FileSendUtils
 			}
 #endif
 
-			stream.read(reinterpret_cast<char*>(bufferSpan.data()), buffer.size());
+			stream.read(reinterpret_cast<char*>(bufferSpan.data()), bufferSpan.size());
 		}
 
 		std::optional<std::string> sendBuffer(Network::RawSocket socket, std::span<std::byte> bufferSpan, size_t bytesFilledInBuffer, Noise::CipherStateSending& sendingCipherstate)
