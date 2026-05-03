@@ -23,6 +23,7 @@ namespace FileReceiveUtils
 		std::function<void(std::ofstream&, const std::filesystem::path&)> openFile;
 		std::function<bool(std::ofstream&)> isFileOpen;
 		std::function<void(std::ofstream&, std::span<const std::byte>)> writeSpanIntoStream;
+		std::function<std::optional<std::string>(Network::RawSocket, std::span<std::byte>, size_t, Noise::CipherStateSending&)> sendAnswerBuffer;
 	};
 #else
 	struct Mocks

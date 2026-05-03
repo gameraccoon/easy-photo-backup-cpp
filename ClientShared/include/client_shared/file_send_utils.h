@@ -25,6 +25,7 @@ namespace FileSendUtils
 		std::function<bool(std::ifstream&)> isFileOpen;
 		std::function<void(std::ifstream&, std::span<std::byte>)> readFileStreamIntoSpan;
 		std::function<std::optional<std::string>(Network::RawSocket, std::span<std::byte>, size_t, Noise::CipherStateSending&)> sendBuffer;
+		std::function<std::optional<std::string>(Network::RawSocket, std::span<std::byte>, size_t&, Noise::CipherStateReceiving&)> recvAnswerBuffer;
 	};
 #else
 	struct Mocks

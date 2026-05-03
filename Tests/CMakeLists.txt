@@ -4,6 +4,7 @@
 cmake_minimum_required(VERSION 3.22.1)
 
 option(RUN_TESTS_ON_BUILD "Should building also run tests" ON)
+option(RUN_TESTS_WITH_UBSAN "Run tests with UB sanitizer" ON)
 
 include(CTest)
 include(GoogleTest)
@@ -18,6 +19,10 @@ if(MSVC)
 	target_compile_options(Tests PRIVATE /W4 /WX)
 else()
 	target_compile_options(Tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	if (RUN_TESTS_WITH_UBSAN)
+		target_compile_options(Tests PRIVATE -fsanitize=undefined -fno-sanitize-recover)
+		target_link_options(Tests PRIVATE -fsanitize=undefined)
+	endif()
 endif()
 
 target_include_directories(Tests PRIVATE

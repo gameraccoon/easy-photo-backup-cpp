@@ -103,5 +103,31 @@ namespace Protocol
 	{
 		constexpr static size_t ChunkSize = 1024;
 		constexpr static size_t ChunksBetweenAnswers = 32;
+
+		// With the size of the buffer of 1024, 32 chunks between answers, and 8+2+1 bytes of metadata we can theoretically send below 373 empty files between answers.
+		// However, realistically, since it is just 32KiB of data, this is likely being just a tiny fraction of a file.
+
+		// An answer includes:
+		// - the number of files to confirm,
+		// - bitset of statuses (zero for success, one for failure),
+		// - an array of statuses for failed files (if any), the number of elements is popcount of the bitset above
+
+		// If there is a file in progress, its status is sent last (0 - good so far, 1 - need to cancel).
+		// This means that if the file can't be created, the first 32 KiB of it (minus metadata) will still be sent before the client can know that it was rejected.
+		// As soon as the rejection for the file of progress is sent, it is expected that the client will not send any more data, so in the very next message it is expected to receive the next file metadata.
+
+		// The answer is split into chunks of 64 bytes, it is expected that the server waits for all the chunks before proceedin sending next file chunks.
+
+		constexpr static size_t AnswerChunkSize = 64;
+		enum class FileReceiveStatus : uint8_t
+		{
+			Success = 0,
+			// e.g. a path that tries to escape the root directory, or disallowed characters in the path
+			BadFilePath = 1,
+			// e.g. missing permissions
+			CouldNotCreate = 2,
+			// e.g. out of disk space
+			CouldNotWriteToFile = 3,
+		};
 	}
 } // namespace Protocol
