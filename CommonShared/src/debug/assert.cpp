@@ -8,6 +8,8 @@ namespace Debug::Assert
 	AssertHandlerFn gGlobalAssertHandler = [] {
 		// ToDo: we need to add a debugger trap here
 	};
-	AssertHandlerFn gGlobalFatalAssertHandler = [] { std::terminate(); };
+	AssertHandlerFn gGlobalFatalAssertHandler = [] {
+		std::terminate();
+	};
 	bool gGlobalAllowAssertLogs = true;
 } // namespace Debug::Assert

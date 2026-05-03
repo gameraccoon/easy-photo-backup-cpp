@@ -100,7 +100,9 @@ int main()
 	{
 		std::unique_lock lock(serversMutex);
 		// wait until we have non-empty servers
-		serversChanged.wait(lock, [&] { return !servers.empty(); });
+		serversChanged.wait(lock, [&] {
+			return !servers.empty();
+		});
 
 		foundServer = servers[0];
 

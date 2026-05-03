@@ -20,8 +20,12 @@ namespace AssertHelper
 	inline void enableAsserts() noexcept
 	{
 		Debug::Assert::gGlobalAllowAssertLogs = true;
-		Debug::Assert::gGlobalAssertHandler = [] { GTEST_FAIL(); };
-		Debug::Assert::gGlobalFatalAssertHandler = [] { GTEST_FATAL_FAILURE_("Fatal assert called"); };
+		Debug::Assert::gGlobalAssertHandler = [] {
+			GTEST_FAIL();
+		};
+		Debug::Assert::gGlobalFatalAssertHandler = [] {
+			GTEST_FATAL_FAILURE_("Fatal assert called");
+		};
 	}
 
 	class ScopedAssertDisabler

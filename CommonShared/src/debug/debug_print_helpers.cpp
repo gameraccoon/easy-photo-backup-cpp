@@ -23,6 +23,6 @@ namespace Debug::Print
 		syncStream << '\n'
 				   << std::flush;
 	}
-}
+} // namespace Debug::Print
 
 #endif // DEBUG_CHECKS

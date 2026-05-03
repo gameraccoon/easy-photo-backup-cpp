@@ -80,7 +80,9 @@ void appendHexBytes(const std::string_view inString, std::vector<std::byte>& inO
 
 bool isAllZeroes(const std::span<const std::byte> data)
 {
-	return std::all_of(data.begin(), data.end(), [](std::byte v) { return v == static_cast<std::byte>(0); });
+	return std::all_of(data.begin(), data.end(), [](std::byte v) {
+		return v == static_cast<std::byte>(0);
+	});
 }
 
 bool areSpansEqual(std::span<const std::byte> span1, std::span<const std::byte> span2)
