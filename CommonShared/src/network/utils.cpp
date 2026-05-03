@@ -76,10 +76,10 @@ namespace Network
 
 	std::variant<NetworkAddress, std::string> parseAddress(const void* const addr, const size_t addrLen)
 	{
-		char name[INET6_ADDRSTRLEN];
+		std::array<char, INET6_ADDRSTRLEN> name = {};
 
 		char portStr[10];
-		if (getnameinfo(static_cast<const sockaddr*>(addr), static_cast<socklen_t>(addrLen), name, sizeof(name), portStr, sizeof(portStr), NI_NUMERICHOST | NI_NUMERICSERV) == -1) [[unlikely]]
+		if (getnameinfo(static_cast<const sockaddr*>(addr), static_cast<socklen_t>(addrLen), name.data(), name.size(), portStr, sizeof(portStr), NI_NUMERICHOST | NI_NUMERICSERV) < 0) [[unlikely]]
 		{
 			reportDebugError("Can't convert socket address to string, error code {}", errno);
 			return std::format("Can't convert socket address to string, error code {}", errno);
@@ -88,14 +88,14 @@ namespace Network
 		NetworkAddress resultAddress;
 
 		// processing short IPv6 addresses (end with %)
-		const auto it = std::find(name, name + INET6_ADDRSTRLEN, '%');
-		if (it != name + INET6_ADDRSTRLEN)
+		const auto it = std::find(name.data(), name.data() + INET6_ADDRSTRLEN, '%');
+		if (it != name.data() + INET6_ADDRSTRLEN)
 		{
-			resultAddress.ip = std::string(name, it);
+			resultAddress.ip = std::string(name.data(), it);
 		}
 		else
 		{
-			resultAddress.ip = name;
+			resultAddress.ip = name.data();
 		}
 
 		resultAddress.port = static_cast<uint16_t>(parseInt(portStr).value_or(0));
