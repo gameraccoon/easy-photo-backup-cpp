@@ -71,14 +71,14 @@ int main()
 
 		if (std::holds_alternative<NsdServer::SetupError>(result))
 		{
-			Debug::Log::printDebug(std::format("NSD server setup error: '{}'", std::get<NsdServer::SetupError>(result).error));
+			Debug::Log::printDebug("NSD server setup error: '{}'", std::get<NsdServer::SetupError>(result).error);
 		}
 		else
 		{
 			// if we didn't stop intentionally
 			if (nsdCloseSocketFlag.load(std::memory_order::acquire) == false)
 			{
-				Debug::Log::printDebug(std::format("NSD server error: '{}'", std::get<NsdServer::SocketError>(result).error));
+				Debug::Log::printDebug("NSD server error: '{}'", std::get<NsdServer::SocketError>(result).error);
 				nsdCloseSocketFlag.store(true, std::memory_order::release);
 				Network::closeSocket(socket);
 			}

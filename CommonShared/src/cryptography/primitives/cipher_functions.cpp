@@ -181,7 +181,7 @@ namespace Cryptography
 
 		if (mismatch != 0) [[unlikely]]
 		{
-			Debug::Log::printDebug(std::format("Decryption failed, mac mismatch is {}", mismatch));
+			Debug::Log::printDebug("Decryption failed, mac mismatch is {}", mismatch);
 			return DecryptResult::AuthDataMismatch;
 		}
 

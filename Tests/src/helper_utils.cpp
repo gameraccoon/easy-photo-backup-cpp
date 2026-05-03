@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+#include "common_shared/debug/log.h"
+
 void hexCharToInt(const char ch, std::byte& res)
 {
 	if (ch >= '0' && ch <= '9')
@@ -25,7 +27,7 @@ void hexCharToInt(const char ch, std::byte& res)
 		return;
 	}
 
-	printf("unknown HEX character: '%c' with code %u", ch, ch);
+	Debug::Log::printDebug("unknown HEX character: '{}' with code {}", ch, static_cast<size_t>(ch));
 
 	FAIL();
 }
