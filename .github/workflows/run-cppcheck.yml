@@ -18,7 +18,7 @@ on:
       - tools/validate/**
   workflow_dispatch:
 jobs:
-  clang-format-checking:
+  cppcheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
