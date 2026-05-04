@@ -102,7 +102,7 @@ struct TestFileExchangeFile
 static std::vector<std::byte> generateTestFileData(size_t size)
 {
 	std::minstd_rand random;
-	random.seed(time(NULL));
+	random.seed(static_cast<std::minstd_rand::result_type>(time(nullptr)));
 
 	std::vector<std::byte> result;
 	result.resize(size);
