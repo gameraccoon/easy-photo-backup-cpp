@@ -43,6 +43,7 @@ namespace FileSendUtils
 			EndTransmission,
 			EndChunk,
 			Answer,
+			AnswerExtraChunk,
 		};
 
 		void debugPrintState([[maybe_unused]] DebugState state)
@@ -53,7 +54,7 @@ namespace FileSendUtils
 				switch (state)
 				{
 				case DebugState::StartChunk:
-					Debug::Log::printDebug("Send:  /---------------\\\nSend: /                 \\");
+					Debug::Log::printDebug("Send:  /---------------\\\nSend: / #{:03}            \\", chunksSent);
 					break;
 				case DebugState::FileSize:
 					Debug::Log::printDebug("Send: |    file size     |");
@@ -84,6 +85,9 @@ namespace FileSendUtils
 					break;
 				case DebugState::Answer:
 					Debug::Log::printDebug("Send: [[   read answer  ]]");
+					break;
+				case DebugState::AnswerExtraChunk:
+					Debug::Log::printDebug("Send: [[ read answer ++ ]]");
 					break;
 				default:
 					break;
@@ -308,14 +312,14 @@ namespace FileSendUtils
 
 		[[nodiscard]] bool sendChunk(Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate) noexcept
 		{
-			if (bytesFilledInChunk != ChunkSize)
+			if (bytesFilledInChunk != ChunkSize) [[unlikely]]
 			{
 				reportDebugError("We should never try to send partially filled chunks, should use fillRemainderWithZeroes");
 				return false;
 			}
 
 			auto sendResult = sendBuffer(socket, buffer, bytesFilledInChunk, sendingCipherstate);
-			if (sendResult.has_value())
+			if (sendResult.has_value()) [[unlikely]]
 			{
 				reportDebugError("Could not send file part: {}", *sendResult);
 				return false;
@@ -359,7 +363,9 @@ namespace FileSendUtils
 
 			constexpr size_t BitsetOffset = 2;
 
-			if (filesAwaitingConfirmation.empty())
+			debugPrintState(DebugState::Answer);
+
+			if (filesAwaitingConfirmation.empty()) [[unlikely]]
 			{
 				reportDebugError("Reading confirmation when have no files needing to confirm");
 				return false;
@@ -370,13 +376,13 @@ namespace FileSendUtils
 			Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, AnswerChunkSize + Cryptography::CipherAuthDataSize> receivingBuffer;
 
 			size_t bytesReceived = 0;
-			if (auto result = recvAnswerBuffer(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value())
+			if (auto result = recvAnswerBuffer(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value()) [[unlikely]]
 			{
 				reportDebugError("Could not recv answer: {}", *result);
 				return false;
 			}
 
-			if (bytesReceived != AnswerChunkSize)
+			if (bytesReceived != AnswerChunkSize) [[unlikely]]
 			{
 				reportDebugError("Unexpected answer chunk size {}", bytesReceived);
 				return false;
@@ -386,48 +392,79 @@ namespace FileSendUtils
 
 			const size_t bytesInBitset = (statusesToRead + 7) / 8;
 
-			size_t popcount = 0;
-			for (size_t i = 0; i < bytesInBitset; ++i)
-			{
-				popcount += std::popcount(static_cast<uint8_t>(receivingBuffer.raw[BitsetOffset + i]));
-			}
+			const size_t bitsetChunks = (BitsetOffset + bytesInBitset + AnswerChunkSize - 1) / AnswerChunkSize;
 
-			debugPrintState(DebugState::Answer);
-
-			// this is the most likely situation, that we have only a few files that got confirmed
-			if (popcount == 0) [[likely]]
+			if (bitsetChunks == 1) [[likely]]
 			{
-				// ToDo: record as sent and saved
-				clearConfirmations(hasFileFinished());
-				return true;
-			}
-
-			// process error cases
-			std::vector<size_t> errorFileIndexes;
-			errorFileIndexes.reserve(popcount);
-			for (size_t i = 0; i < bytesInBitset; ++i)
-			{
-				for (size_t j = 0; j < 8; ++j)
+				size_t popcount = 0;
+				for (size_t i = 0; i < bytesInBitset; ++i)
 				{
-					if ((size_t(receivingBuffer.raw[BitsetOffset + i]) & (size_t(1) << (7 - j))) != 0)
-					{
-						errorFileIndexes.push_back(i * 8 + j);
-					}
+					popcount += std::popcount(static_cast<uint8_t>(receivingBuffer.raw[BitsetOffset + i]));
+				}
+
+				// this is the most likely situation, that we have only a few files that got confirmed
+				if (popcount == 0) [[likely]]
+				{
+					// ToDo: record as sent and saved
+					clearConfirmations(hasFileFinished());
+					return true;
 				}
 			}
 
-			const size_t errorsArrayOffset = BitsetOffset + bytesInBitset;
+			// process error cases
+			size_t popcount = 0;
+			size_t posInChunk = BitsetOffset;
+			size_t errorStartIndex = 0;
+			size_t bytePosInBitset = 0;
+			std::vector<size_t> errorFileIndexes;
+			errorFileIndexes.reserve(popcount);
+			for (size_t chunkIdx = 0; chunkIdx < bitsetChunks; ++chunkIdx)
+			{
+				for (; bytePosInBitset < bytesInBitset && posInChunk < AnswerChunkSize; ++bytePosInBitset, ++posInChunk)
+				{
+					const uint8_t byte = static_cast<uint8_t>(receivingBuffer.raw[posInChunk]);
+					popcount += std::popcount(byte);
+
+					for (size_t j = 0; j < 8; ++j)
+					{
+						if ((byte & (static_cast<uint8_t>(1) << (7 - j))) != 0)
+						{
+							errorFileIndexes.push_back(errorStartIndex + j);
+						}
+					}
+					errorStartIndex += 8;
+				}
+
+				if (posInChunk == AnswerChunkSize)
+				{
+					debugPrintState(DebugState::AnswerExtraChunk);
+					if (auto result = recvAnswerBuffer(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value()) [[unlikely]]
+					{
+						reportDebugError("Could not recv answer chunk: {}", *result);
+						return false;
+					}
+
+					if (bytesReceived != AnswerChunkSize) [[unlikely]]
+					{
+						reportDebugError("Unexpected answer chunk size {}", bytesReceived);
+						return false;
+					}
+					posInChunk = 0;
+				}
+			}
+
+			assertFatalRelease(posInChunk == (BitsetOffset + bytesInBitset) % AnswerChunkSize, "Unexpected chunk pos {} == {}", posInChunk, (BitsetOffset + bytesInBitset) % AnswerChunkSize);
+
 			const size_t errorsArraySize = errorFileIndexes.size();
-			const size_t chunksToReseive = (errorsArrayOffset + errorsArraySize + AnswerChunkSize - 1) / AnswerChunkSize;
+			const size_t chunksToReseive = (posInChunk + errorsArraySize + AnswerChunkSize - 1) / AnswerChunkSize;
 			assertFatalRelease(chunksToReseive != 0, "Can't have zero chunks to send as an answer");
 
-			size_t errorIndex = 0;
-			size_t posInChunk = errorsArrayOffset;
+			errorStartIndex = 0;
 			for (size_t chunkIdx = 0; chunkIdx < chunksToReseive; ++chunkIdx)
 			{
-				for (; errorIndex < errorFileIndexes.size() && posInChunk < AnswerChunkSize; ++errorIndex, ++posInChunk)
+				for (; errorStartIndex < errorFileIndexes.size() && posInChunk < AnswerChunkSize; ++errorStartIndex, ++posInChunk)
 				{
-					const size_t fileIdx = errorFileIndexes[errorIndex];
+					const size_t fileIdx = errorFileIndexes[errorStartIndex];
 					switch (static_cast<uint8_t>(receivingBuffer.raw[posInChunk]))
 					{
 					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::BadFilePath):
@@ -447,15 +484,16 @@ namespace FileSendUtils
 					{
 						// ToDo: record a failure and exclude from confirmed
 					}
-					else
+					else [[unlikely]]
 					{
-						reportDebugError("File confirmation index out of bounds {}", fileIdx);
+						reportDebugError("File confirmation index out of bounds {} of {}", fileIdx, filesAwaitingConfirmation.size());
 						return false;
 					}
 				}
 
 				if (chunkIdx + 1 < chunksToReseive)
 				{
+					debugPrintState(DebugState::AnswerExtraChunk);
 					debugAssert(posInChunk == AnswerChunkSize, "We finished reading not last chunk too early: {}", posInChunk);
 					if (auto result = recvAnswerBuffer(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value())
 					{
@@ -493,7 +531,7 @@ namespace FileSendUtils
 				std::ifstream file;
 				sendingState.openFile(file, dirEntry);
 
-				if (!sendingState.isFileOpen(file))
+				if (!sendingState.isFileOpen(file)) [[unlikely]]
 				{
 					reportDebugError("Could not open file for reading: {}", dirEntry.string());
 					return;
@@ -521,6 +559,8 @@ namespace FileSendUtils
 
 				if (sendingState.isBufferFull())
 				{
+					sendingState.debugPrintState(FileSendingState::DebugState::EndChunk);
+
 					if (!sendingState.sendChunk(socket, sendingCipherstate))
 					{
 						return;
@@ -533,6 +573,8 @@ namespace FileSendUtils
 							return;
 						}
 					}
+
+					sendingState.debugPrintState(FileSendingState::DebugState::StartChunk);
 				}
 			}
 

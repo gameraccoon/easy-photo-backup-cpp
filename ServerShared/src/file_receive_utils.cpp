@@ -45,6 +45,7 @@ namespace FileReceiveUtils
 			EndTransmission,
 			EndChunk,
 			Answer,
+			AnswerExtraChunk,
 		};
 
 		void debugPrintState([[maybe_unused]] DebugState state)
@@ -55,7 +56,7 @@ namespace FileReceiveUtils
 				switch (state)
 				{
 				case DebugState::StartChunk:
-					Debug::Log::printDebug("Receive:\t\t\t  /---------------\\\nReceive:\t\t\t /                 \\");
+					Debug::Log::printDebug("Receive:\t\t\t  /---------------\\\nReceive:\t\t\t / #{:03}            \\", chunksReceived - 1);
 					break;
 				case DebugState::FileSize:
 					Debug::Log::printDebug("Receive:\t\t\t |    file size     |");
@@ -86,6 +87,9 @@ namespace FileReceiveUtils
 					break;
 				case DebugState::Answer:
 					Debug::Log::printDebug("Receive:\t\t\t [[   send answer  ]]");
+					break;
+				case DebugState::AnswerExtraChunk:
+					Debug::Log::printDebug("Receive:\t\t\t [[ send answer ++ ]]");
 					break;
 				default:
 					break;
@@ -393,8 +397,10 @@ namespace FileReceiveUtils
 
 			constexpr size_t BitsetOffset = 2;
 
+			debugPrintState(DebugState::Answer);
+
 			const bool hasFileInProgress = !hasFileFinished();
-			const size_t statusesToSend = lastFileStatuses.size();
+			const size_t statusesToSend = lastFileStatuses.size() + (hasFileInProgress ? 0 : -1);
 			// buffer is zeroed by default
 			Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, AnswerChunkSize + Cryptography::CipherAuthDataSize> sendingBuffer;
 
@@ -403,40 +409,66 @@ namespace FileReceiveUtils
 
 			const size_t bytesInBitset = (statusesToSend + 7) / 8;
 
-			assertFatalRelease(BitsetOffset + bytesInBitset < AnswerChunkSize, "We expected to never have a bitset that won't fit into the first chunk of the answer message, bitset size was {}", bytesInBitset);
+			const size_t bitsetChunks = (BitsetOffset + bytesInBitset + AnswerChunkSize - 1) / AnswerChunkSize;
 
 			size_t popcount = 0;
-			for (size_t i = 0; i < statusesToSend; ++i)
+			size_t posInStatuses = 0;
+			size_t posInChunk = BitsetOffset;
+			for (size_t chunkIdx = 0; chunkIdx < bitsetChunks; ++chunkIdx)
 			{
-				const size_t byte = i / 8;
-				const size_t bit = i % 8;
-				popcount += lastFileStatuses[i] == Protocol::FileExchange::FileReceiveStatus::Success ? 0 : 1;
-				sendingBuffer.raw[2 + byte] |= static_cast<std::byte>(((lastFileStatuses[i] == Protocol::FileExchange::FileReceiveStatus::Success ? 0 : 1) << (7 - bit)));
+				for (; posInStatuses < statusesToSend && posInChunk < AnswerChunkSize; ++posInStatuses)
+				{
+					const size_t bit = posInStatuses % 8;
+					const Protocol::FileExchange::FileReceiveStatus status = lastFileStatuses[posInStatuses];
+					popcount += status == Protocol::FileExchange::FileReceiveStatus::Success ? 0 : 1;
+					sendingBuffer.raw[posInChunk] |= static_cast<std::byte>(((status == Protocol::FileExchange::FileReceiveStatus::Success ? 0 : 1) << (7 - bit)));
+
+					if (posInStatuses % 8 == 7)
+					{
+						++posInChunk;
+					}
+				}
+
+				if (posInChunk == AnswerChunkSize)
+				{
+					debugPrintState(DebugState::AnswerExtraChunk);
+					if (auto result = sendAnswerBuffer(socket, sendingBuffer, AnswerChunkSize, sendingCipherstate))
+					{
+						reportDebugError("Could not send answer bitset chunk {}: {}", chunkIdx, *result);
+						return false;
+					}
+					posInChunk = 0;
+				}
 			}
 
-			const size_t errorsArrayOffset = BitsetOffset + bytesInBitset;
+			if (posInStatuses % 8 != 0)
+			{
+				++posInChunk;
+			}
+
+			const size_t errorsArrayOffset = posInChunk;
 			const size_t errorsArraySize = popcount;
+			assertFatalRelease(posInChunk == (BitsetOffset + bytesInBitset) % AnswerChunkSize, "Unexpected chunk pos {} == {}", posInChunk, (BitsetOffset + bytesInBitset) % AnswerChunkSize);
 
 			const size_t chunksToSend = (errorsArrayOffset + errorsArraySize + AnswerChunkSize - 1) / AnswerChunkSize;
 			assertFatalRelease(chunksToSend != 0, "Can't have zero chunks to send as an answer");
 
-			size_t posInChunk = errorsArrayOffset;
-			size_t posInStatuses = 0;
+			posInStatuses = 0;
 			for (size_t i = 0; i < chunksToSend; ++i)
 			{
-				for (; posInStatuses < statusesToSend; ++posInStatuses)
+				for (; posInStatuses < statusesToSend && posInChunk < AnswerChunkSize; ++posInStatuses)
 				{
 					if (lastFileStatuses[posInStatuses] != Protocol::FileExchange::FileReceiveStatus::Success)
 					{
 						sendingBuffer.raw[posInChunk] = static_cast<std::byte>(lastFileStatuses[posInStatuses]);
 						++posInChunk;
-						if (posInChunk == AnswerChunkSize)
-						{
-							break;
-						}
 					}
 				}
 
+				if (i + 1 != chunksToSend)
+				{
+					debugPrintState(DebugState::AnswerExtraChunk);
+				}
 				if (auto result = sendAnswerBuffer(socket, sendingBuffer, AnswerChunkSize, sendingCipherstate))
 				{
 					reportDebugError("Could not send an answer chunk {}: {}", i, *result);
@@ -452,14 +484,12 @@ namespace FileReceiveUtils
 				else
 				{
 					// end of last chunk
-					assertFatalRelease(posInStatuses <= statusesToSend, "Have read more statuses than available {} of {}", posInStatuses, statusesToSend);
-					assertFatalRelease(posInChunk == (errorsArraySize + errorsArrayOffset) % AnswerChunkSize, "Unexpected chunk size for the last chunk {}", posInChunk);
+					assertFatalRelease(posInStatuses == statusesToSend, "Have sent unexpected number of statuses {} of {}", posInStatuses, statusesToSend);
+					assertFatalRelease(posInChunk == (errorsArrayOffset + errorsArraySize) % AnswerChunkSize, "Unexpected chunk size for the last chunk {} == {}", posInChunk, (errorsArrayOffset + errorsArraySize) % AnswerChunkSize);
 				}
 			}
 
 			const bool hasFileInProgressFailed = hasFileInProgress && !currentFileHasNoErrors();
-
-			debugPrintState(DebugState::Answer);
 
 			lastFileStatuses.clear();
 			if (hasFileInProgressFailed)
