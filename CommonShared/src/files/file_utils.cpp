@@ -25,9 +25,17 @@ namespace Files
 
 		// check that the path doesn't start with ..
 		std::filesystem::path parent = path;
+		size_t depth = 0;
 		while (parent.has_parent_path())
 		{
 			parent = parent.parent_path();
+
+			++depth;
+			// arbitrary huge number to avoid infinite loop on some paths on Windows
+			if (depth > 1024)
+			{
+				return false;
+			}
 		}
 		return parent != "..";
 	}
