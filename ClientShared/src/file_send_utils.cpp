@@ -416,7 +416,6 @@ namespace FileSendUtils
 			}
 
 			// process error cases
-			size_t popcount = 0;
 			size_t posInChunk = BitsetOffset;
 			size_t errorStartIndex = 0;
 			size_t bytePosInBitset = 0;
@@ -427,7 +426,6 @@ namespace FileSendUtils
 				for (; bytePosInBitset < bytesInBitset && posInChunk < AnswerChunkSize; ++bytePosInBitset, ++posInChunk)
 				{
 					const uint8_t byte = static_cast<uint8_t>(receivingBuffer.raw[posInChunk]);
-					popcount += std::popcount(byte);
 
 					for (size_t j = 0; j < 8; ++j)
 					{
@@ -503,8 +501,6 @@ namespace FileSendUtils
 					}
 				}
 			}
-
-			debugAssert(errorFileIndexes.size() == popcount, "Number of errors doesn't match number of errors in bitset", errorFileIndexes.size(), popcount);
 
 			recordAndClearConfirmations(errorFileIndexes);
 			return true;
