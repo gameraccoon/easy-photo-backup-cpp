@@ -19,7 +19,16 @@ void FileListCache::recordFile(const std::filesystem::path& newPath) noexcept
 		{
 			mStorageFile.open(mStoragePath, std::ios_base::out | std::ios_base::app);
 		}
-		mStorageFile.write(newPath.native().c_str(), newPath.native().size());
+
+		if constexpr (std::is_same_v<std::filesystem::path::string_type, std::string>)
+		{
+			mStorageFile.write(newPath.native().c_str(), newPath.native().size());
+		}
+		else
+		{
+			const std::string pathStr = newPath.string();
+			mStorageFile.write(pathStr.c_str(), pathStr.size());
+		}
 	}
 	catch (...)
 	{
