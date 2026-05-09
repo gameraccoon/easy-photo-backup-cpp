@@ -508,6 +508,22 @@ TEST(FileSendReceiveUtils, RoundtripSendAndReceive10000EmptyFiles)
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			// global paths should be rejected
+			.path = std::format("e{}", i),
+			.data = {},
+		});
+	}
+
+	runFileExchangeTest(filesToSend, filesToSend);
+}
+
+TEST(FileSendReceiveUtils, RoundtripSendAndReceive10000EmptyFilesAllRejected)
+{
+	std::vector<TestFileExchangeFile> filesToSend;
+	filesToSend.reserve(10000);
+	for (size_t i = 0; i < 10000; ++i)
+	{
+		filesToSend.push_back(TestFileExchangeFile{
+			// global paths should be rejected
 			.path = std::format("../e{}", i),
 			.data = {},
 		});

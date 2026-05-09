@@ -400,7 +400,7 @@ namespace FileReceiveUtils
 			debugPrintState(DebugState::Answer);
 
 			const bool hasFileInProgress = !hasFileFinished();
-			const size_t statusesToSend = lastFileStatuses.size() + (hasFileInProgress ? 0 : -1);
+			const size_t statusesToSend = lastFileStatuses.size() - (hasFileInProgress ? 0 : 1);
 			// buffer is zeroed by default
 			Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, AnswerChunkSize + Cryptography::CipherAuthDataSize> sendingBuffer;
 
@@ -437,6 +437,8 @@ namespace FileReceiveUtils
 						reportDebugError("Could not send answer bitset chunk {}: {}", chunkIdx, *result);
 						return false;
 					}
+					// clean the ciphertext from the buffer to make sure we have zeros to reuse the buffer
+					std::fill(sendingBuffer.raw.begin(), sendingBuffer.raw.end(), std::byte(0x00));
 					posInChunk = 0;
 				}
 			}
@@ -474,6 +476,7 @@ namespace FileReceiveUtils
 					reportDebugError("Could not send an answer chunk {}: {}", i, *result);
 					return false;
 				}
+				std::fill(sendingBuffer.raw.begin(), sendingBuffer.raw.end(), std::byte(0x00));
 
 				if (i + 1 != chunksToSend)
 				{

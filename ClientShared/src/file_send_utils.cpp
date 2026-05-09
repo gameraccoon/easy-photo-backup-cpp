@@ -329,7 +329,7 @@ namespace FileSendUtils
 
 			++chunksSent;
 			bytesFilledInChunk = 0;
-			Cryptography::cryptoWipeRawData(buffer);
+			std::fill(buffer.raw.begin(), buffer.raw.end(), std::byte(0x00));
 
 			return true;
 		}
