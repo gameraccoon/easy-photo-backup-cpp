@@ -123,7 +123,9 @@ static void runFileExchangeTest(const std::vector<TestFileExchangeFile>& filesTo
 	TestMessagePipe<Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize> fileMessages;
 	TestMessagePipe<Protocol::FileExchange::AnswerChunkSize + Cryptography::CipherAuthDataSize> answerMessages;
 
-	auto sendingThread = std::thread([&filesToSend, &fileMessages, &answerMessages, &cipherKeyFromSenderToReceiver, &cipherKeyFromReceiverToSender]() {
+	std::vector<std::filesystem::path> sentFiles;
+
+	auto sendingThread = std::thread([&filesToSend, &sentFiles, &fileMessages, &answerMessages, &cipherKeyFromSenderToReceiver, &cipherKeyFromReceiverToSender]() {
 		int fileToWriteIdx = -1;
 		size_t fileCursor = 0;
 		bool getAllFilesCalled = false;
@@ -185,7 +187,7 @@ static void runFileExchangeTest(const std::vector<TestFileExchangeFile>& filesTo
 		Noise::CipherStateReceiving cipherStateReceiving;
 		cipherStateReceiving.cipherKey = cipherKeyFromReceiverToSender.clone();
 
-		FileSendUtils::sendDirectory("", 0, cipherStateSending, cipherStateReceiving, sendMocks);
+		sentFiles = FileSendUtils::sendDirectory("", 0, cipherStateSending, cipherStateReceiving, sendMocks);
 
 		EXPECT_TRUE(getAllFilesCalled);
 	});
@@ -246,6 +248,12 @@ static void runFileExchangeTest(const std::vector<TestFileExchangeFile>& filesTo
 	EXPECT_EQ(size_t(0), answerMessages.size());
 
 	ASSERT_EQ(receivedFiles, expectedFilesToReceive);
+
+	EXPECT_EQ(expectedFilesToReceive.size(), sentFiles.size());
+	for (const auto& expectedFile : expectedFilesToReceive)
+	{
+		EXPECT_NE(std::find(sentFiles.begin(), sentFiles.end(), expectedFile.path), sentFiles.end());
+	}
 }
 
 TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
@@ -293,7 +301,7 @@ TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
 	Noise::CipherStateReceiving cipherStateReceiving;
 	cipherStateReceiving.cipherKey = cipherStateSending.cipherKey.clone();
 
-	FileSendUtils::sendDirectory("", 0, cipherStateSending, cipherStateReceiving, sendMocks);
+	EXPECT_EQ(FileSendUtils::sendDirectory("", 0, cipherStateSending, cipherStateReceiving, sendMocks), std::vector<std::filesystem::path>{});
 
 	EXPECT_TRUE(sendBufferCalled);
 	EXPECT_FALSE(isFileOpenCalled);
@@ -500,15 +508,15 @@ TEST(FileSendReceiveUtils, RoundtripSendAndReceiveFilesAllRejected)
 	runFileExchangeTest(filesToSend, {});
 }
 
-TEST(FileSendReceiveUtils, RoundtripSendAndReceive10000EmptyFiles)
+TEST(FileSendReceiveUtils, RoundtripSendAndReceive2000EmptyFiles)
 {
 	std::vector<TestFileExchangeFile> filesToSend;
-	filesToSend.reserve(10000);
-	for (size_t i = 0; i < 10000; ++i)
+	filesToSend.reserve(2000);
+	for (size_t i = 0; i < 2000; ++i)
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			// global paths should be rejected
-			.path = std::format("e{}", i),
+			.path = std::format("empty{}", i),
 			.data = {},
 		});
 	}

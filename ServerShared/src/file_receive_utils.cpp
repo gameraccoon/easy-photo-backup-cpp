@@ -212,7 +212,7 @@ namespace FileReceiveUtils
 
 		bool isEndOfTransmission() const noexcept
 		{
-			return filePathSize == 0 && fileSizeBytes == 0;
+			return fileMetadataRead == static_cast<size_t>(2 + 8) && filePathSize == 0 && fileSizeBytes == 0;
 		}
 
 		void newFile() noexcept
@@ -230,16 +230,11 @@ namespace FileReceiveUtils
 			// set the default status to update later
 			lastFileStatuses.push_back(Protocol::FileExchange::FileReceiveStatus::Success);
 			debugPrintState(DebugState::NewFile);
+			++currentFileIndex;
 		}
 
-		[[nodiscard]] bool writeFileToDiskFromBuffer()
+		void writeFileToDiskFromBuffer()
 		{
-			if (isBufferFullyRead())
-			{
-				debugPrintState(DebugState::EndChunk);
-				return true;
-			}
-
 			if (fileMetadataRead < static_cast<size_t>(2 + 8 + filePathSize))
 			{
 				if (fileMetadataRead < 8)
@@ -254,8 +249,7 @@ namespace FileReceiveUtils
 					fileSizeBytes = Serialization::readUint64(data);
 					if (isBufferFullyRead())
 					{
-						debugPrintState(DebugState::EndChunk);
-						return true;
+						return;
 					}
 				}
 
@@ -270,29 +264,24 @@ namespace FileReceiveUtils
 					fileMetadataRead += partiallyReadDataFromChunk(data, fileMetadataRead - 8);
 					filePathSize = Serialization::readUint16(data.raw[0], data.raw[1]);
 
-					if (fileMetadataRead == static_cast<size_t>(2 + 8) && filePathSize == 0 && fileSizeBytes == 0)
+					if (isEndOfTransmission())
 					{
-						// this is a signal about the transmission end, return as if we finished reading the file
-						debugPrintState(DebugState::EndTransmission);
-						return false;
+						return;
 					}
 
 					if (isBufferFullyRead())
 					{
-						debugPrintState(DebugState::EndChunk);
-						return true;
+						return;
 					}
 				}
 				filePath.resize(filePathSize);
 
-				debugPrintState(DebugState::FilePath);
 				fileMetadataRead += partiallyReadDataFromChunk(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize), fileMetadataRead - (8 + 2));
 
 				// if we have not finished reading name, but buffer is full, break here to return later
 				if (fileMetadataRead < static_cast<size_t>(2 + 8 + filePathSize) && isBufferFullyRead())
 				{
-					debugPrintState(DebugState::EndChunk);
-					return true;
+					return;
 				}
 
 				if (Files::isFilePathAcceptable(filePath))
@@ -313,23 +302,25 @@ namespace FileReceiveUtils
 				}
 				else
 				{
-					// save the error, so we ignore writing to the file and send the status to the client
-					// but otherwise continue receiving and decoding the data until the time of reporting
-					lastFileStatuses.back() = Protocol::FileExchange::FileReceiveStatus::BadFilePath;
+					debugAssert(!lastFileStatuses.empty(), "last file statuses is not expected to be empty when rejecting file name");
+					if (!lastFileStatuses.empty())
+					{
+						// save the error, so we ignore writing to the file and send the status to the client
+						// but otherwise continue receiving and decoding the data until the time of reporting
+						lastFileStatuses.back() = Protocol::FileExchange::FileReceiveStatus::BadFilePath;
+					}
 				}
 
 				// if we finished reading metadata and the buffer if full
 				if (fileMetadataRead == static_cast<size_t>(2 + 8 + filePathSize) && isBufferFullyRead())
 				{
-					debugPrintState(DebugState::EndChunk);
-					return true;
+					return;
 				}
 			}
 
 			if (bytesWrittenToFile == fileSizeBytes)
 			{
-				debugPrintState(DebugState::EndFile);
-				return false;
+				return;
 			}
 
 			const size_t bytesToWrite = std::min(fileSizeBytes - bytesWrittenToFile, ChunkSize - bytesReadInChunk);
@@ -345,9 +336,6 @@ namespace FileReceiveUtils
 			bytesWrittenToFile += bytesToWrite;
 			bytesReadInChunk += bytesToWrite;
 			assertFatalRelease(bytesWrittenToFile <= fileSizeBytes, "File read size bigger than file size, this should never happen");
-
-			debugPrintState(bytesWrittenToFile != fileSizeBytes ? DebugState::EndChunk : DebugState::EndFile);
-			return bytesWrittenToFile != fileSizeBytes;
 		}
 
 		[[nodiscard]] bool receiveChunk(Network::RawSocket socket, Noise::CipherStateReceiving& receivingCipherstate) noexcept
@@ -400,7 +388,7 @@ namespace FileReceiveUtils
 			debugPrintState(DebugState::Answer);
 
 			const bool hasFileInProgress = !hasFileFinished();
-			const size_t statusesToSend = lastFileStatuses.size() - (hasFileInProgress ? 0 : 1);
+			const size_t statusesToSend = lastFileStatuses.size() - (isEndOfTransmission() ? 1 : 0);
 			// buffer is zeroed by default
 			Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, AnswerChunkSize + Cryptography::CipherAuthDataSize> sendingBuffer;
 
@@ -497,9 +485,10 @@ namespace FileReceiveUtils
 			lastFileStatuses.clear();
 			if (hasFileInProgressFailed)
 			{
+				// reset receiving of the last file
 				newFile();
 			}
-			else
+			else if (hasFileInProgress)
 			{
 				// restore the record for the file that is in progress, or that is about to be written
 				lastFileStatuses.push_back(Protocol::FileExchange::FileReceiveStatus::Success);
@@ -518,8 +507,6 @@ namespace FileReceiveUtils
 		receivingState.mocks = std::move(mocks);
 #endif
 
-		Debug::Log::printDebug("start receiving files");
-
 		try
 		{
 			receivingState.newFile();
@@ -531,7 +518,14 @@ namespace FileReceiveUtils
 
 			while (true)
 			{
-				while (receivingState.writeFileToDiskFromBuffer())
+				receivingState.writeFileToDiskFromBuffer();
+
+				if (receivingState.isEndOfTransmission())
+				{
+					break;
+				}
+
+				if (receivingState.isBufferFullyRead())
 				{
 					if (receivingState.shouldWriteAnswer())
 					{
@@ -547,12 +541,10 @@ namespace FileReceiveUtils
 					}
 				}
 
-				if (receivingState.isEndOfTransmission())
+				if (receivingState.hasFileFinished())
 				{
-					break;
+					receivingState.newFile();
 				}
-
-				receivingState.newFile();
 			}
 
 			receivingState.debugPrintState(FileReceivingState::DebugState::EndChunk);

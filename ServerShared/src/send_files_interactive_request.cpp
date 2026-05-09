@@ -126,6 +126,7 @@ namespace Requests
 			return;
 		}
 
+		Debug::Log::printDebug("Start receiving files");
 		FileReceiveUtils::receiveFiles("./server_target_directory", socket, sendingCipherState, receivingCipherState);
 
 		Debug::Log::printDebug("Finished receiving files");

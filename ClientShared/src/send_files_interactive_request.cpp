@@ -132,7 +132,8 @@ namespace Requests
 			return RequestAnswers::ErrorNoHandling{};
 		}
 
-		FileSendUtils::sendDirectory(std::filesystem::path("./client_files_to_send"), socket, sendingCipherState, receivingCipherState);
+		Debug::Log::printDebug("Start sending files");
+		std::vector<std::filesystem::path> sentFiles = FileSendUtils::sendDirectory(std::filesystem::path("./client_files_to_send"), socket, sendingCipherState, receivingCipherState);
 
 		return Protocol::RequestAnswers::SendFiles{};
 	}

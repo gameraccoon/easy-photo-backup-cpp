@@ -11,6 +11,8 @@
 #include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
 
+#include "client_shared/file_list_cache.h"
+
 namespace FileSendUtils
 {
 	/// Files are sent in chunks of 1024 bytes + auth data,
@@ -110,6 +112,7 @@ namespace FileSendUtils
 		size_t bytesReadFromFile = 0;
 		size_t fileIndex = 0;
 		std::vector<std::filesystem::path> filesAwaitingConfirmation;
+		FileListCache acceptedFilesCache{ "sent_cache.txt" };
 
 		[[nodiscard]] bool isBufferEmpty() const noexcept
 		{
@@ -248,20 +251,8 @@ namespace FileSendUtils
 			debugPrintState(DebugState::NewFile);
 		}
 
-		[[nodiscard]] bool readFileIntoBuffer(std::ifstream& file) noexcept
+		void readFileIntoBuffer(std::ifstream& file) noexcept
 		{
-			if (isBufferFull())
-			{
-				debugPrintState(DebugState::EndChunk);
-				return true;
-			}
-
-			if (hasFileFinished())
-			{
-				debugPrintState(DebugState::EndFile);
-				return false;
-			}
-
 			if (fileMetadataWritten < fileMetadataBytes)
 			{
 				if (fileMetadataWritten < 8)
@@ -273,7 +264,7 @@ namespace FileSendUtils
 					if (isBufferFull())
 					{
 						debugPrintState(DebugState::EndChunk);
-						return true;
+						return;
 					}
 				}
 
@@ -286,7 +277,7 @@ namespace FileSendUtils
 					if (isBufferFull())
 					{
 						debugPrintState(DebugState::EndChunk);
-						return true;
+						return;
 					}
 				}
 
@@ -295,7 +286,7 @@ namespace FileSendUtils
 				if (isBufferFull())
 				{
 					debugPrintState(DebugState::EndChunk);
-					return true;
+					return;
 				}
 			}
 
@@ -305,9 +296,6 @@ namespace FileSendUtils
 			bytesReadFromFile += bytesToRead;
 			bytesFilledInChunk += bytesToRead;
 			assertFatalRelease(bytesReadFromFile <= fileSizeBytes, "File read size bigger than file size, this should never happen");
-
-			debugPrintState(bytesReadFromFile != fileSizeBytes ? DebugState::EndChunk : DebugState::EndFile);
-			return bytesReadFromFile != fileSizeBytes;
 		}
 
 		[[nodiscard]] bool sendChunk(Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate) noexcept
@@ -345,9 +333,24 @@ namespace FileSendUtils
 			bytesFilledInChunk = ChunkSize;
 		}
 
-		void clearConfirmations(bool shouldRemoveLast) noexcept
+		void recordAndClearConfirmations(const std::vector<size_t>& errorIndexes) noexcept
 		{
-			if (shouldRemoveLast)
+			const bool shouldRecordLast = hasFileFinished();
+			const size_t count = filesAwaitingConfirmation.size() + (shouldRecordLast ? 0 : -1);
+			size_t indexPos = 0;
+			const size_t indexesSize = errorIndexes.size();
+			for (size_t i = 0; i < count; ++i)
+			{
+				if (indexPos < indexesSize && errorIndexes[indexPos] == i)
+				{
+					++indexPos;
+					continue;
+				}
+
+				acceptedFilesCache.recordFile(filesAwaitingConfirmation[i]);
+			}
+
+			if (shouldRecordLast)
 			{
 				filesAwaitingConfirmation.clear();
 			}
@@ -390,6 +393,8 @@ namespace FileSendUtils
 
 			const uint16_t statusesToRead = Serialization::readUint16(receivingBuffer.raw[0], receivingBuffer.raw[1]);
 
+			debugAssert(statusesToRead == filesAwaitingConfirmation.size(), "Received unexpected number of file statuses {} == {}", statusesToRead, filesAwaitingConfirmation.size());
+
 			const size_t bytesInBitset = (statusesToRead + 7) / 8;
 
 			const size_t bitsetChunks = (BitsetOffset + bytesInBitset + AnswerChunkSize - 1) / AnswerChunkSize;
@@ -405,8 +410,7 @@ namespace FileSendUtils
 				// this is the most likely situation, that we have only a few files that got confirmed
 				if (popcount == 0) [[likely]]
 				{
-					// ToDo: record as sent and saved
-					clearConfirmations(hasFileFinished());
+					recordAndClearConfirmations({});
 					return true;
 				}
 			}
@@ -417,7 +421,7 @@ namespace FileSendUtils
 			size_t errorStartIndex = 0;
 			size_t bytePosInBitset = 0;
 			std::vector<size_t> errorFileIndexes;
-			errorFileIndexes.reserve(popcount);
+			errorFileIndexes.reserve(statusesToRead);
 			for (size_t chunkIdx = 0; chunkIdx < bitsetChunks; ++chunkIdx)
 			{
 				for (; bytePosInBitset < bytesInBitset && posInChunk < AnswerChunkSize; ++bytePosInBitset, ++posInChunk)
@@ -468,6 +472,7 @@ namespace FileSendUtils
 					switch (static_cast<uint8_t>(receivingBuffer.raw[posInChunk]))
 					{
 					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::BadFilePath):
+						// ToDo: log an error
 						break;
 					default:
 						reportDebugError("Unknown file error status {}", static_cast<uint8_t>(receivingBuffer.raw[posInChunk]));
@@ -480,11 +485,7 @@ namespace FileSendUtils
 						bytesReadFromFile = fileSizeBytes;
 						fileMetadataWritten = fileMetadataBytes;
 					}
-					else if (fileIdx < filesAwaitingConfirmation.size())
-					{
-						// ToDo: record a failure and exclude from confirmed
-					}
-					else [[unlikely]]
+					else if (fileIdx >= filesAwaitingConfirmation.size()) [[unlikely]]
 					{
 						reportDebugError("File confirmation index out of bounds {} of {}", fileIdx, filesAwaitingConfirmation.size());
 						return false;
@@ -503,21 +504,20 @@ namespace FileSendUtils
 				}
 			}
 
-			// ToDo: record the rest of files as sent and saved
-			clearConfirmations(hasFileFinished());
+			debugAssert(errorFileIndexes.size() == popcount, "Number of errors doesn't match number of errors in bitset", errorFileIndexes.size(), popcount);
+
+			recordAndClearConfirmations(errorFileIndexes);
 			return true;
 		}
 	};
 
-	void sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
+	std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
 	{
 		FileSendingState sendingState;
 
 #ifdef WITH_TESTS
 		sendingState.mocks = std::move(mocks);
 #endif
-
-		Debug::Log::printDebug("start sending files");
 
 		std::vector<std::filesystem::path> files;
 		sendingState.getAllFiles(directoryPath, files);
@@ -534,47 +534,40 @@ namespace FileSendUtils
 				if (!sendingState.isFileOpen(file)) [[unlikely]]
 				{
 					reportDebugError("Could not open file for reading: {}", dirEntry.string());
-					return;
+					return sendingState.acceptedFilesCache.consumeAllFiles();
 				}
 
 				sendingState.newFile(dirEntry.lexically_relative(directoryPath), sendingState.getFileLength(file));
 
-				while (sendingState.readFileIntoBuffer(file))
+				while (true)
 				{
-					if (!sendingState.sendChunk(socket, sendingCipherstate))
-					{
-						return;
-					}
+					sendingState.readFileIntoBuffer(file);
 
-					if (sendingState.shouldReadAnswer())
+					if (sendingState.isBufferFull())
 					{
-						if (!sendingState.readAnswer(socket, receivingCipherState))
+						sendingState.debugPrintState(FileSendingState::DebugState::EndChunk);
+
+						if (!sendingState.sendChunk(socket, sendingCipherstate))
 						{
-							return;
+							return sendingState.acceptedFilesCache.consumeAllFiles();
 						}
-					}
 
-					sendingState.debugPrintState(FileSendingState::DebugState::StartChunk);
-				}
-
-				if (sendingState.isBufferFull())
-				{
-					sendingState.debugPrintState(FileSendingState::DebugState::EndChunk);
-
-					if (!sendingState.sendChunk(socket, sendingCipherstate))
-					{
-						return;
-					}
-
-					if (sendingState.shouldReadAnswer())
-					{
-						if (!sendingState.readAnswer(socket, receivingCipherState))
+						if (sendingState.shouldReadAnswer())
 						{
-							return;
+							if (!sendingState.readAnswer(socket, receivingCipherState))
+							{
+								return sendingState.acceptedFilesCache.consumeAllFiles();
+							}
 						}
+
+						sendingState.debugPrintState(FileSendingState::DebugState::StartChunk);
 					}
 
-					sendingState.debugPrintState(FileSendingState::DebugState::StartChunk);
+					if (sendingState.hasFileFinished())
+					{
+						sendingState.debugPrintState(FileSendingState::DebugState::EndFile);
+						break;
+					}
 				}
 			}
 
@@ -592,14 +585,14 @@ namespace FileSendUtils
 					{
 						if (!sendingState.sendChunk(socket, sendingCipherstate))
 						{
-							return;
+							return sendingState.acceptedFilesCache.consumeAllFiles();
 						}
 
 						if (sendingState.shouldReadAnswer())
 						{
 							if (!sendingState.readAnswer(socket, receivingCipherState))
 							{
-								return;
+								return sendingState.acceptedFilesCache.consumeAllFiles();
 							}
 						}
 					}
@@ -616,7 +609,7 @@ namespace FileSendUtils
 
 				if (!sendingState.sendChunk(socket, sendingCipherstate))
 				{
-					return;
+					return sendingState.acceptedFilesCache.consumeAllFiles();
 				}
 
 				sendingState.debugPrintState(FileSendingState::DebugState::EndChunk);
@@ -625,15 +618,19 @@ namespace FileSendUtils
 				{
 					if (!sendingState.readAnswer(socket, receivingCipherState))
 					{
-						return;
+						return sendingState.acceptedFilesCache.consumeAllFiles();
 					}
 				}
 			}
+
+			assertRelease(sendingState.filesAwaitingConfirmation.empty(), "Did not expect to have non-empty array of files awaiting confirmation at the end of successful transmission");
 		}
 		catch (...)
 		{
 			reportDebugError("An exception caught when sending files");
-			return;
+			return sendingState.acceptedFilesCache.consumeAllFiles();
 		}
+
+		return sendingState.acceptedFilesCache.consumeAllFiles();
 	}
 } // namespace FileSendUtils
