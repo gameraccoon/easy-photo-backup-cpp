@@ -35,6 +35,6 @@ public:
 
 private:
 	std::vector<std::filesystem::path> mFilePathList;
-	std::fstream mStorageFile;
+	std::basic_fstream<char> mStorageFile;
 	std::filesystem::path mStoragePath;
 };
