@@ -263,7 +263,6 @@ namespace FileSendUtils
 					fileMetadataWritten += partiallyWriteDataToChunk(data, fileMetadataWritten);
 					if (isBufferFull())
 					{
-						debugPrintState(DebugState::EndChunk);
 						return;
 					}
 				}
@@ -276,7 +275,6 @@ namespace FileSendUtils
 					fileMetadataWritten += partiallyWriteDataToChunk(data, fileMetadataWritten - 8);
 					if (isBufferFull())
 					{
-						debugPrintState(DebugState::EndChunk);
 						return;
 					}
 				}
@@ -285,7 +283,6 @@ namespace FileSendUtils
 				fileMetadataWritten += partiallyWriteDataToChunk(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize), fileMetadataWritten - (8 + 2));
 				if (isBufferFull())
 				{
-					debugPrintState(DebugState::EndChunk);
 					return;
 				}
 			}
@@ -378,20 +375,31 @@ namespace FileSendUtils
 
 			Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, AnswerChunkSize + Cryptography::CipherAuthDataSize> receivingBuffer;
 
-			size_t bytesReceived = 0;
-			if (auto result = recvAnswerBuffer(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value()) [[unlikely]]
-			{
-				reportDebugError("Could not recv answer: {}", *result);
-				return false;
-			}
+			size_t posInChunk = 0;
+			auto readChunk = [this, socket, &receivingBuffer, &receivingCipherstate, &posInChunk] {
+				size_t bytesReceived = 0;
+				if (auto result = recvAnswerBuffer(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value()) [[unlikely]]
+				{
+					reportDebugError("Could not recv answer chunk: {}", *result);
+					return false;
+				}
 
-			if (bytesReceived != AnswerChunkSize) [[unlikely]]
+				if (bytesReceived != AnswerChunkSize) [[unlikely]]
+				{
+					reportDebugError("Unexpected answer chunk size {}", bytesReceived);
+					return false;
+				}
+				posInChunk = 0;
+				return true;
+			};
+
+			if (!readChunk())
 			{
-				reportDebugError("Unexpected answer chunk size {}", bytesReceived);
 				return false;
 			}
 
 			const uint16_t statusesToRead = Serialization::readUint16(receivingBuffer.raw[0], receivingBuffer.raw[1]);
+			posInChunk += 2;
 
 			debugAssert(statusesToRead == filesAwaitingConfirmation.size(), "Received unexpected number of file statuses {} == {}", statusesToRead, filesAwaitingConfirmation.size());
 
@@ -416,13 +424,21 @@ namespace FileSendUtils
 			}
 
 			// process error cases
-			size_t posInChunk = BitsetOffset;
 			size_t errorStartIndex = 0;
 			size_t bytePosInBitset = 0;
 			std::vector<size_t> errorFileIndexes;
 			errorFileIndexes.reserve(statusesToRead);
 			for (size_t chunkIdx = 0; chunkIdx < bitsetChunks; ++chunkIdx)
 			{
+				if (posInChunk == AnswerChunkSize)
+				{
+					debugPrintState(DebugState::AnswerExtraChunk);
+					if (!readChunk())
+					{
+						return false;
+					}
+				}
+
 				for (; bytePosInBitset < bytesInBitset && posInChunk < AnswerChunkSize; ++bytePosInBitset, ++posInChunk)
 				{
 					const uint8_t byte = static_cast<uint8_t>(receivingBuffer.raw[posInChunk]);
@@ -436,26 +452,9 @@ namespace FileSendUtils
 					}
 					errorStartIndex += 8;
 				}
-
-				if (posInChunk == AnswerChunkSize)
-				{
-					debugPrintState(DebugState::AnswerExtraChunk);
-					if (auto result = recvAnswerBuffer(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value()) [[unlikely]]
-					{
-						reportDebugError("Could not recv answer chunk: {}", *result);
-						return false;
-					}
-
-					if (bytesReceived != AnswerChunkSize) [[unlikely]]
-					{
-						reportDebugError("Unexpected answer chunk size {}", bytesReceived);
-						return false;
-					}
-					posInChunk = 0;
-				}
 			}
 
-			assertFatalRelease(posInChunk == (BitsetOffset + bytesInBitset) % AnswerChunkSize, "Unexpected chunk pos {} == {}", posInChunk, (BitsetOffset + bytesInBitset) % AnswerChunkSize);
+			assertFatalRelease(posInChunk == (BitsetOffset + bytesInBitset) % AnswerChunkSize || posInChunk == AnswerChunkSize, "Unexpected chunk pos {} == {}", posInChunk, (BitsetOffset + bytesInBitset) % AnswerChunkSize);
 
 			const size_t errorsArraySize = errorFileIndexes.size();
 			const size_t chunksToReseive = (posInChunk + errorsArraySize + AnswerChunkSize - 1) / AnswerChunkSize;
@@ -494,9 +493,9 @@ namespace FileSendUtils
 				{
 					debugPrintState(DebugState::AnswerExtraChunk);
 					debugAssert(posInChunk == AnswerChunkSize, "We finished reading not last chunk too early: {}", posInChunk);
-					if (auto result = recvAnswerBuffer(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value())
+
+					if (!readChunk())
 					{
-						reportDebugError("Could not recv answer part {}: {}", chunkIdx + 1, *result);
 						return false;
 					}
 				}

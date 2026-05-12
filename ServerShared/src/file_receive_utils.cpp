@@ -399,11 +399,32 @@ namespace FileReceiveUtils
 
 			const size_t bitsetChunks = (BitsetOffset + bytesInBitset + AnswerChunkSize - 1) / AnswerChunkSize;
 
+			size_t posInChunk = BitsetOffset;
+			auto sendChunk = [this, socket, &sendingBuffer, &sendingCipherstate, &posInChunk] {
+				if (auto result = sendAnswerBuffer(socket, sendingBuffer, AnswerChunkSize, sendingCipherstate))
+				{
+					reportDebugError("Could not send answer bitset chunk: {}", *result);
+					return false;
+				}
+				// clean the ciphertext from the buffer to make sure we have zeros to reuse the buffer
+				std::fill(sendingBuffer.raw.begin(), sendingBuffer.raw.end(), std::byte(0x00));
+				posInChunk = 0;
+				return true;
+			};
+
 			size_t popcount = 0;
 			size_t posInStatuses = 0;
-			size_t posInChunk = BitsetOffset;
 			for (size_t chunkIdx = 0; chunkIdx < bitsetChunks; ++chunkIdx)
 			{
+				if (posInChunk == AnswerChunkSize)
+				{
+					debugPrintState(DebugState::AnswerExtraChunk);
+					if (!sendChunk())
+					{
+						return false;
+					}
+				}
+
 				for (; posInStatuses < statusesToSend && posInChunk < AnswerChunkSize; ++posInStatuses)
 				{
 					const size_t bit = posInStatuses % 8;
@@ -416,19 +437,6 @@ namespace FileReceiveUtils
 						++posInChunk;
 					}
 				}
-
-				if (posInChunk == AnswerChunkSize)
-				{
-					debugPrintState(DebugState::AnswerExtraChunk);
-					if (auto result = sendAnswerBuffer(socket, sendingBuffer, AnswerChunkSize, sendingCipherstate))
-					{
-						reportDebugError("Could not send answer bitset chunk {}: {}", chunkIdx, *result);
-						return false;
-					}
-					// clean the ciphertext from the buffer to make sure we have zeros to reuse the buffer
-					std::fill(sendingBuffer.raw.begin(), sendingBuffer.raw.end(), std::byte(0x00));
-					posInChunk = 0;
-				}
 			}
 
 			if (posInStatuses % 8 != 0)
@@ -438,12 +446,12 @@ namespace FileReceiveUtils
 
 			const size_t errorsArrayOffset = posInChunk;
 			const size_t errorsArraySize = popcount;
-			assertFatalRelease(posInChunk == (BitsetOffset + bytesInBitset) % AnswerChunkSize, "Unexpected chunk pos {} == {}", posInChunk, (BitsetOffset + bytesInBitset) % AnswerChunkSize);
+			assertFatalRelease(posInChunk == (BitsetOffset + bytesInBitset) % AnswerChunkSize || posInChunk == AnswerChunkSize, "Unexpected chunk pos {} == {}", posInChunk, (BitsetOffset + bytesInBitset) % AnswerChunkSize);
 
 			const size_t chunksToSend = (errorsArrayOffset + errorsArraySize + AnswerChunkSize - 1) / AnswerChunkSize;
-			assertFatalRelease(chunksToSend != 0, "Can't have zero chunks to send as an answer");
 
-			posInStatuses = 0;
+			// if we don't have anything to send, pretent that we have iterated over the array
+			posInStatuses = popcount != 0 ? 0 : statusesToSend;
 			for (size_t i = 0; i < chunksToSend; ++i)
 			{
 				for (; posInStatuses < statusesToSend && posInChunk < AnswerChunkSize; ++posInStatuses)
@@ -455,28 +463,27 @@ namespace FileReceiveUtils
 					}
 				}
 
+				if (i + 1 == chunksToSend)
+				{
+					// end of last chunk
+					assertFatalRelease(posInStatuses <= statusesToSend, "Have sent unexpected number of statuses {} of {}", posInStatuses, statusesToSend);
+					assertFatalRelease(posInChunk == (errorsArrayOffset + errorsArraySize) % AnswerChunkSize || posInChunk == AnswerChunkSize, "Unexpected chunk size for the last chunk {} == {}", posInChunk, (errorsArrayOffset + errorsArraySize) % AnswerChunkSize);
+				}
+				else
+				{
+					assertFatalRelease(posInChunk == AnswerChunkSize, "Unexpected chunk size {}", posInChunk);
+				}
+
+#ifdef DEBUG_CHECKS
 				if (i + 1 != chunksToSend)
 				{
 					debugPrintState(DebugState::AnswerExtraChunk);
 				}
-				if (auto result = sendAnswerBuffer(socket, sendingBuffer, AnswerChunkSize, sendingCipherstate))
-				{
-					reportDebugError("Could not send an answer chunk {}: {}", i, *result);
-					return false;
-				}
-				std::fill(sendingBuffer.raw.begin(), sendingBuffer.raw.end(), std::byte(0x00));
+#endif // DEBUG_CHECKS
 
-				if (i + 1 != chunksToSend)
+				if (!sendChunk())
 				{
-					std::fill(sendingBuffer.raw.begin(), sendingBuffer.raw.end(), std::byte(0));
-					assertFatalRelease(posInChunk == AnswerChunkSize, "Unexpected chunk size {}", posInChunk);
-					posInChunk = 0;
-				}
-				else
-				{
-					// end of last chunk
-					assertFatalRelease(posInStatuses == statusesToSend, "Have sent unexpected number of statuses {} of {}", posInStatuses, statusesToSend);
-					assertFatalRelease(posInChunk == (errorsArrayOffset + errorsArraySize) % AnswerChunkSize, "Unexpected chunk size for the last chunk {} == {}", posInChunk, (errorsArrayOffset + errorsArraySize) % AnswerChunkSize);
+					return false;
 				}
 			}
 
@@ -520,6 +527,13 @@ namespace FileReceiveUtils
 			{
 				receivingState.writeFileToDiskFromBuffer();
 
+#ifdef DEBUG_CHECKS
+				if (receivingState.hasFileFinished())
+				{
+					receivingState.debugPrintState(FileReceivingState::DebugState::EndFile);
+				}
+#endif // DEBUG_CHECKS
+
 				if (receivingState.isEndOfTransmission())
 				{
 					break;
@@ -527,6 +541,8 @@ namespace FileReceiveUtils
 
 				if (receivingState.isBufferFullyRead())
 				{
+					receivingState.debugPrintState(FileReceivingState::DebugState::EndChunk);
+
 					if (receivingState.shouldWriteAnswer())
 					{
 						if (!receivingState.writeAnswer(socket, sendingCipherstate))
