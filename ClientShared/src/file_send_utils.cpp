@@ -401,6 +401,8 @@ namespace FileSendUtils
 			const uint16_t statusesToRead = Serialization::readUint16(receivingBuffer.raw[0], receivingBuffer.raw[1]);
 			posInChunk += 2;
 
+			static_assert(AnswerChunkSize >= 3, "This code doesn't expect answer chunk size less than 3 bytes");
+
 			debugAssert(statusesToRead == filesAwaitingConfirmation.size(), "Received unexpected number of file statuses {} == {}", statusesToRead, filesAwaitingConfirmation.size());
 
 			const size_t bytesInBitset = (statusesToRead + 7) / 8;
@@ -423,7 +425,7 @@ namespace FileSendUtils
 				}
 			}
 
-			// process error cases
+			// process error cases, or multi-block bistet
 			size_t errorStartIndex = 0;
 			size_t bytePosInBitset = 0;
 			std::vector<size_t> errorFileIndexes;
