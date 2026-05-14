@@ -401,7 +401,9 @@ namespace FileSendUtils
 			const uint16_t statusesToRead = Serialization::readUint16(receivingBuffer.raw[0], receivingBuffer.raw[1]);
 			posInChunk += 2;
 
+			// make sure it won't compile if we configure the file transfer logic in a way that is not supported
 			static_assert(AnswerChunkSize >= 3, "This code doesn't expect answer chunk size less than 3 bytes");
+			static_assert(ChunksBetweenAnswers * ChunkSize > 2 + 8, "We can't have less data sent between answers than the size of the static metadata + 1");
 
 			debugAssert(statusesToRead == filesAwaitingConfirmation.size() + (isMidSendingEndState ? 1 : 0), "Received unexpected number of file statuses {} == {}", statusesToRead, filesAwaitingConfirmation.size() + (isMidSendingEndState ? 1 : 0));
 
