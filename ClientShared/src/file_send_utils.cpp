@@ -357,7 +357,7 @@ namespace FileSendUtils
 			}
 		}
 
-		[[nodiscard]] bool readAnswer(Network::RawSocket socket, Noise::CipherStateReceiving& receivingCipherstate) noexcept
+		[[nodiscard]] bool readAnswer(Network::RawSocket socket, Noise::CipherStateReceiving& receivingCipherstate, bool isMidSendingEndState = false) noexcept
 		{
 			// read the big comment in Protocol::FileExchange for the explanation
 
@@ -403,7 +403,7 @@ namespace FileSendUtils
 
 			static_assert(AnswerChunkSize >= 3, "This code doesn't expect answer chunk size less than 3 bytes");
 
-			debugAssert(statusesToRead == filesAwaitingConfirmation.size(), "Received unexpected number of file statuses {} == {}", statusesToRead, filesAwaitingConfirmation.size());
+			debugAssert(statusesToRead == filesAwaitingConfirmation.size() + (isMidSendingEndState ? 1 : 0), "Received unexpected number of file statuses {} == {}", statusesToRead, filesAwaitingConfirmation.size() + (isMidSendingEndState ? 1 : 0));
 
 			const size_t bytesInBitset = (statusesToRead + 7) / 8;
 
@@ -587,7 +587,7 @@ namespace FileSendUtils
 
 						if (sendingState.shouldReadAnswer())
 						{
-							if (!sendingState.readAnswer(socket, receivingCipherState))
+							if (!sendingState.readAnswer(socket, receivingCipherState, endingBytesWritten < endingBytes.size()))
 							{
 								return sendingState.acceptedFilesCache.consumeAllFiles();
 							}
@@ -610,17 +610,17 @@ namespace FileSendUtils
 				}
 
 				sendingState.debugPrintState(FileSendingState::DebugState::EndChunk);
+			}
 
-				if (sendingState.haveUnconfirmedFiles())
+			if (sendingState.haveUnconfirmedFiles())
+			{
+				if (!sendingState.readAnswer(socket, receivingCipherState))
 				{
-					if (!sendingState.readAnswer(socket, receivingCipherState))
-					{
-						return sendingState.acceptedFilesCache.consumeAllFiles();
-					}
+					return sendingState.acceptedFilesCache.consumeAllFiles();
 				}
 			}
 
-			assertRelease(sendingState.filesAwaitingConfirmation.empty(), "Did not expect to have non-empty array of files awaiting confirmation at the end of successful transmission");
+			assertRelease(sendingState.filesAwaitingConfirmation.empty(), "Did not expect to have non-empty array of files awaiting confirmation at the end of successful transmission {}", sendingState.filesAwaitingConfirmation.size());
 		}
 		catch (...)
 		{

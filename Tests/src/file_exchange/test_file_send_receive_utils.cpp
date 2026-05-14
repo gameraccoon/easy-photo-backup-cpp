@@ -1,6 +1,7 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
+#include <algorithm>
 #include <chrono>
 #include <format>
 #include <mutex>
@@ -405,15 +406,15 @@ TEST(FileSendReceiveUtils, RoundtripSendAndReceiveTwentyFiles)
 {
 	const std::array<size_t, 20> sizes{
 		// try out sizes differently alligned to the chunk size (with metadata size of 10 + file name)
-		size_t(Protocol::FileExchange::ChunkSize - (10 + 5) - 1), // -1 "path1"
-		size_t(Protocol::FileExchange::ChunkSize - (10 + 5) + 1), // 0 "path2"
-		size_t(Protocol::FileExchange::ChunkSize - (10 + 5) + 0), // 0 "path3"
-		size_t(Protocol::FileExchange::ChunkSize - (10 + 5) + 1), // +1 "path4"
-		size_t(Protocol::FileExchange::ChunkSize - (10 + 5) - 4), // -3 "path5"
-		size_t(Protocol::FileExchange::ChunkSize - (10 + 5) - 3), // -6 "path6"
-		size_t(Protocol::FileExchange::ChunkSize - (10 + 5) - 3), // -9 "path7"
-		size_t(Protocol::FileExchange::ChunkSize - (10 + 5) - 1), // -10 "path8"
-		size_t(Protocol::FileExchange::ChunkSize - (10 + 5) - 1), // -11 "path9"
+		size_t(Protocol::FileExchange::ChunkSize - std::min(Protocol::FileExchange::ChunkSize, size_t((10 + 5) - 1))), // -1 "path1"
+		size_t(Protocol::FileExchange::ChunkSize - std::min(Protocol::FileExchange::ChunkSize, size_t((10 + 5) + 1))), // 0 "path2"
+		size_t(Protocol::FileExchange::ChunkSize - std::min(Protocol::FileExchange::ChunkSize, size_t((10 + 5) + 0))), // 0 "path3"
+		size_t(Protocol::FileExchange::ChunkSize - std::min(Protocol::FileExchange::ChunkSize, size_t((10 + 5) + 1))), // +1 "path4"
+		size_t(Protocol::FileExchange::ChunkSize - std::min(Protocol::FileExchange::ChunkSize, size_t((10 + 5) - 4))), // -3 "path5"
+		size_t(Protocol::FileExchange::ChunkSize - std::min(Protocol::FileExchange::ChunkSize, size_t((10 + 5) - 3))), // -6 "path6"
+		size_t(Protocol::FileExchange::ChunkSize - std::min(Protocol::FileExchange::ChunkSize, size_t((10 + 5) - 3))), // -9 "path7"
+		size_t(Protocol::FileExchange::ChunkSize - std::min(Protocol::FileExchange::ChunkSize, size_t((10 + 5) - 1))), // -10 "path8"
+		size_t(Protocol::FileExchange::ChunkSize - std::min(Protocol::FileExchange::ChunkSize, size_t((10 + 5) - 1))), // -11 "path9"
 		// try out some odd sizes
 		size_t(1),
 		size_t(0),
@@ -449,7 +450,7 @@ TEST(FileSendReceiveUtils, RoundtripSendAndReceiveFilesEverySecondRejected)
 		size_t(300),
 		size_t(180), // rejected mid chunk
 		size_t(10),
-		size_t(Protocol::FileExchange::ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers - (300 + 180 + 10)), // rejected right at the border of the last chunk before answer
+		size_t(Protocol::FileExchange::ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers - std::min(size_t(300 + 180 + 10), Protocol::FileExchange::ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers)), // rejected right at the border of the last chunk before answer
 	};
 
 	std::vector<TestFileExchangeFile> filesToSend;
@@ -490,7 +491,7 @@ TEST(FileSendReceiveUtils, RoundtripSendAndReceiveFilesAllRejected)
 		size_t(300),
 		size_t(180),
 		size_t(10),
-		size_t(Protocol::FileExchange::ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers - (300 + 180 + 10)),
+		size_t(Protocol::FileExchange::ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers - std::min(size_t(300 + 180 + 10), Protocol::FileExchange::ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers)),
 		size_t(100),
 	};
 

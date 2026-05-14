@@ -389,6 +389,7 @@ namespace FileReceiveUtils
 
 			const bool hasFileInProgress = !hasFileFinished();
 			const size_t statusesToSend = lastFileStatuses.size() - (isEndOfTransmission() ? 1 : 0);
+
 			// buffer is zeroed by default
 			Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, AnswerChunkSize + Cryptography::CipherAuthDataSize> sendingBuffer;
 
