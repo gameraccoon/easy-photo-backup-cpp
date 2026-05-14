@@ -357,7 +357,7 @@ namespace FileSendUtils
 			}
 		}
 
-		[[nodiscard]] bool readAnswer(Network::RawSocket socket, Noise::CipherStateReceiving& receivingCipherstate, bool isMidSendingEndState = false) noexcept
+		[[nodiscard]] bool readAnswer(Network::RawSocket socket, Noise::CipherStateReceiving& receivingCipherstate, [[maybe_unused]] bool isMidSendingEndState = false) noexcept
 		{
 			// read the big comment in Protocol::FileExchange for the explanation
 
