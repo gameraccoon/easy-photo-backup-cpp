@@ -139,7 +139,11 @@ namespace Requests
 		storage.mutate([&sentFiles](ClientStorageData& data) {
 			for (std::filesystem::path& path : sentFiles)
 			{
+#if defined(_WIN32) || defined(_WIN64)
+				data.sentFiles.emplace(path.string());
+#else
 				data.sentFiles.emplace(std::move(path));
+#endif
 			}
 		});
 		if (!storage.save())

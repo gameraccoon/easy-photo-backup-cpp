@@ -530,7 +530,12 @@ namespace FileSendUtils
 			{
 				bool hasFileBeenTransferred = false;
 				storage.read([&hasFileBeenTransferred, &dirEntry, &directoryPath](const ClientStorageData& storageData) {
+#if defined(_WIN32) || defined(_WIN64)
+					if (storageData.sentFiles.contains(dirEntry.lexically_relative(directoryPath).string()))
+#else
 					if (storageData.sentFiles.contains(dirEntry.lexically_relative(directoryPath)))
+#endif
+
 					{
 						hasFileBeenTransferred = true;
 					}
