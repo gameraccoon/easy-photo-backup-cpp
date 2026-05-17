@@ -510,7 +510,7 @@ namespace FileSendUtils
 		}
 	};
 
-	std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
+	std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, ClientStorage& storage, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
 	{
 		FileSendingState sendingState;
 
@@ -528,6 +528,19 @@ namespace FileSendUtils
 
 			for (const auto& dirEntry : files)
 			{
+				bool hasFileBeenTransferred = false;
+				storage.read([&hasFileBeenTransferred, &dirEntry, &directoryPath](const ClientStorageData& storageData) {
+					if (storageData.sentFiles.contains(dirEntry.lexically_relative(directoryPath)))
+					{
+						hasFileBeenTransferred = true;
+					}
+				});
+
+				if (hasFileBeenTransferred)
+				{
+					continue;
+				}
+
 				std::ifstream file;
 				sendingState.openFile(file, dirEntry);
 

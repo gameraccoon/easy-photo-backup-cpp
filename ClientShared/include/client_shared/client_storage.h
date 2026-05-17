@@ -3,14 +3,13 @@
 
 #pragma once
 
-#include <chrono>
 #include <functional>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "common_shared/bstorage/value.h"
 #include "common_shared/cryptography/types/dh_types.h"
-#include "common_shared/cryptography/types/hash_types.h"
 
 struct ClientStorageData
 {
@@ -21,11 +20,16 @@ struct ClientStorageData
 	};
 
 	std::unordered_multimap<std::string, ServerBinding> confirmedServerBindings;
+	std::unordered_set<std::string> sentFiles;
 };
 
 class ClientStorage
 {
 public:
+#ifdef WITH_TESTS
+	static ClientStorage createEmpty() noexcept;
+#endif // WITH_TESTS
+
 	static ClientStorage load() noexcept;
 	[[nodiscard]] bool save() const noexcept;
 

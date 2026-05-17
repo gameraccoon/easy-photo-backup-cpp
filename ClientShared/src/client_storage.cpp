@@ -10,6 +10,7 @@ namespace ClientStorageInternal
 	static constexpr uint16_t ClientStorageVersion = 0;
 	static const std::string ClientStoragePath = "./client_storage.bin";
 	static constexpr std::string ConfirmedField = "confirmed";
+	static constexpr std::string SentFilesField = "sent_files";
 	static constexpr std::string NameField = "name";
 	static constexpr std::string RemoteStaticKeyField = "rs";
 	static constexpr std::string StaticPublicKeyField = "s_pub";
@@ -79,7 +80,7 @@ namespace ClientStorageInternal
 		return BStorage::Value::makeArray(std::move(vec));
 	}
 
-	static void ReadConfirmedServerBindingsToValue(BStorage::Value&& value, std::unordered_multimap<std::string, ClientStorageData::ServerBinding>& confirmedServerBindings)
+	static void ReadConfirmedServerBindingsFromValue(BStorage::Value&& value, std::unordered_multimap<std::string, ClientStorageData::ServerBinding>& confirmedServerBindings)
 	{
 		if (std::vector<BStorage::Value>* vec = value.asArray())
 		{
@@ -100,6 +101,33 @@ namespace ClientStorageInternal
 		}
 	}
 
+	static BStorage::Value WriteSentFilesToValue(const std::unordered_set<std::string>& sentFiles)
+	{
+		std::vector<BStorage::Value> vec;
+		vec.reserve(sentFiles.size());
+		for (const std::string& pair : sentFiles)
+		{
+			vec.push_back(BStorage::Value::makeString(pair));
+		}
+
+		return BStorage::Value::makeArray(std::move(vec));
+	}
+
+	static void ReadSentFilesFromValue(BStorage::Value&& value, std::unordered_set<std::string>& sentFiles)
+	{
+		if (std::vector<BStorage::Value>* vec = value.asArray())
+		{
+			sentFiles.reserve(vec->size());
+			for (BStorage::Value& val : *vec)
+			{
+				if (std::string* record = val.asString())
+				{
+					sentFiles.emplace(std::move(*record));
+				}
+			}
+		}
+	}
+
 	static BStorage::Value WriteClientStorageDataToValue(const ClientStorageData& data)
 	{
 		std::unordered_map<std::string, BStorage::Value> clientStorageDataObject;
@@ -107,6 +135,10 @@ namespace ClientStorageInternal
 		clientStorageDataObject.emplace(
 			ConfirmedField,
 			WriteConfirmedServerBindingsToValue(data.confirmedServerBindings)
+		);
+		clientStorageDataObject.emplace(
+			SentFilesField,
+			WriteSentFilesToValue(data.sentFiles)
 		);
 		return BStorage::Value::makeObject(std::move(clientStorageDataObject));
 	}
@@ -119,12 +151,23 @@ namespace ClientStorageInternal
 		{
 			if (auto it = object->find(ConfirmedField); it != object->end())
 			{
-				ReadConfirmedServerBindingsToValue(std::move(it->second), result.confirmedServerBindings);
+				ReadConfirmedServerBindingsFromValue(std::move(it->second), result.confirmedServerBindings);
+			}
+			if (auto it = object->find(SentFilesField); it != object->end())
+			{
+				ReadSentFilesFromValue(std::move(it->second), result.sentFiles);
 			}
 		}
 		return result;
 	}
 } // namespace ClientStorageInternal
+
+#ifdef WITH_TESTS
+ClientStorage ClientStorage::createEmpty() noexcept
+{
+	return ClientStorage(BStorage::Value::makeObject({}));
+}
+#endif // WITH_TESTS
 
 ClientStorage ClientStorage::load() noexcept
 {

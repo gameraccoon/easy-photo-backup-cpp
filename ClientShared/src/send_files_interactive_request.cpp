@@ -133,7 +133,19 @@ namespace Requests
 		}
 
 		Debug::Log::printDebug("Start sending files");
-		std::vector<std::filesystem::path> sentFiles = FileSendUtils::sendDirectory(std::filesystem::path("./client_files_to_send"), socket, sendingCipherState, receivingCipherState);
+
+		std::vector<std::filesystem::path> sentFiles = FileSendUtils::sendDirectory(std::filesystem::path("./client_files_to_send"), socket, storage, sendingCipherState, receivingCipherState);
+
+		storage.mutate([&sentFiles](ClientStorageData& data) {
+			for (std::filesystem::path& path : sentFiles)
+			{
+				data.sentFiles.emplace(std::move(path));
+			}
+		});
+		if (!storage.save())
+		{
+			reportDebugError("Could not save client storage");
+		}
 
 		return Protocol::RequestAnswers::SendFiles{};
 	}

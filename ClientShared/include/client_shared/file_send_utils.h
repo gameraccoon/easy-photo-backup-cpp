@@ -14,6 +14,8 @@
 #include "common_shared/cryptography/noise/cipher_types.h"
 #include "common_shared/network/utils.h"
 
+#include "client_shared/client_storage.h"
+
 namespace FileSendUtils
 {
 #ifdef WITH_TESTS
@@ -33,5 +35,5 @@ namespace FileSendUtils
 	};
 #endif
 
-	[[nodiscard]] std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, Mocks mocks = {}) noexcept;
+	[[nodiscard]] std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, ClientStorage& storage, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, Mocks mocks = {}) noexcept;
 } // namespace FileSendUtils
