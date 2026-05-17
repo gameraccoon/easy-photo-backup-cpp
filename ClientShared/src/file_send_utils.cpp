@@ -519,10 +519,11 @@ namespace FileSendUtils
 #endif
 
 		std::vector<std::filesystem::path> files;
-		sendingState.getAllFiles(directoryPath, files);
 
 		try
 		{
+			sendingState.getAllFiles(directoryPath, files);
+
 			sendingState.debugPrintState(FileSendingState::DebugState::StartChunk);
 
 			for (const auto& dirEntry : files)
@@ -623,6 +624,11 @@ namespace FileSendUtils
 			}
 
 			assertRelease(sendingState.filesAwaitingConfirmation.empty(), "Did not expect to have non-empty array of files awaiting confirmation at the end of successful transmission {}", sendingState.filesAwaitingConfirmation.size());
+		}
+		catch (std::exception& e)
+		{
+			reportDebugError("An exception caught when sending files: {}", e.what());
+			return sendingState.acceptedFilesCache.consumeAllFiles();
 		}
 		catch (...)
 		{

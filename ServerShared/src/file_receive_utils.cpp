@@ -580,6 +580,11 @@ namespace FileReceiveUtils
 				}
 			}
 		}
+		catch (std::exception& e)
+		{
+			reportDebugError("An exception caught when receiving files: {}", e.what());
+			return;
+		}
 		catch (...)
 		{
 			reportDebugError("An exception caught when receiving files");
