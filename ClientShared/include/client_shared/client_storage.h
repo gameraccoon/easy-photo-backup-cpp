@@ -27,7 +27,7 @@ class ClientStorage
 {
 public:
 #ifdef WITH_TESTS
-	static ClientStorage createEmpty() noexcept;
+	static ClientStorage testCreateEmpty() noexcept;
 #endif // WITH_TESTS
 
 	static ClientStorage load() noexcept;

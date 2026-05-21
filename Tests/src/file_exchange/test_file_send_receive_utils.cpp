@@ -188,7 +188,7 @@ static void runFileExchangeTest(const std::vector<TestFileExchangeFile>& filesTo
 		Noise::CipherStateReceiving cipherStateReceiving;
 		cipherStateReceiving.cipherKey = cipherKeyFromReceiverToSender.clone();
 
-		ClientStorage storage = ClientStorage::createEmpty();
+		ClientStorage storage = ClientStorage::testCreateEmpty();
 
 		sentFiles = FileSendUtils::sendDirectory("", 0, storage, cipherStateSending, cipherStateReceiving, sendMocks);
 
@@ -304,7 +304,7 @@ TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
 	Noise::CipherStateReceiving cipherStateReceiving;
 	cipherStateReceiving.cipherKey = cipherStateSending.cipherKey.clone();
 
-	ClientStorage storage = ClientStorage::createEmpty();
+	ClientStorage storage = ClientStorage::testCreateEmpty();
 	EXPECT_EQ(FileSendUtils::sendDirectory("", 0, storage, cipherStateSending, cipherStateReceiving, sendMocks), std::vector<std::filesystem::path>{});
 
 	EXPECT_TRUE(sendBufferCalled);

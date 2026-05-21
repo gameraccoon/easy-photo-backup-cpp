@@ -163,7 +163,7 @@ namespace ClientStorageInternal
 } // namespace ClientStorageInternal
 
 #ifdef WITH_TESTS
-ClientStorage ClientStorage::createEmpty() noexcept
+ClientStorage ClientStorage::testCreateEmpty() noexcept
 {
 	return ClientStorage(BStorage::Value::makeObject({}));
 }

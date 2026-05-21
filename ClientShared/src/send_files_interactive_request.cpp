@@ -122,7 +122,7 @@ namespace Requests
 		return false;
 	}
 
-	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName) noexcept
+	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName, const std::string& folderPath) noexcept
 	{
 		Noise::CipherStateSending sendingCipherState;
 		Noise::CipherStateReceiving receivingCipherState;
@@ -134,7 +134,7 @@ namespace Requests
 
 		Debug::Log::printDebug("Start sending files");
 
-		std::vector<std::filesystem::path> sentFiles = FileSendUtils::sendDirectory(std::filesystem::path("./client_files_to_send"), socket, storage, sendingCipherState, receivingCipherState);
+		std::vector<std::filesystem::path> sentFiles = FileSendUtils::sendDirectory(std::filesystem::path(folderPath), socket, storage, sendingCipherState, receivingCipherState);
 
 		storage.mutate([&sentFiles](ClientStorageData& data) {
 			for (std::filesystem::path& path : sentFiles)
