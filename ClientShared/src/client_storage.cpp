@@ -3,21 +3,23 @@
 
 #include "client_shared/client_storage.h"
 
+#include <string_view>
+
 #include "common_shared/bstorage/storage.h"
 
 namespace ClientStorageInternal
 {
 	static constexpr uint16_t ClientStorageVersion = 0;
 	static const std::string ClientStoragePath = "./client_storage.bin";
-	static constexpr std::string ConfirmedField = "confirmed";
-	static constexpr std::string SentFilesField = "sent_files";
-	static constexpr std::string NameField = "name";
-	static constexpr std::string RemoteStaticKeyField = "rs";
-	static constexpr std::string StaticPublicKeyField = "s_pub";
-	static constexpr std::string StaticSecretKeyField = "s_secret";
+	static constexpr std::string_view ConfirmedField = "confirmed";
+	static constexpr std::string_view SentFilesField = "sent_files";
+	static constexpr std::string_view NameField = "name";
+	static constexpr std::string_view RemoteStaticKeyField = "rs";
+	static constexpr std::string_view StaticPublicKeyField = "s_pub";
+	static constexpr std::string_view StaticSecretKeyField = "s_secret";
 
 	template<size_t N>
-	static void tryConsumeObjectFieldArray(std::unordered_map<std::string, BStorage::Value>& record, const std::string& name, std::array<std::byte, N>& result)
+	static void tryConsumeObjectFieldArray(BStorage::Value::ObjectMap& record, const std::string_view name, std::array<std::byte, N>& result)
 	{
 		if (auto it = record.find(name); it != record.end())
 		{
@@ -32,7 +34,7 @@ namespace ClientStorageInternal
 	}
 
 	template<typename T>
-	static void tryConsumeObjectField(std::unordered_map<std::string, BStorage::Value>& record, const std::string& name, T& result)
+	static void tryConsumeObjectField(BStorage::Value::ObjectMap& record, const std::string_view name, T& result)
 	{
 		constexpr auto getT = [](BStorage::Value& v) -> T* {
 			if constexpr (std::is_same_v<T, std::string>)
@@ -68,7 +70,7 @@ namespace ClientStorageInternal
 		vec.reserve(confirmedServerBindings.size());
 		for (auto& pair : confirmedServerBindings)
 		{
-			std::unordered_map<std::string, BStorage::Value> record;
+			BStorage::Value::ObjectMap record;
 			record.reserve(4);
 			record.emplace(NameField, BStorage::Value::makeString(pair.first));
 			record.emplace(StaticPublicKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.staticKeys.publicKey.raw.begin(), pair.second.staticKeys.publicKey.raw.end())));
@@ -87,7 +89,7 @@ namespace ClientStorageInternal
 			confirmedServerBindings.reserve(vec->size());
 			for (BStorage::Value& val : *vec)
 			{
-				if (std::unordered_map<std::string, BStorage::Value>* record = val.asObject())
+				if (BStorage::Value::ObjectMap* record = val.asObject())
 				{
 					ClientStorageData::ServerBinding newItem{};
 					std::string name;
@@ -130,7 +132,7 @@ namespace ClientStorageInternal
 
 	static BStorage::Value WriteClientStorageDataToValue(const ClientStorageData& data)
 	{
-		std::unordered_map<std::string, BStorage::Value> clientStorageDataObject;
+		BStorage::Value::ObjectMap clientStorageDataObject;
 		clientStorageDataObject.reserve(2);
 		clientStorageDataObject.emplace(
 			ConfirmedField,
@@ -146,7 +148,7 @@ namespace ClientStorageInternal
 	static ClientStorageData ReadClientStorageDataFromValue(BStorage::Value&& value)
 	{
 		ClientStorageData result{};
-		std::unordered_map<std::string, BStorage::Value>* object = value.asObject();
+		BStorage::Value::ObjectMap* object = value.asObject();
 		if (object != nullptr)
 		{
 			if (auto it = object->find(ConfirmedField); it != object->end())

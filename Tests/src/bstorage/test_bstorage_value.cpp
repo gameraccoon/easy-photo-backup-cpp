@@ -734,7 +734,7 @@ TEST(BStorageValue, array_move_test)
 
 TEST(BStorageValue, object_test)
 {
-	std::unordered_map<std::string, BStorage::Value> map;
+	BStorage::Value::ObjectMap map;
 	map.emplace("key", BStorage::Value::makeU64(77));
 
 	BStorage::Value v = BStorage::Value::makeObject(std::move(map));
@@ -764,7 +764,7 @@ TEST(BStorageValue, object_test)
 
 TEST(BStorageValue, object_const_test)
 {
-	std::unordered_map<std::string, BStorage::Value> map;
+	BStorage::Value::ObjectMap map;
 	map.emplace("key", BStorage::Value::makeU64(77));
 
 	const BStorage::Value v = BStorage::Value::makeObject(std::move(map));
@@ -794,7 +794,7 @@ TEST(BStorageValue, object_const_test)
 
 TEST(BStorageValue, object_empty_test)
 {
-	BStorage::Value v = BStorage::Value::makeObject(std::unordered_map<std::string, BStorage::Value>{});
+	BStorage::Value v = BStorage::Value::makeObject(BStorage::Value::ObjectMap{});
 
 	ASSERT_TRUE(v.isA(BStorage::Tag::Object));
 	ASSERT_NE(v.asObject(), nullptr);
@@ -803,7 +803,7 @@ TEST(BStorageValue, object_empty_test)
 
 TEST(BStorageValue, object_copy_test)
 {
-	std::unordered_map<std::string, BStorage::Value> map;
+	BStorage::Value::ObjectMap map;
 	map.emplace("k", BStorage::Value::makeU8(9));
 	BStorage::Value v1 = BStorage::Value::makeObject(std::move(map));
 
@@ -820,7 +820,7 @@ TEST(BStorageValue, object_copy_test)
 
 TEST(BStorageValue, object_move_test)
 {
-	std::unordered_map<std::string, BStorage::Value> map;
+	BStorage::Value::ObjectMap map;
 	map.emplace("k", BStorage::Value::makeU8(9));
 	BStorage::Value v1 = BStorage::Value::makeObject(std::move(map));
 
@@ -867,7 +867,7 @@ TEST(BStorageValue, serialization_test)
 	array1.push_back(BStorage::Value::makeOption(nullptr));
 	array1.push_back(BStorage::Value::makeOption(std::make_unique<BStorage::Value>(BStorage::Value::makeU8(0xFF))));
 
-	std::unordered_map<std::string, BStorage::Value> outherObject;
+	BStorage::Value::ObjectMap outherObject;
 	outherObject.emplace("k1", BStorage::Value::makeArray(std::move(array1)));
 	outherObject.emplace("k2", BStorage::Value::makeArray(std::move(array2)));
 	outherObject.emplace("k3", BStorage::Value::makeArray(std::move(array3)));

@@ -223,10 +223,10 @@ namespace BStorage
 		return newValue;
 	}
 
-	Value Value::makeObject(std::unordered_map<std::string, Value>&& v) noexcept
+	Value Value::makeObject(ObjectMap&& v) noexcept
 	{
 		Value newValue(Tag::Object);
-		new (&newValue.mStorage.Object) std::unordered_map<std::string, Value>(std::move(v));
+		new (&newValue.mStorage.Object) ObjectMap(std::move(v));
 		return newValue;
 	}
 
@@ -373,7 +373,7 @@ namespace BStorage
 		return nullptr;
 	}
 
-	std::unordered_map<std::string, Value>* Value::asObject() noexcept
+	Value::ObjectMap* Value::asObject() noexcept
 	{
 		if (mTag == Tag::Object)
 		{
@@ -382,7 +382,7 @@ namespace BStorage
 		return nullptr;
 	}
 
-	const std::unordered_map<std::string, Value>* Value::asObject() const noexcept
+	const Value::ObjectMap* Value::asObject() const noexcept
 	{
 		if (mTag == Tag::Object)
 		{
@@ -629,7 +629,7 @@ namespace BStorage
 		}
 		case static_cast<uint8_t>(Internal::TagBits::Object): {
 			const size_t size = Internal::readSize(inputStream);
-			std::unordered_map<std::string, Value> result;
+			ObjectMap result;
 			result.reserve(size);
 			for (size_t i = 0; i < size; ++i)
 			{
@@ -786,7 +786,7 @@ namespace BStorage
 			break;
 		}
 		case Tag::Object: {
-			new (&result.mStorage.Object) std::unordered_map<std::string, Value>();
+			new (&result.mStorage.Object) ObjectMap();
 			result.mStorage.Object.reserve(mStorage.Object.size());
 			for (const std::pair<const std::string, Value>& pair : mStorage.Object)
 			{
@@ -834,7 +834,7 @@ namespace BStorage
 			break;
 		}
 		case Tag::Object: {
-			new (&mStorage.Object) std::unordered_map<std::string, Value>(std::move(v.mStorage.Object));
+			new (&mStorage.Object) ObjectMap(std::move(v.mStorage.Object));
 			break;
 		}
 		}
@@ -870,7 +870,7 @@ namespace BStorage
 		}
 		case Tag::Object: {
 			// we assume that Object keys don't have any confidential information to be securely erased
-			mStorage.Object.std::unordered_map<std::string, Value>::~unordered_map<std::string, Value>();
+			mStorage.Object.ObjectMap::~ObjectMap();
 			break;
 		}
 		}

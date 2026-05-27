@@ -26,8 +26,27 @@ namespace BStorage
 		Object,
 	};
 
+	struct string_hash
+	{
+		using is_transparent = void;
+		[[nodiscard]] size_t operator()(const char* txt) const
+		{
+			return std::hash<std::string_view>{}(txt);
+		}
+		[[nodiscard]] size_t operator()(std::string_view txt) const
+		{
+			return std::hash<std::string_view>{}(txt);
+		}
+		[[nodiscard]] size_t operator()(const std::string& txt) const
+		{
+			return std::hash<std::string>{}(txt);
+		}
+	};
+
 	class Value
 	{
+	public:
+		using ObjectMap = std::unordered_map<std::string, Value, string_hash, std::equal_to<>>;
 	public:
 		[[nodiscard]] static Value makeU8(uint8_t v) noexcept;
 		[[nodiscard]] static Value makeU16(uint16_t v) noexcept;
@@ -38,7 +57,7 @@ namespace BStorage
 		[[nodiscard]] static Value makeByteArray(std::vector<std::byte>&& v) noexcept;
 		[[nodiscard]] static Value makeOption(std::unique_ptr<Value>&& v) noexcept;
 		[[nodiscard]] static Value makeArray(std::vector<Value>&& v) noexcept;
-		[[nodiscard]] static Value makeObject(std::unordered_map<std::string, Value>&& v) noexcept;
+		[[nodiscard]] static Value makeObject(ObjectMap&& v) noexcept;
 
 		bool isA(Tag tag) const { return mTag == tag; }
 
@@ -58,8 +77,8 @@ namespace BStorage
 		const std::unique_ptr<Value>* asOption() const noexcept;
 		std::vector<Value>* asArray() noexcept;
 		const std::vector<Value>* asArray() const noexcept;
-		std::unordered_map<std::string, Value>* asObject() noexcept;
-		const std::unordered_map<std::string, Value>* asObject() const noexcept;
+		ObjectMap* asObject() noexcept;
+		const ObjectMap* asObject() const noexcept;
 
 		// sure, these are not the most optimal, but it should do for now
 		[[nodiscard]] bool writeToStream(std::ostream& outputStream, bool skipTag = false) const noexcept;
@@ -86,7 +105,7 @@ namespace BStorage
 			std::vector<std::byte> ByteArray;
 			std::unique_ptr<Value> Option;
 			std::vector<Value> Array;
-			std::unordered_map<std::string, Value> Object;
+			ObjectMap Object;
 
 			Storage() noexcept;
 			Storage(const Storage&) noexcept = delete;
