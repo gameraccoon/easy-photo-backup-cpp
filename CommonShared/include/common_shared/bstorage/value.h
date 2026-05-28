@@ -47,6 +47,7 @@ namespace BStorage
 	{
 	public:
 		using ObjectMap = std::unordered_map<std::string, Value, string_hash, std::equal_to<>>;
+
 	public:
 		[[nodiscard]] static Value makeU8(uint8_t v) noexcept;
 		[[nodiscard]] static Value makeU16(uint16_t v) noexcept;
