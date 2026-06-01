@@ -3,10 +3,15 @@
 
 #include <thread>
 
+#include "common_shared/network/utils.h"
+
 #include "client_shared/test_full_file_backup.h"
+
 
 int main()
 {
+	Network::initSocketLib();
+
 	TestFullFileBackup test;
 	test.startDiscovery();
 	std::vector<Network::NetworkAddress> discoveryResults;
@@ -28,6 +33,8 @@ int main()
 	test.pairAndApproveServer(discoveryResults.front(), *serverName);
 
 	test.sendFiles(discoveryResults.front(), *serverName, "./client_files_to_send");
+
+	Network::shutdownSocketLib();
 
 	return 0;
 }

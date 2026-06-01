@@ -74,6 +74,26 @@ namespace Network
 		return static_cast<int>(l);
 	}
 
+	void initSocketLib()
+	{
+#if defined(_WIN32) || defined(_WIN64)
+		WORD wVersionRequested = MAKEWORD(2, 2);
+		WSADATA wsaData;
+		int err = WSAStartup(wVersionRequested, &wsaData);
+		if (err != 0)
+		{
+			reportDebugError("WSAStartup failed: ", err);
+		}
+#endif
+	}
+
+	void shutdownSocketLib()
+	{
+#if defined(_WIN32) || defined(_WIN64)
+		WSACleanup();
+#endif
+	}
+
 	std::variant<NetworkAddress, std::string> parseAddress(const void* const addr, const size_t addrLen)
 	{
 		std::array<char, INET6_ADDRSTRLEN> name = {};

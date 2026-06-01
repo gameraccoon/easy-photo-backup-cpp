@@ -44,6 +44,9 @@ namespace Network
 
 	std::variant<NetworkAddress, std::string> parseAddress(const void* addr, size_t addrLen);
 
+	void initSocketLib();
+	void shutdownSocketLib();
+
 	[[nodiscard]]
 	std::variant<RawSocket, std::string> createSocket(SocketType type, AddressType addressType);
 	std::optional<std::string> setSocketOption(RawSocket socket, int optionName);

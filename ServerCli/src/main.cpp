@@ -6,12 +6,15 @@
 #include <thread>
 
 #include "common_shared/debug/log.h"
+#include "common_shared/network/utils.h"
 #include "common_shared/nsd/nsd_server.h"
 
 #include "server_shared/tcp_server.h"
 
 int main()
 {
+	Network::initSocketLib();
+
 	auto openSocketResult = NsdServer::openNsdSocket(Network::AddressType::IpV4);
 
 	if (std::holds_alternative<std::string>(openSocketResult))
@@ -94,6 +97,8 @@ int main()
 	stopNsdServer();
 	// wait for the thread to finish
 	nsdThread.join();
+
+	Network::shutdownSocketLib();
 
 	return 0;
 }
