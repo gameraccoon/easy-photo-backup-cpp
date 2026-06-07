@@ -19,8 +19,11 @@ include(${MAIN_ROOT}/ClientShared/CMakeLists.txt)
 # System.loadLibrary() and pass the name of the library defined here;
 # for GameActivity/NativeActivity derived applications, the same library name must be
 # used in the AndroidManifest.xml file.
+
+set(CMAKE_BUILD_TYPE Debug)
+
 add_library(${CMAKE_PROJECT_NAME} SHARED
-	ffi_bindings.cpp
+	test_full_file_backup_ffi_bindings.cpp
 )
 
 target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
@@ -34,7 +37,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 )
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-	ffi_bindings.cpp
+	test_full_file_backup_ffi_bindings.cpp
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}

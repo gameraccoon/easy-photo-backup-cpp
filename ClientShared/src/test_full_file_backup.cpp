@@ -106,7 +106,7 @@ void TestFullFileBackup::stopDiscovery()
 	mDiscoveryThread.join();
 }
 
-std::optional<std::string> TestFullFileBackup::requestServerName(Network::NetworkAddress address)
+std::optional<std::string> TestFullFileBackup::requestServerName(const Network::NetworkAddress& address)
 {
 	RequestAnswers::RequestAnswer nameAnswer = Requests::sendAndProcessRequest(address.ip.data(), address.addressType, address.port, Requests::GetServerName{});
 
@@ -119,19 +119,15 @@ std::optional<std::string> TestFullFileBackup::requestServerName(Network::Networ
 			},
 			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
 				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
-				exit(0);
 			},
 			[](RequestAnswers::Error&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);
-				exit(0);
 			},
 			[](RequestAnswers::LogicalError&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);
-				exit(0);
 			},
 			[](auto&&) {
 				Debug::Log::printDebug("logical error, unexpected answer");
-				exit(0);
 			},
 		},
 		std::move(nameAnswer)
@@ -140,7 +136,7 @@ std::optional<std::string> TestFullFileBackup::requestServerName(Network::Networ
 	return serverName;
 }
 
-void TestFullFileBackup::pairAndApproveServer(Network::NetworkAddress address, const std::string& serverName)
+void TestFullFileBackup::pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName)
 {
 	bool isPaired = false;
 	mClientStorage.read([&isPaired, &serverName](const ClientStorageData& storageData) {
@@ -225,7 +221,7 @@ void TestFullFileBackup::pairAndApproveServer(Network::NetworkAddress address, c
 	}
 }
 
-void TestFullFileBackup::sendFiles(Network::NetworkAddress address, const std::string& serverName, const std::string& folderPath)
+void TestFullFileBackup::sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath)
 {
 	RequestAnswers::RequestAnswer SendFilesAnswer = Requests::prepareConnectionAndProcess(
 		address.ip.data(),

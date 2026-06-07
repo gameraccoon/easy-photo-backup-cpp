@@ -26,12 +26,12 @@ public:
 	std::vector<Network::NetworkAddress> getDiscoveryResults();
 	void stopDiscovery();
 
-	std::optional<std::string> requestServerName(Network::NetworkAddress address);
+	static std::optional<std::string> requestServerName(const Network::NetworkAddress& address);
 
 	// this is the bad and dangerous part, should be removed altogether before the app can be used for real
-	void pairAndApproveServer(Network::NetworkAddress address, const std::string& serverName);
+	void pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName);
 
-	void sendFiles(Network::NetworkAddress address, const std::string& serverName, const std::string& folderPath);
+	void sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath);
 
 private:
 	std::mutex mDataMutex;
