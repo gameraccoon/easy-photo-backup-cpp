@@ -7,7 +7,6 @@
 
 #include "client_shared/test_full_file_backup.h"
 
-
 int main()
 {
 	Network::initSocketLib();
