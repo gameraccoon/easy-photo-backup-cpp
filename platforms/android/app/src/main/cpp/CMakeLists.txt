@@ -32,6 +32,7 @@ target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+	${MAIN_ROOT}/CommonShared/deps/zstring_view/include
 	${MAIN_ROOT}/CommonShared/include
 	${MAIN_ROOT}/ClientShared/include
 )
