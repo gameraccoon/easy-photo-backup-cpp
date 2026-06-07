@@ -5,7 +5,8 @@
 
 #include <format>
 #include <mutex>
-#include <string_view>
+
+#include <zstring_view.hpp>
 
 namespace Debug::Log
 {
@@ -14,7 +15,7 @@ namespace Debug::Log
 		std::mutex& getDebugLogMutex();
 	} // namespace Internal
 
-	void printDebug(std::string_view text);
+	void printDebug(std::zstring_view text);
 
 	template<typename... Args>
 	void printDebug(const std::format_string<Args...>& message, Args... args)

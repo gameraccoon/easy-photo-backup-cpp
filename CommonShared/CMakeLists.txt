@@ -23,9 +23,13 @@ else()
 	target_compile_options(CommonShared PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
-target_include_directories(CommonShared PRIVATE
-	${COMMON_SHARED_INCLUDE_BASE_DIR}
-	${MONOCYPHER_ROOT}/src
+target_include_directories(CommonShared
+	PRIVATE
+		${COMMON_SHARED_INCLUDE_BASE_DIR}
+		${MONOCYPHER_ROOT}/src
+
+	PUBLIC
+		${COMMON_SHARED_ROOT}/deps/zstring_view/include
 )
 
 target_sources(CommonShared

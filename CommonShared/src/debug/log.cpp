@@ -22,15 +22,12 @@ namespace Debug::Log
 		}
 	} // namespace Internal
 
-	void printDebug(const std::string_view text)
+	void printDebug(const std::zstring_view text)
 	{
 		std::lock_guard<std::mutex> lock(Internal::getDebugLogMutex());
 
 #ifdef __ANDROID_API__
-		// we can't know if string_view contains null terminator or not, so we have to add it
-		// we should add a custom string_view type
-		const std::string textStr(text);
-		__android_log_print(ANDROID_LOG_DEBUG, "native log", "%s", textStr.c_str());
+		__android_log_print(ANDROID_LOG_DEBUG, "native log", "%s", text.c_str());
 #else
 		std::cout
 			<< text
