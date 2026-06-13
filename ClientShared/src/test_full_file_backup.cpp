@@ -30,8 +30,7 @@ TestFullFileBackup::TestFullFileBackup()
 void TestFullFileBackup::startDiscovery()
 {
 	mDiscoveryThread = std::thread([&servers = mDiscoveredServers, &mutex = mDataMutex, &nsdStopFlag = mNsdStopFlag] {
-		std::optional<std::string>
-			result = NsdClient::processServiceDiscoveryThread(
+		std::optional<std::string> result = NsdClient::processServiceDiscoveryThread(
 				"_easy-photo-backup._tcp",
 				5354,
 				Network::AddressType::IpV4,

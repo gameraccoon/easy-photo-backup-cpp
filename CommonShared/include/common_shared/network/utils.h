@@ -34,6 +34,9 @@ namespace Network
 		std::string ip;
 		uint16_t port = 0;
 		AddressType addressType = AddressType::IpV4;
+
+		static std::optional<NetworkAddress> fromString(std::string address);
+		std::string toString() const;
 	};
 
 	enum class SocketType : uint8_t

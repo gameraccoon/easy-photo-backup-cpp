@@ -94,6 +94,44 @@ namespace Network
 #endif
 	}
 
+	std::optional<NetworkAddress> NetworkAddress::fromString(std::string address)
+	{
+		std::optional<NetworkAddress> result;
+		if (auto it = std::find(address.begin(), address.end(), ':'); it != address.end()) {
+			std::optional<int> port = parseInt(&*(it + 1));
+
+			if (port.has_value()) {
+				AddressType type = AddressType::IpV4;
+
+				address.resize(std::distance(address.begin(), it));
+				in_addr ipv4 = {};
+				if (inet_pton(AF_INET, address.c_str(), &ipv4) != 1) {
+					in6_addr ipv6 = {};
+					if (inet_pton(AF_INET6, address.c_str(), &ipv6) == 1) {
+						type = AddressType::IpV6;
+					}
+					else
+					{
+						return result;
+					}
+				}
+
+				result = NetworkAddress{
+					.ip = std::move(address),
+					.port = static_cast<uint16_t>(*port),
+					.addressType = type,
+				};
+			}
+		}
+
+		return result;
+	}
+
+	std::string NetworkAddress::toString() const
+	{
+		return ip + ':' + std::to_string(port);
+	}
+
 	std::variant<NetworkAddress, std::string> parseAddress(const void* const addr, const size_t addrLen)
 	{
 		std::array<char, INET6_ADDRSTRLEN> name = {};

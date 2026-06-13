@@ -30,7 +30,7 @@ namespace NsdClient
 			return std::format("IPV6 broadcast (multicast) is somewhat complicated, it isn't implemented for now. Add when needed");
 		}
 
-		sockaddr_in address;
+		sockaddr_in address{};
 		address.sin_addr.s_addr = INADDR_BROADCAST;
 		address.sin_family = AF_INET;
 		address.sin_port = htons(port);
@@ -225,7 +225,7 @@ namespace NsdClient
 					{
 						if (std::ranges::find(serversToRemove, onlineServers[i - 1]) != serversToRemove.end())
 						{
-							onlineServers.erase(onlineServers.begin() + (i - 1));
+							onlineServers.erase(onlineServers.begin() + static_cast<int>(i - 1));
 						}
 					}
 				}

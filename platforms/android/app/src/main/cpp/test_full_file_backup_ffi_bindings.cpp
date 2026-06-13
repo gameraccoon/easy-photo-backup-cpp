@@ -75,7 +75,7 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_startDiscoveryNative(
 	obj->startDiscovery();
 }
 
-extern "C" JNIEXPORT void JNICALL
+extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_unnamed_easyphotobackup_TestFullFileBackup_getDiscoveryResultsNative(
 	JNIEnv* env,
 	jobject /*this*/,
@@ -83,7 +83,25 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_getDiscoveryResultsNative(
 )
 {
 	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
-	obj->getDiscoveryResults();
+	std::vector<Network::NetworkAddress> discoveryResults = obj->getDiscoveryResults();
+
+	jclass stringClass = env->FindClass("java/lang/String");
+
+	jobjectArray result = env->NewObjectArray(
+		static_cast<int>(discoveryResults.size()),
+		stringClass,
+		nullptr
+	);
+
+	for (size_t i = 0; i < discoveryResults.size(); ++i)
+	{
+		std::string addressString = discoveryResults[i].toString();
+		jstring str = env->NewStringUTF(addressString.c_str());
+		env->SetObjectArrayElement(result, static_cast<int>(i), str);
+		env->DeleteLocalRef(str);
+	}
+
+	return result;
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -102,19 +120,20 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_requestServerNameNative(
 	JNIEnv* env,
 	jobject /*this*/,
 	jlong handle,
-	jstring ip,
-	jint port
-)
-{
+	jstring addressJStr
+) {
 	//	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
 
-	const char* ipChar = env->GetStringUTFChars(ip, nullptr);
-	std::optional<std::string> serverName = TestFullFileBackupNative::requestServerName(Network::NetworkAddress{
-		.ip = std::string(ipChar),
-		.port = static_cast<uint16_t>(port),
-		.addressType = Network::AddressType::IpV4,
-	});
-	env->ReleaseStringUTFChars(ip, ipChar);
+	const char *addressChar = env->GetStringUTFChars(addressJStr, nullptr);
+	const std::optional<Network::NetworkAddress> address = Network::NetworkAddress::fromString(addressChar);
+	env->ReleaseStringUTFChars(addressJStr, addressChar);
+
+	if (!address.has_value())
+	{
+		return nullptr;
+	}
+
+	std::optional<std::string> serverName = TestFullFileBackupNative::requestServerName(*address);
 
 	if (serverName.has_value())
 	{
@@ -128,20 +147,55 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_unnamed_easyphotobackup_TestFullFileBackup_pairAndApproveServerNative(
 	JNIEnv* env,
 	jobject /*this*/,
-	jlong handle
+	jlong handle,
+	jstring addressJStr,
+	jstring serverNameJStr
 )
 {
+	const char *addressChar = env->GetStringUTFChars(addressJStr, nullptr);
+	std::optional<Network::NetworkAddress> address = Network::NetworkAddress::fromString(addressChar);
+	env->ReleaseStringUTFChars(addressJStr, addressChar);
+
+	if (!address.has_value())
+	{
+		return;
+	}
+
+	const char *serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
+	const std::string serverName(serverNameChar);
+	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
+
 	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
-	//obj->pairAndApproveServer();
+	obj->pairAndApproveServer(*address, serverName);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_unnamed_easyphotobackup_TestFullFileBackup_sendFilesNative(
 	JNIEnv* env,
 	jobject /*this*/,
-	jlong handle
+	jlong handle,
+	jstring addressJStr,
+	jstring serverNameJStr,
+	jstring folderPathJStr
 )
 {
+	const char *addressChar = env->GetStringUTFChars(addressJStr, nullptr);
+	std::optional<Network::NetworkAddress> address = Network::NetworkAddress::fromString(addressChar);
+	env->ReleaseStringUTFChars(addressJStr, addressChar);
+
+	if (!address.has_value())
+	{
+		return;
+	}
+
+	const char *serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
+	const std::string serverName(serverNameChar);
+	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
+
+	const char *folderPathChar = env->GetStringUTFChars(folderPathJStr, nullptr);
+	const std::string folderPath(folderPathChar);
+	env->ReleaseStringUTFChars(folderPathJStr, folderPathChar);
+
 	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
-	//obj->sendFilesNative();
+	obj->sendFiles(*address, serverName, folderPath);
 }

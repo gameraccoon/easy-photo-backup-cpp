@@ -16,10 +16,25 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        testFullFileBackup.startDiscovery();
+
         val delayedHandler = Handler()
         delayedHandler.postDelayed({
-            binding.sampleText.text = testFullFileBackup.requestServerName("192.168.0.103", 51709)
-        }, 2000)
+            val discoveryResults = testFullFileBackup.getDiscoveryResults()
+            testFullFileBackup.stopDiscovery();
 
+            if (discoveryResults.isEmpty()) {
+                binding.sampleText.text = "No server found"
+            } else {
+                val serverName = testFullFileBackup.requestServerName(discoveryResults[0])
+
+                testFullFileBackup.pairAndApproveServer(discoveryResults[0], serverName)
+
+                //testFullFileBackup.sendFiles(discoveryResults[0], serverName, "")
+
+                binding.sampleText.text = serverName
+            }
+
+        }, 2000)
     }
 }
