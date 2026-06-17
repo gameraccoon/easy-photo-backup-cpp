@@ -477,8 +477,8 @@ namespace Network
 	{
 		if (buffer.size() < bytesToSend + Cryptography::CipherAuthDataSize)
 		{
-			reportDebugError("The buffer is too small to fit the cyphertext to send, {} {}", buffer.size(), bytesToSend + Cryptography::CipherAuthDataSize);
-			return std::format("The buffer is too small to fit the cyphertext to send, {} {}", buffer.size(), bytesToSend + Cryptography::CipherAuthDataSize);
+			reportDebugError("The buffer is too small to fit the ciphertext to send, {} {}", buffer.size(), bytesToSend + Cryptography::CipherAuthDataSize);
+			return std::format("The buffer is too small to fit the ciphertext to send, {} {}", buffer.size(), bytesToSend + Cryptography::CipherAuthDataSize);
 		}
 
 		if (bytesToSend == 0)
@@ -503,13 +503,13 @@ namespace Network
 		case Cryptography::EncryptResult::PlaintextBiggerThanMaxMessageSize:
 			return "Plaintext is too big to be encrypted";
 		case Cryptography::EncryptResult::CiphertextBufferTooSmall:
-			return "Cipthertext buffer is too small to fit the result";
+			return "Ciphertext buffer is too small to fit the result";
 		case Cryptography::EncryptResult::CiphertextBufferTooBig:
 			return "Ciphertext buffer is bigger than expected";
 		case Cryptography::EncryptResult::IncorrectEncryptionKey:
 			return "Encryption key is not valid (empty)";
 		case Cryptography::EncryptResult::PartiallyOverlappingBuffers:
-			return "Plaintext and ciphertext buffers are not allowed to partially oveerlap";
+			return "Plaintext and ciphertext buffers are not allowed to partially overlap";
 		case Cryptography::EncryptResult::NoEncryptionKey:
 			return "No encryption key was provided";
 		case Cryptography::EncryptResult::NonceExhausted:
