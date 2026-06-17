@@ -141,11 +141,6 @@ namespace Requests
 			return;
 		}
 
-		DWORD timeout;
-		int len = sizeof(timeout);
-		getsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, &len);
-		printf("timeout %lu\n", timeout);
-
 		Debug::Log::printDebug("Start receiving files");
 		FileReceiveUtils::receiveFiles("./server_target_directory", socket, sendingCipherState, receivingCipherState);
 
