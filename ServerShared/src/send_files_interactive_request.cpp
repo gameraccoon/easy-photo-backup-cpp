@@ -15,6 +15,8 @@ namespace Requests
 {
 	constexpr const int SubsequentMessagesTimeoutSeconds = 1;
 	constexpr const int SubsequentMessagesTimeoutMicroseconds = 0;
+	constexpr const int FileTransferMessagesTimeoutSeconds = 2;
+	constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
 
 	bool processKkHandshake(std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage, const std::string& clientName, Noise::CipherStateSending& outSendingCipherState, Noise::CipherStateReceiving& outReceivingCipherState)
 	{
@@ -125,6 +127,24 @@ namespace Requests
 			reportDebugError("Could not process KK handshake");
 			return;
 		}
+
+		// increase the timeouts even further for the file transfer
+		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, FileTransferMessagesTimeoutSeconds, FileTransferMessagesTimeoutMicroseconds); result.has_value())
+		{
+			reportDebugError("Could not set SO_RCVTIMEO to a connection socket: {}", *result);
+			return;
+		}
+
+		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, FileTransferMessagesTimeoutSeconds, FileTransferMessagesTimeoutMicroseconds); result.has_value())
+		{
+			reportDebugError("Could not set SO_SNDTIMEO to a connection socket: {}", *result);
+			return;
+		}
+
+		DWORD timeout;
+		int len = sizeof(timeout);
+		getsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, &len);
+		printf("timeout %lu\n", timeout);
 
 		Debug::Log::printDebug("Start receiving files");
 		FileReceiveUtils::receiveFiles("./server_target_directory", socket, sendingCipherState, receivingCipherState);

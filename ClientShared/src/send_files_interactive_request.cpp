@@ -7,6 +7,7 @@
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
+#include "common_shared/network/raw_sockets.h"
 #include "common_shared/serialization/number_serialization.h"
 
 #include "client_shared/client_storage.h"
@@ -124,11 +125,27 @@ namespace Requests
 
 	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName, const std::string& folderPath) noexcept
 	{
+		constexpr const int FileTransferMessagesTimeoutSeconds = 2;
+		constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
+
 		Noise::CipherStateSending sendingCipherState;
 		Noise::CipherStateReceiving receivingCipherState;
 		if (!processKkHandshake(socket, storage, serverName, sendingCipherState, receivingCipherState))
 		{
 			reportDebugError("Failed to process KK handshake");
+			return RequestAnswers::ErrorNoHandling{};
+		}
+
+		// increase the timeouts for the rest of the handshake
+		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, FileTransferMessagesTimeoutSeconds, FileTransferMessagesTimeoutMicroseconds); result.has_value())
+		{
+			reportDebugError("Could not set SO_RCVTIMEO to a connection socket: {}", *result);
+			return RequestAnswers::ErrorNoHandling{};
+		}
+
+		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, FileTransferMessagesTimeoutSeconds, FileTransferMessagesTimeoutMicroseconds); result.has_value())
+		{
+			reportDebugError("Could not set SO_SNDTIMEO to a connection socket: {}", *result);
 			return RequestAnswers::ErrorNoHandling{};
 		}
 
