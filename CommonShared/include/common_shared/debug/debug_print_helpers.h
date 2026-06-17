@@ -7,9 +7,11 @@
 
 #include <span>
 
+#include <zstring_view.hpp>
+
 namespace Debug::Print
 {
-	void printSpan(const char* name, std::span<const std::byte> data);
+	void printSpan(std::zstring_view name, std::span<const std::byte> data);
 }
 
 #endif // DEBUG_CHECKS

@@ -13,18 +13,19 @@
 
 namespace Debug::Print
 {
-	void printSpan(const char* name, std::span<const std::byte> data)
+	void printSpan(std::zstring_view name, std::span<const std::byte> data)
 	{
-		std::lock_guard<std::mutex> lock(Debug::Log::Internal::getDebugLogMutex());
+		std::string message;
+		message.reserve(name.size() + 4 + data.size() * 2);
 
-		std::cout << name << ": 0x";
-		// incredibly slow but threadsafe
-		for (size_t i = 0; i < data.size(); i++)
+		message += name;
+		message += ": 0x";
+		for (auto byte : data)
 		{
-			std::cout << std::format("{:02x}", static_cast<char>(data[i]));
+			message += std::format("{:02x}", static_cast<char>(byte));
 		}
-		std::cout << '\n'
-				  << std::flush;
+
+		Log::printDebug(message);
 	}
 } // namespace Debug::Print
 
