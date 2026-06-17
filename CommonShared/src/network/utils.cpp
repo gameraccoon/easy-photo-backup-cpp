@@ -214,10 +214,15 @@ namespace Network
 
 	std::optional<std::string> setSocketTimeout(RawSocket socket, const int optionName, int seconds, int microseconds)
 	{
+#if defined(_WIN32) || defined(_WIN64)
+		DWORD dwRecvTimeoutMs = seconds * 1000 + microseconds / 1000;
+		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, (const char*)&dwRecvTimeoutMs, sizeof(DWORD)))
+#else
 		timeval socketTimeout{};
 		socketTimeout.tv_sec = seconds;
 		socketTimeout.tv_usec = microseconds;
 		if (const int errCode = setsockopt(socket, SOL_SOCKET, optionName, reinterpret_cast<const char*>(&socketTimeout), sizeof(socketTimeout)); errCode == -1) [[unlikely]]
+#endif
 		{
 			reportDebugError("Cannot set option {} to the socket, error code {}.", optionName, getLastSocketError());
 			return std::format("Cannot set option {} to the socket, error code {}.", optionName, getLastSocketError());
