@@ -6,8 +6,8 @@
 #include "common_shared/cryptography/noise/noise_kk_handshake.h"
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
-#include "common_shared/network/utils.h"
 #include "common_shared/network/raw_sockets.h"
+#include "common_shared/network/utils.h"
 #include "common_shared/serialization/number_serialization.h"
 
 #include "client_shared/client_storage.h"

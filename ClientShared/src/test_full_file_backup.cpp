@@ -31,54 +31,54 @@ void TestFullFileBackup::startDiscovery()
 {
 	mDiscoveryThread = std::thread([&servers = mDiscoveredServers, &mutex = mDataMutex, &nsdStopFlag = mNsdStopFlag] {
 		std::optional<std::string> result = NsdClient::processServiceDiscoveryThread(
-				"_easy-photo-backup._tcp",
-				5354,
-				Network::AddressType::IpV4,
-				1,
-				[&servers, &mutex](auto&& event) {
-					if (event.state == NsdClient::DiscoveryState::Added)
+			"_easy-photo-backup._tcp",
+			5354,
+			Network::AddressType::IpV4,
+			1,
+			[&servers, &mutex](auto&& event) {
+				if (event.state == NsdClient::DiscoveryState::Added)
+				{
+					int version = -1;
+					if (!event.extraData.empty())
 					{
-						int version = -1;
-						if (!event.extraData.empty())
-						{
-							version = static_cast<int>(event.extraData[0]);
-						}
-
-						std::string idString;
-						idString.reserve(event.extraData.size());
-						for (std::byte b : event.extraData)
-						{
-							idString.push_back(static_cast<int>(b) + '0');
-						}
-
-						Debug::Log::printDebug(std::format("NSD: Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port));
-						{
-							std::unique_lock lock(mutex);
-							servers.push_back(event.address);
-						}
+						version = static_cast<int>(event.extraData[0]);
 					}
-					else
-					{
-						Debug::Log::printDebug("NSD: Server removed");
-						{
-							std::unique_lock lock(mutex);
-							auto it = std::find_if(
-								servers.begin(),
-								servers.end(),
-								[&event](const Network::NetworkAddress& item) {
-									return item.ip == event.address.ip;
-								}
-							);
 
-							if (it != servers.end())
-							{
-								servers.erase(it);
+					std::string idString;
+					idString.reserve(event.extraData.size());
+					for (std::byte b : event.extraData)
+					{
+						idString.push_back(static_cast<int>(b) + '0');
+					}
+
+					Debug::Log::printDebug(std::format("NSD: Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port));
+					{
+						std::unique_lock lock(mutex);
+						servers.push_back(event.address);
+					}
+				}
+				else
+				{
+					Debug::Log::printDebug("NSD: Server removed");
+					{
+						std::unique_lock lock(mutex);
+						auto it = std::find_if(
+							servers.begin(),
+							servers.end(),
+							[&event](const Network::NetworkAddress& item) {
+								return item.ip == event.address.ip;
 							}
+						);
+
+						if (it != servers.end())
+						{
+							servers.erase(it);
 						}
 					}
-				},
-				nsdStopFlag
-			);
+				}
+			},
+			nsdStopFlag
+		);
 
 		if (result.has_value())
 		{

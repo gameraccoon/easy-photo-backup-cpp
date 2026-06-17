@@ -121,10 +121,11 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_requestServerNameNative(
 	jobject /*this*/,
 	jlong handle,
 	jstring addressJStr
-) {
+)
+{
 	//	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
 
-	const char *addressChar = env->GetStringUTFChars(addressJStr, nullptr);
+	const char* addressChar = env->GetStringUTFChars(addressJStr, nullptr);
 	const std::optional<Network::NetworkAddress> address = Network::NetworkAddress::fromString(addressChar);
 	env->ReleaseStringUTFChars(addressJStr, addressChar);
 
@@ -152,7 +153,7 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_pairAndApproveServerNative(
 	jstring serverNameJStr
 )
 {
-	const char *addressChar = env->GetStringUTFChars(addressJStr, nullptr);
+	const char* addressChar = env->GetStringUTFChars(addressJStr, nullptr);
 	std::optional<Network::NetworkAddress> address = Network::NetworkAddress::fromString(addressChar);
 	env->ReleaseStringUTFChars(addressJStr, addressChar);
 
@@ -161,7 +162,7 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_pairAndApproveServerNative(
 		return;
 	}
 
-	const char *serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
+	const char* serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
 	const std::string serverName(serverNameChar);
 	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
 
@@ -179,7 +180,7 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_sendFilesNative(
 	jstring folderPathJStr
 )
 {
-	const char *addressChar = env->GetStringUTFChars(addressJStr, nullptr);
+	const char* addressChar = env->GetStringUTFChars(addressJStr, nullptr);
 	std::optional<Network::NetworkAddress> address = Network::NetworkAddress::fromString(addressChar);
 	env->ReleaseStringUTFChars(addressJStr, addressChar);
 
@@ -188,11 +189,11 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_sendFilesNative(
 		return;
 	}
 
-	const char *serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
+	const char* serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
 	const std::string serverName(serverNameChar);
 	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
 
-	const char *folderPathChar = env->GetStringUTFChars(folderPathJStr, nullptr);
+	const char* folderPathChar = env->GetStringUTFChars(folderPathJStr, nullptr);
 	const std::string folderPath(folderPathChar);
 	env->ReleaseStringUTFChars(folderPathJStr, folderPathChar);
 
