@@ -103,6 +103,7 @@ void TestFullFileBackup::stopDiscovery()
 	mNsdStopFlag.store(true, std::memory_order::release);
 	mDiscoveredServers.clear();
 	mDiscoveryThread.join();
+	mNsdStopFlag.store(false, std::memory_order::relaxed);
 }
 
 std::optional<std::string> TestFullFileBackup::requestServerName(const Network::NetworkAddress& address)
