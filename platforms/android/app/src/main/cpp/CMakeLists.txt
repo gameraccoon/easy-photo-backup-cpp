@@ -6,10 +6,17 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+add_definitions(-DDEBUG_CHECKS)
+add_definitions(-DWITH_TESTS)
+
 set(MAIN_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../../..)
 
 include(${MAIN_ROOT}/CommonShared/CMakeLists.txt)
 include(${MAIN_ROOT}/ClientShared/CMakeLists.txt)
+
+if(WITH_TESTS)
+	include(${MAIN_ROOT}/Tests/CMakeLists.txt)
+endif(WITH_TESTS)
 
 # In this top level CMakeLists.txt, ${CMAKE_PROJECT_NAME} is used to define
 # the target library name; in the sub-module's CMakeLists.txt, ${PROJECT_NAME}
