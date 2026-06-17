@@ -83,7 +83,6 @@ void TestFullFileBackup::startDiscovery()
 		if (result.has_value())
 		{
 			Debug::Log::printDebug(std::format("NSD client error: '{}'", *result));
-			exit(0);
 		}
 		else
 		{
@@ -174,19 +173,15 @@ void TestFullFileBackup::pairAndApproveServer(const Network::NetworkAddress& add
 			},
 			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
 				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
-				exit(0);
 			},
 			[](RequestAnswers::Error&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);
-				exit(0);
 			},
 			[](RequestAnswers::LogicalError&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);
-				exit(0);
 			},
 			[](auto&&) {
 				Debug::Log::printDebug("logical error, unexpected answer");
-				exit(0);
 			},
 		},
 		std::move(pairAnswer)
@@ -197,7 +192,6 @@ void TestFullFileBackup::pairAndApproveServer(const Network::NetworkAddress& add
 		if (!pendingServerBinding.has_value())
 		{
 			Debug::Log::printDebug("pendingServerBinding is not set, this is incorrect");
-			exit(0);
 		}
 
 		mClientStorage.mutate([&serverName, &pendingServerBinding](ClientStorageData& storage) {
@@ -239,19 +233,15 @@ void TestFullFileBackup::sendFiles(const Network::NetworkAddress& address, const
 			},
 			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
 				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
-				exit(0);
 			},
 			[](RequestAnswers::Error&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);
-				exit(0);
 			},
 			[](RequestAnswers::LogicalError&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);
-				exit(0);
 			},
 			[](auto&&) {
 				Debug::Log::printDebug("logical error, unexpected answer");
-				exit(0);
 			},
 		},
 		std::move(SendFilesAnswer)
