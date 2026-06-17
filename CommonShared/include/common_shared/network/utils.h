@@ -65,7 +65,7 @@ namespace Network
 	std::optional<std::string> sendEncrypted(RawSocket socket, std::span<std::byte> buffer, size_t bytesToSend, Noise::CipherStateSending& cipherState);
 	// the buffer should have enough space to contain the expected plaintext + Cryptography::CipherAuthDataSize, receivedBytes is the size of plaintext
 	std::optional<std::string> recvEncrypted(RawSocket socket, std::span<std::byte> buffer, size_t& receivedBytes, Noise::CipherStateReceiving& cipherState);
-	void closeSocket(RawSocket socket);
+	void closeSocket(RawSocket socket, int timeoutMicroseconds = 100000);
 
 	class AutoclosingSocket
 	{

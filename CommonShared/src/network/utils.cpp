@@ -589,13 +589,20 @@ namespace Network
 		return "Unreachable code reached";
 	}
 
-	void closeSocket(const RawSocket socket)
+	void closeSocket(const RawSocket socket, int timeoutMicroseconds)
 	{
+		Network::setSocketTimeout(socket, SO_RCVTIMEO, 0, timeoutMicroseconds);
+		char buf[1024];
+
 #if _WIN32
 		shutdown(socket, SD_BOTH);
+		// wait for shutdown to complete
+		::recv(socket, buf, 1024, 0);
 		closesocket(socket);
 #else
 		shutdown(socket, SHUT_RDWR);
+		// wait for shutdown to complete
+		::recv(socket, buf, 1024, 0);
 		close(socket);
 #endif
 	}
