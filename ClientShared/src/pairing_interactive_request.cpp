@@ -56,7 +56,7 @@ namespace Requests
 			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.raw.data(), cursor));
 			if (sendResult.has_value())
 			{
-				reportDebugError("Could not send the first XX message");
+				reportDebugError("Could not send the first XX message: {}", *sendResult);
 				return RequestAnswers::ErrorNoHandling{};
 			}
 		}
@@ -67,7 +67,7 @@ namespace Requests
 			size_t readBytes = 0;
 			if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())
 			{
-				reportDebugError("Could not recv the second XX message");
+				reportDebugError("Could not recv the second XX message: {}", *result);
 				return RequestAnswers::ErrorNoHandling{};
 			}
 
@@ -128,7 +128,7 @@ namespace Requests
 			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.raw.data(), cursor));
 			if (sendResult.has_value())
 			{
-				reportDebugError("Could not send the third XX message");
+				reportDebugError("Could not send the third XX message: {}", *sendResult);
 				return RequestAnswers::ErrorNoHandling{};
 			}
 

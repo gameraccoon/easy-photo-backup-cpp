@@ -68,13 +68,13 @@ namespace Requests
 		// increase the timeouts for the rest of the handshake
 		if (const auto result = Network::setSocketTimeout(socket, SO_RCVTIMEO, SubsequentMessagesTimeoutSeconds, SubsequentMessagesTimeoutMicroseconds); result.has_value())
 		{
-			reportDebugError("Could not set SO_RCVTIMEO to a connection socket");
+			reportDebugError("Could not set SO_RCVTIMEO to a connection socket: {}", *result);
 			return false;
 		}
 
 		if (const auto result = Network::setSocketTimeout(socket, SO_SNDTIMEO, SubsequentMessagesTimeoutSeconds, SubsequentMessagesTimeoutMicroseconds); result.has_value())
 		{
-			reportDebugError("Could not set SO_SNDTIMEO to a connection socket");
+			reportDebugError("Could not set SO_SNDTIMEO to a connection socket: {}", *result);
 			return false;
 		}
 
@@ -101,7 +101,7 @@ namespace Requests
 			const auto sendResult = Network::send(socket, buffer);
 			if (sendResult.has_value())
 			{
-				reportDebugError("Could not send the second KK message");
+				reportDebugError("Could not send the second KK message: {}", *sendResult);
 				return false;
 			}
 

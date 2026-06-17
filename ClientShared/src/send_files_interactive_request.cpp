@@ -68,7 +68,7 @@ namespace Requests
 			const auto sendResult = Network::send(socket, std::span<std::byte>(buffer.raw.data(), cursor));
 			if (sendResult.has_value())
 			{
-				reportDebugError("Could not send the first KK message");
+				reportDebugError("Could not send the first KK message: {}", *sendResult);
 				return false;
 			}
 		}
