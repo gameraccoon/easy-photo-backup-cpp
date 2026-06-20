@@ -223,13 +223,13 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_sendFilesNative(
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_unnamed_easyphotobackup_TestFullFileBackup_removeServerNative(
-		JNIEnv* env,
-		jobject /*this*/,
-		jlong handle,
-		jstring serverNameJStr
+	JNIEnv* env,
+	jobject /*this*/,
+	jlong handle,
+	jstring serverNameJStr
 )
 {
-	const char *serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
+	const char* serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
 	const std::string serverName(serverNameChar);
 	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
 
@@ -244,13 +244,13 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_removeServerNative(
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_unnamed_easyphotobackup_TestFullFileBackup_isServerPaired(
-		JNIEnv* env,
-		jobject /*this*/,
-		jlong handle,
-		jstring serverNameJStr
+	JNIEnv* env,
+	jobject /*this*/,
+	jlong handle,
+	jstring serverNameJStr
 )
 {
-	const char *serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
+	const char* serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
 	const std::string serverName(serverNameChar);
 	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
 
