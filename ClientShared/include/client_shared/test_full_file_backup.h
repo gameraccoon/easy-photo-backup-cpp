@@ -29,9 +29,13 @@ public:
 	static std::optional<std::string> requestServerName(const Network::NetworkAddress& address);
 
 	// this is the bad and dangerous part, should be removed altogether before the app can be used for real
-	void pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName);
+	std::optional<std::string> pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName);
 
-	void sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath);
+	std::optional<std::string> sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath);
+
+	std::optional<std::string> removeServer(const std::string& serverName);
+
+	bool isServerPaired(const std::string& serverName) const;
 
 private:
 	std::mutex mDataMutex;

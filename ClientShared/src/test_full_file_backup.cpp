@@ -135,7 +135,7 @@ std::optional<std::string> TestFullFileBackup::requestServerName(const Network::
 	return serverName;
 }
 
-void TestFullFileBackup::pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName)
+std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName)
 {
 	bool isPaired = false;
 	mClientStorage.read([&isPaired, &serverName](const ClientStorageData& storageData) {
@@ -147,7 +147,7 @@ void TestFullFileBackup::pairAndApproveServer(const Network::NetworkAddress& add
 
 	if (isPaired)
 	{
-		return;
+		return "Already paired";
 	}
 
 	RequestAnswers::RequestAnswer pairAnswer = Requests::prepareConnectionAndProcess(
@@ -161,31 +161,37 @@ void TestFullFileBackup::pairAndApproveServer(const Network::NetworkAddress& add
 
 	std::optional<PendingServerBinding> pendingServerBinding;
 
-	std::visit(
+	std::optional<std::string> result = std::visit(
 		VisitLambda{
-			[&pendingServerBinding, &serverName](RequestAnswers::Pair&& pair) {
+			[&pendingServerBinding, &serverName](RequestAnswers::Pair&& pair) -> std::optional<std::string> {
 				pendingServerBinding = PendingServerBinding{
 					.staticKeys = std::move(pair.staticKeys),
 					.remoteStaticKey = std::move(pair.remoteStaticKey),
 					.handshakeHash = std::move(pair.handshakeHash),
 				};
 				Debug::Log::printDebug(std::format("Received pairing information from '{}'", serverName));
+				return {};
 			},
-			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
-				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
+			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) -> std::optional<std::string> {
+				return std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion);
 			},
-			[](RequestAnswers::Error&& answerReadError) {
-				Debug::Log::printDebug(answerReadError.errorMessage);
+			[](RequestAnswers::Error&& answerReadError) -> std::optional<std::string> {
+				return answerReadError.errorMessage;
 			},
-			[](RequestAnswers::LogicalError&& answerReadError) {
-				Debug::Log::printDebug(answerReadError.errorMessage);
+			[](RequestAnswers::LogicalError&& answerReadError) -> std::optional<std::string> {
+				return answerReadError.errorMessage;
 			},
-			[](auto&&) {
-				Debug::Log::printDebug("logical error, unexpected answer");
+			[](auto&&) -> std::optional<std::string> {
+				return "logical error, unexpected answer";
 			},
 		},
 		std::move(pairAnswer)
 	);
+
+	if (result.has_value())
+	{
+		return result;
+	}
 
 	// approve automatically for now
 	{
@@ -213,9 +219,11 @@ void TestFullFileBackup::pairAndApproveServer(const Network::NetworkAddress& add
 
 		Debug::Log::printDebug("The server got automatically approved for testing purposes");
 	}
+
+	return std::nullopt;
 }
 
-void TestFullFileBackup::sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath)
+std::optional<std::string> TestFullFileBackup::sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath)
 {
 	RequestAnswers::RequestAnswer SendFilesAnswer = Requests::prepareConnectionAndProcess(
 		address.ip.data(),
@@ -226,24 +234,57 @@ void TestFullFileBackup::sendFiles(const Network::NetworkAddress& address, const
 		}
 	);
 
-	std::visit(
+	return std::visit(
 		VisitLambda{
-			[](RequestAnswers::SendFiles&&) {
-				Debug::Log::printDebug(std::format("Successfully sent files"));
+			[](RequestAnswers::SendFiles&&) -> std::optional<std::string> {
+				return std::nullopt;
 			},
-			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
-				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
+			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) -> std::optional<std::string> {
+				return std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion);
 			},
-			[](RequestAnswers::Error&& answerReadError) {
-				Debug::Log::printDebug(answerReadError.errorMessage);
+			[](RequestAnswers::Error&& answerReadError) -> std::optional<std::string> {
+				return answerReadError.errorMessage;
 			},
-			[](RequestAnswers::LogicalError&& answerReadError) {
-				Debug::Log::printDebug(answerReadError.errorMessage);
+			[](RequestAnswers::LogicalError&& answerReadError) -> std::optional<std::string> {
+				return answerReadError.errorMessage;
 			},
-			[](auto&&) {
-				Debug::Log::printDebug("logical error, unexpected answer");
+			[](auto&&) -> std::optional<std::string> {
+				return "logical error, unexpected answer";
 			},
 		},
 		std::move(SendFilesAnswer)
 	);
+}
+
+std::optional<std::string> TestFullFileBackup::removeServer(const std::string& serverName)
+{
+	std::optional<std::string> result;
+	mClientStorage.mutate([&serverName, &result](ClientStorageData& storage) {
+		const size_t removed = storage.confirmedServerBindings.erase(serverName);
+		if (removed == 0)
+		{
+			result = "Server has not been paired";
+		}
+		if (removed > 1)
+		{
+			result = std::format("{} servers were removed", removed);
+		}
+	});
+
+	if (mClientStorage.save() == false)
+	{
+		reportDebugError("Could not save client data");
+	}
+
+	return result;
+}
+
+bool TestFullFileBackup::isServerPaired(const std::string& serverName) const
+{
+	bool isPaired = false;
+	mClientStorage.read([&serverName, &isPaired](const ClientStorageData& storage) {
+		isPaired = storage.confirmedServerBindings.contains(serverName);
+	});
+
+	return isPaired;
 }

@@ -10,10 +10,12 @@ class TestFullFileBackup : AutoCloseable {
     private external fun startDiscoveryNative(handle: Long)
     private external fun getDiscoveryResultsNative(handle: Long): Array<String>
     private external fun stopDiscoveryNative(handle: Long)
-    private external fun requestServerNameNative(handle: Long, address: String) : String
+    private external fun requestServerNameNative(handle: Long, address: String) : String?
     // ToDo: this is a function that only exists for early testing, it should be removed asap
-    private external fun pairAndApproveServerNative(handle: Long, address: String, serverName: String)
-    private external fun sendFilesNative(handle: Long, address: String, serverName: String, folderPath: String)
+    private external fun pairAndApproveServerNative(handle: Long, address: String, serverName: String) : String?
+    private external fun sendFilesNative(handle: Long, address: String, serverName: String, folderPath: String) : String?
+    private external fun removeServerNative(handle: Long, serverName: String) : String?
+    private external fun isServerPaired(handle: Long, serverName: String) : Boolean
 
     override fun close() {
         if (nativeHandle != 0L) {
@@ -37,20 +39,30 @@ class TestFullFileBackup : AutoCloseable {
         stopDiscoveryNative(nativeHandle)
     }
 
-    fun requestServerName(address: String): String {
+    fun requestServerName(address: String): String? {
         check(nativeHandle != 0L)
         return requestServerNameNative(nativeHandle, address)
     }
 
     // ToDo: this is a function that only exists for early testing, it should be removed asap
-    fun pairAndApproveServer(address: String, serverName: String) {
+    fun pairAndApproveServer(address: String, serverName: String) : String? {
         check(nativeHandle != 0L)
-        pairAndApproveServerNative(nativeHandle, address, serverName)
+        return pairAndApproveServerNative(nativeHandle, address, serverName)
     }
 
-    fun sendFiles(address: String, serverName: String, folderPath: String) {
+    fun sendFiles(address: String, serverName: String, folderPath: String) : String? {
         check(nativeHandle != 0L)
-        sendFilesNative(nativeHandle, address, serverName, folderPath)
+        return sendFilesNative(nativeHandle, address, serverName, folderPath)
+    }
+
+    fun removeServer(serverName: String) : String? {
+        check(nativeHandle != 0L)
+        return removeServerNative(nativeHandle, serverName)
+    }
+
+    fun isServerPaired(serverName: String) : Boolean {
+        check(nativeHandle != 0L)
+        return isServerPaired(nativeHandle, serverName)
     }
 
     companion object {

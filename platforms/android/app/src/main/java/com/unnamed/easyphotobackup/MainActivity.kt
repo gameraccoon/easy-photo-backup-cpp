@@ -6,9 +6,9 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.provider.Settings
-import android.view.View
 import android.widget.Button
-import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.unnamed.easyphotobackup.databinding.ActivityMainBinding
@@ -31,8 +31,7 @@ class MainActivity : AppCompatActivity() {
         ensureAllFilesAccess()
 
         discoverServers()
-        val discoverButton = findViewById<View>(R.id.discoverButton) as Button
-        discoverButton.setOnClickListener {
+        binding.discoverButton.setOnClickListener {
             discoverServers()
         }
     }
@@ -56,12 +55,13 @@ class MainActivity : AppCompatActivity() {
 
         testFullFileBackup.startDiscovery()
         isDiscovering = true
-        (findViewById<View>(R.id.discoverButton) as Button).isEnabled = false
+        binding.sampleText.text = "Discovering servers..."
+        binding.discoverButton.isEnabled = false
 
         val handler = Handler(mainLooper)
         handler.postDelayed({
             isDiscovering = false
-            (findViewById<View>(R.id.discoverButton) as Button).isEnabled = true
+            binding.discoverButton.isEnabled = true
 
             val discoveryResults = testFullFileBackup.getDiscoveryResults()
             testFullFileBackup.stopDiscovery()
@@ -76,16 +76,58 @@ class MainActivity : AppCompatActivity() {
             binding.sampleText.text = "Found ${discoveryResults.size} server(s)"
 
             for (result in discoveryResults) {
-                val serverName = testFullFileBackup.requestServerName(result)
+                var serverName = testFullFileBackup.requestServerName(result)
+                if (serverName == null)
+                {
+                    serverName = "Unknown"
+                }
 
-                val button = Button(this).apply {
+                val title = TextView(this).apply {
                     text = serverName
                 }
 
-                button.setOnClickListener {
+                val pairButton = Button(this).apply {
+                    text = "pair"
+                }
 
-                    testFullFileBackup.pairAndApproveServer(result, serverName)
+                val sendFilesButton = Button(this).apply {
+                    text = "send"
+                }
 
+                val removeButton = Button(this).apply {
+                    text = "x"
+                }
+
+                val horizontalBox = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                }
+
+                horizontalBox.addView(title)
+                horizontalBox.addView(pairButton)
+                horizontalBox.addView(sendFilesButton)
+                horizontalBox.addView(removeButton)
+
+                val updateButtonStates = {
+                    val isPaired = testFullFileBackup.isServerPaired(serverName)
+                    pairButton.isEnabled = !isPaired
+                    sendFilesButton.isEnabled = isPaired
+                    removeButton.isEnabled = isPaired
+                }
+
+                pairButton.setOnClickListener {
+                    val result = testFullFileBackup.pairAndApproveServer(result, serverName)
+                    if (result == null)
+                    {
+                        binding.sampleText.text = "Successfully paired"
+                    }
+                    else
+                    {
+                        binding.sampleText.text = result
+                    }
+                    updateButtonStates()
+                }
+
+                sendFilesButton.setOnClickListener {
                     if (!Environment.isExternalStorageManager()) {
                         ensureAllFilesAccess()
                         return@setOnClickListener
@@ -93,31 +135,44 @@ class MainActivity : AppCompatActivity() {
 
                     val root = Environment.getExternalStorageDirectory().absolutePath
 
-                    val text = findViewById<View>(R.id.folderPathText) as EditText
+                    val text = binding.folderPathText
                     val relativePath = text.text.toString()
                     val folderPath = "$root/$relativePath"
 
-                    testFullFileBackup.sendFiles(
+                    val result = testFullFileBackup.sendFiles(
                         result,
                         serverName,
                         folderPath
                     )
-
-                    binding.sampleText.text = "Sending from: $folderPath"
+                    if (result == null)
+                    {
+                        binding.sampleText.text = "Successfully sent files"
+                    }
+                    else
+                    {
+                        binding.sampleText.text = result
+                    }
+                    updateButtonStates()
                 }
 
-                binding.buttonContainer.addView(button)
+                removeButton.setOnClickListener {
+                    val result = testFullFileBackup.removeServer(serverName)
+                    if (result == null)
+                    {
+                        binding.sampleText.text = "Successfully removed"
+                    }
+                    else
+                    {
+                        binding.sampleText.text = result
+                    }
+                    updateButtonStates()
+                }
+
+                updateButtonStates()
+
+                binding.buttonContainer.addView(horizontalBox)
             }
 
         }, 2000)
-    }
-
-    @RequiresApi(Build.VERSION_CODES.R)
-    override fun onResume() {
-        super.onResume()
-
-        if (Environment.isExternalStorageManager()) {
-            binding.sampleText.text = "Storage access granted"
-        }
     }
 }
