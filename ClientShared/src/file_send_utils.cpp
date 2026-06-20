@@ -145,7 +145,10 @@ namespace FileSendUtils
 
 			for (auto dirEntry : std::filesystem::recursive_directory_iterator(rootPath))
 			{
-				outPaths.push_back(dirEntry.path());
+				if (!std::filesystem::is_directory(dirEntry))
+				{
+					outPaths.push_back(dirEntry.path());
+				}
 			}
 		}
 
