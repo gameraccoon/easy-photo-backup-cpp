@@ -458,7 +458,7 @@ namespace Network
 		const auto messageSize = ::recv(socket, reinterpret_cast<char*>(outData.data()), static_cast<int>(outData.size()), 0);
 		if (messageSize == -1) [[unlikely]]
 		{
-			return std::format("Failed to read response from TCP socket, error code {}.", getLastSocketError());
+			return std::format("Failed to recv data from TCP socket, error code {}.", getLastSocketError());
 		}
 
 		if (messageSize < 0) [[unlikely]]
