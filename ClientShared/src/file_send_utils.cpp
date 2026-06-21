@@ -392,7 +392,10 @@ namespace FileSendUtils
 					reportDebugError("Unexpected answer chunk size {}", bytesReceived);
 					return false;
 				}
+
+				Noise::Utils::rekey(receivingCipherstate);
 				posInChunk = 0;
+
 				return true;
 			};
 

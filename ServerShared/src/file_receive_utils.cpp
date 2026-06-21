@@ -413,9 +413,13 @@ namespace FileReceiveUtils
 					reportDebugError("Could not send answer bitset chunk: {}", *result);
 					return false;
 				}
+
+				Noise::Utils::rekey(sendingCipherstate);
+
 				// clean the ciphertext from the buffer to make sure we have zeros to reuse the buffer
 				std::fill(sendingBuffer.raw.begin(), sendingBuffer.raw.end(), std::byte(0x00));
 				posInChunk = 0;
+
 				return true;
 			};
 
