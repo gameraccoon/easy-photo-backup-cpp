@@ -78,7 +78,7 @@ namespace Requests
 			static_assert(buffer.size() >= NoiseKK::Message2ExpectedSize + SecondMessagePreludeSize, "Buffer size is too small to fit the second KK message");
 
 			size_t readBytes = 0;
-			if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())
+			if (auto result = Network::recv(socket, buffer, NoiseKK::Message2ExpectedSize, readBytes); result.has_value())
 			{
 				reportDebugError("Could not recv the second KK message: {}", *result);
 				return false;

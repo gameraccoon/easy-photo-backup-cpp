@@ -167,9 +167,9 @@ namespace Requests
 
 			if (expectsAnswer)
 			{
-				// we assume that the message wasn't fragmented, as we don't know what size should it be
+				// we assume that the message has not been fragmented, as we don't know what size should it be
 				// and can't yet process it in parts
-				if (auto result = Network::recv(socket, buffer, messageSize); result.has_value())
+				if (auto result = Network::recv(socket, buffer, 0, messageSize); result.has_value())
 				{
 					return RequestAnswers::Error{ *result };
 				}

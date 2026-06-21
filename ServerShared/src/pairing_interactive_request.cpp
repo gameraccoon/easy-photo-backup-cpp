@@ -101,7 +101,7 @@ namespace Requests
 			assertFatalRelease(buffer.size() >= NoiseXX::Message3ExpectedSize, "Buffer size is too small to fit the third XX message");
 
 			size_t readBytes = 0;
-			if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())
+			if (auto result = Network::recv(socket, buffer, NoiseXX::Message3ExpectedSize, readBytes); result.has_value())
 			{
 				reportDebugError("Could not recv the third XX message: {}", *result);
 				return std::nullopt;

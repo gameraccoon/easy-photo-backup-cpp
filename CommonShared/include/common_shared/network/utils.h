@@ -60,7 +60,7 @@ namespace Network
 	std::optional<std::string> connectToServer(RawSocket socket, const char* address, AddressType addressType, uint16_t port);
 	std::optional<std::string> send(RawSocket socket, std::span<const std::byte> data);
 	// if the result is std::nullopt, receivedBytes is guaranteed to be greater than 0 and less than outData.size()
-	std::optional<std::string> recv(RawSocket socket, std::span<std::byte> outData, size_t& receivedBytes);
+	std::optional<std::string> recv(RawSocket socket, std::span<std::byte> outData, size_t minBytesToRead, size_t& receivedBytes);
 	// the buffer should have enough space to contain the bytesToSend + Cryptography::CipherAuthDataSize, the buffer can be overridden even beyond bytesToSend
 	std::optional<std::string> sendEncrypted(RawSocket socket, std::span<std::byte> buffer, size_t bytesToSend, Noise::CipherStateSending& cipherState);
 	// the buffer should have enough space to contain the expected plaintext + Cryptography::CipherAuthDataSize, receivedBytes is the size of plaintext

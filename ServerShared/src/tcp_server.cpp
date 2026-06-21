@@ -46,7 +46,8 @@ namespace TcpServer
 		constexpr size_t BUFFER_SIZE = Protocol::MaxRequestSize;
 		std::array<std::byte, BUFFER_SIZE> buffer = {};
 		size_t readBytes = 0;
-		if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())
+		// we assume the first message is not fragmented, and if it is, we just skip it and let the client retry
+		if (auto result = Network::recv(socket, buffer, 0, readBytes); result.has_value())
 		{
 			return;
 		}

@@ -65,7 +65,7 @@ namespace Requests
 			static_assert(buffer.size() >= NoiseXX::Message2ExpectedSize + SecondMessagePreludeSize, "Buffer size is too small to fit the second XX message");
 
 			size_t readBytes = 0;
-			if (auto result = Network::recv(socket, buffer, readBytes); result.has_value())
+			if (auto result = Network::recv(socket, buffer, NoiseXX::Message2ExpectedSize, readBytes); result.has_value())
 			{
 				reportDebugError("Could not recv the second XX message: {}", *result);
 				return RequestAnswers::ErrorNoHandling{};

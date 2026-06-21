@@ -453,41 +453,46 @@ namespace Network
 		return std::nullopt;
 	}
 
-	std::optional<std::string> recv(const RawSocket socket, std::span<std::byte> outData, size_t& receivedBytes)
+	std::optional<std::string> recv(const RawSocket socket, std::span<std::byte> outData, size_t minBytesToRead, size_t& receivedBytes)
 	{
-		const auto messageSize = ::recv(socket, reinterpret_cast<char*>(outData.data()), static_cast<int>(outData.size()), 0);
-		if (messageSize == -1) [[unlikely]]
+		receivedBytes = 0;
+		while (receivedBytes < minBytesToRead || (receivedBytes == 0 && minBytesToRead == 0))
 		{
-			return std::format("Failed to recv data from TCP socket, error code {}.", getLastSocketError());
-		}
+			const int messageSize = ::recv(socket, reinterpret_cast<char*>(outData.data() + receivedBytes), static_cast<int>(outData.size() - receivedBytes), 0);
+			if (messageSize == -1) [[unlikely]]
+			{
+				return std::format("Failed to recv data from TCP socket, error code {}.", getLastSocketError());
+			}
 
-		if (messageSize < 0) [[unlikely]]
-		{
-			reportDebugError("Received message size was less than -1, this is not expected: {}", messageSize);
-			return std::format("Received message size was less than -1, this is not expected: {}", messageSize);
-		}
+			if (messageSize < 0) [[unlikely]]
+			{
+				reportDebugError("Received message size was less than -1, this is not expected: {}", messageSize);
+				return std::format("Received message size was less than -1, this is not expected: {}", messageSize);
+			}
 
-		if (messageSize == 0) [[unlikely]]
-		{
-			return std::string("Received message size was zero, possibly reached the timeout");
-		}
+			if (messageSize == 0) [[unlikely]]
+			{
+				return std::string("Received message size was zero, possibly reached the timeout");
+			}
 
-		assertFatalRelease(messageSize <= static_cast<int>(outData.size()), "recv wrote more bytes than the size of the buffer. This should never happen and may result in buffer overflow vulnerability. We have to crash.");
+			receivedBytes += static_cast<size_t>(messageSize);
 
-		if (messageSize > static_cast<int>(outData.size())) [[unlikely]]
-		{
-			// we should have crashed already in the assert above, but just in case treat it as an error
-			return std::string{};
+			assertFatalRelease(receivedBytes <= outData.size(), "recv wrote more bytes than the size of the buffer. This should never happen and may result in buffer overflow vulnerability. We have to crash.");
+
+			if (receivedBytes > outData.size()) [[unlikely]]
+			{
+				// we should have crashed already in the assert above, but just in case treat it as an error
+				return std::string{};
+			}
 		}
 
 #ifdef DEBUG_CHECKS
 		if constexpr (debugPrintBuffers)
 		{
-			Debug::Print::printSpan("recv", std::span(outData.begin(), messageSize));
+			Debug::Print::printSpan("recv", std::span(outData.begin(), receivedBytes));
 		}
 #endif // DEBUG_CHECKS
 
-		receivedBytes = static_cast<size_t>(messageSize);
 		return std::nullopt;
 	}
 
@@ -544,17 +549,18 @@ namespace Network
 			return "Buffer is too small to fit any non-zero message";
 		}
 
-		if (auto recvResult = recv(socket, buffer, receivedBytes); recvResult.has_value())
+		// we expect to receive the data exactly to fill the buffer, this also means that the buffer needs to be of the size of the expected message + MAC
+		if (auto recvResult = recv(socket, buffer, buffer.size(), receivedBytes); recvResult.has_value())
 		{
 			return recvResult;
 		}
 
-		if (receivedBytes <= Cryptography::CipherAuthDataSize)
+		if (receivedBytes != buffer.size())
 		{
-			return "Received data is too small to be decrypted";
+			return std::format("Logical error, we should have received enough data to fill the buffer, expected: {} got: {}", buffer.size(), receivedBytes);
 		}
 
-		const Cryptography::DecryptResult decryptResult = Noise::Utils::decryptTransportMessageInplace(cipherState, std::span<std::byte>(buffer.data(), receivedBytes));
+		const Cryptography::DecryptResult decryptResult = Noise::Utils::decryptTransportMessageInplace(cipherState, buffer);
 
 		switch (decryptResult)
 		{
