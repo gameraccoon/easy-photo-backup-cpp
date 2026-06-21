@@ -13,6 +13,11 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.unnamed.easyphotobackup.databinding.ActivityMainBinding
 import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
@@ -20,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private val testFullFileBackup = TestFullFileBackup()
 
     private var isDiscovering = false;
+    private var isSendingFiles = false;
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,9 +115,9 @@ class MainActivity : AppCompatActivity() {
 
                 val updateButtonStates = {
                     val isPaired = testFullFileBackup.isServerPaired(serverName)
-                    pairButton.isEnabled = !isPaired
-                    sendFilesButton.isEnabled = isPaired
-                    removeButton.isEnabled = isPaired
+                    pairButton.isEnabled = !isSendingFiles && !isPaired
+                    sendFilesButton.isEnabled = !isSendingFiles && isPaired
+                    removeButton.isEnabled = !isSendingFiles && isPaired
                 }
 
                 pairButton.setOnClickListener {
@@ -139,20 +145,21 @@ class MainActivity : AppCompatActivity() {
                     val relativePath = text.text.toString()
                     val folderPath = "$root/$relativePath"
 
-                    val result = testFullFileBackup.sendFiles(
-                        result,
-                        serverName,
-                        folderPath
-                    )
-                    if (result == null)
-                    {
-                        binding.sampleText.text = "Successfully sent files"
-                    }
-                    else
-                    {
-                        binding.sampleText.text = result
-                    }
+                    binding.sampleText.text = "Sending files"
+                    isSendingFiles = true
                     updateButtonStates()
+                    sendFiles(lifecycleScope, result, serverName, folderPath) { result ->
+                        isSendingFiles = false
+                        if (result == null)
+                        {
+                            binding.sampleText.text = "Successfully sent files"
+                        }
+                        else
+                        {
+                            binding.sampleText.text = result
+                        }
+                        updateButtonStates()
+                    }
                 }
 
                 removeButton.setOnClickListener {
@@ -174,5 +181,19 @@ class MainActivity : AppCompatActivity() {
             }
 
         }, 2000)
+    }
+
+    fun sendFiles(scope: CoroutineScope, address: String, serverName: String, folderPath: String, onComplete: (String?) -> Unit) {
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                testFullFileBackup.sendFiles(
+                    address,
+                    serverName,
+                    folderPath
+                )
+            }
+
+            onComplete(result)
+        }
     }
 }
