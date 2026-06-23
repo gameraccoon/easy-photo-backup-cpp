@@ -39,6 +39,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_SRC_DIR}/cryptography/noise/internal/message_patterns.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/noise/internal/handshake_utils.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/noise/cipher_utils.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/noise/noise_ik_handshake.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/noise/noise_kk_handshake.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/noise/noise_xx_handshake.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/cipher_functions.cpp
@@ -65,8 +66,9 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/bstorage/value.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/internal/message_patterns.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/internal/handshake_utils.h
-		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/noise_xx_handshake.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/noise_ik_handshake.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/noise_kk_handshake.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/noise_xx_handshake.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/cipher_types.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/cipher_utils.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/noise/handshake_types.h
