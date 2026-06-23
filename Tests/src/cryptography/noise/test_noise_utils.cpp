@@ -11,30 +11,30 @@
 
 static void testEncryptDecryptWithAd(Noise::CipherStateSending& sending, Noise::CipherStateReceiving& receiving, const std::vector<std::byte>& plaintext, const std::span<const std::byte> associatedData)
 {
-	Cryptography::DynByteSequence ciphertext;
-	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> ciphertext;
+	ciphertext.resize(plaintext.size() + Cryptography::CipherAuthDataSize);
 	ASSERT_EQ(Noise::Utils::encryptWithAd(sending, associatedData, plaintext, ciphertext), Cryptography::EncryptResult::Success);
 
-	Cryptography::DynByteSequence resultPlaintext;
-	resultPlaintext.clearResize(plaintext.size());
+	std::vector<std::byte> resultPlaintext;
+	resultPlaintext.resize(plaintext.size());
 	ASSERT_EQ(Noise::Utils::decryptWithAd(receiving, associatedData, ciphertext, resultPlaintext), Cryptography::DecryptResult::Success);
 
-	EXPECT_EQ(resultPlaintext.raw, plaintext);
+	EXPECT_EQ(resultPlaintext, plaintext);
 	EXPECT_EQ(sending.nonce, receiving.nonce);
 }
 
 static void testEncryptDecryptTransportMessageInplace(Noise::CipherStateSending& sending, Noise::CipherStateReceiving& receiving, const std::vector<std::byte>& plaintext)
 {
-	Cryptography::DynByteSequence buffer;
-	buffer.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
-	std::copy(plaintext.begin(), plaintext.end(), buffer.raw.begin());
+	std::vector<std::byte> buffer;
+	buffer.resize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	std::copy(plaintext.begin(), plaintext.end(), buffer.begin());
 
 	ASSERT_EQ(Noise::Utils::encryptTransportMessageInplace(sending, buffer), Cryptography::EncryptResult::Success);
 	ASSERT_EQ(Noise::Utils::decryptTransportMessageInplace(receiving, buffer), Cryptography::DecryptResult::Success);
 
 	std::vector<std::byte> resultPlaintext;
 	resultPlaintext.resize(plaintext.size());
-	std::copy(buffer.raw.begin(), buffer.raw.begin() + plaintext.size(), resultPlaintext.begin());
+	std::copy(buffer.begin(), buffer.begin() + plaintext.size(), resultPlaintext.begin());
 	EXPECT_EQ(resultPlaintext, plaintext);
 	EXPECT_EQ(sending.nonce, receiving.nonce);
 }
@@ -53,15 +53,15 @@ static void testInitializeSymmetric(const std::string_view protocolName, const s
 
 static void testEncryptDecryptAndHash(Noise::SymmetricState& sendingSymmetricState, Noise::SymmetricState& receivingSymmetricState, const std::vector<std::byte>& plaintext)
 {
-	Cryptography::DynByteSequence ciphertext;
-	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> ciphertext;
+	ciphertext.resize(plaintext.size() + Cryptography::CipherAuthDataSize);
 	ASSERT_EQ(Noise::Utils::encryptAndHash(sendingSymmetricState, plaintext, ciphertext), Cryptography::EncryptResult::Success);
 
-	Cryptography::DynByteSequence resultPlaintext;
-	resultPlaintext.clearResize(plaintext.size());
+	std::vector<std::byte> resultPlaintext;
+	resultPlaintext.resize(plaintext.size());
 	ASSERT_EQ(Noise::Utils::decryptAndHash(receivingSymmetricState, ciphertext, resultPlaintext), Cryptography::DecryptResult::Success);
 
-	EXPECT_EQ(resultPlaintext.raw, plaintext);
+	EXPECT_EQ(resultPlaintext, plaintext);
 	EXPECT_EQ(sendingSymmetricState.handshakeHash.raw, receivingSymmetricState.handshakeHash.raw);
 
 	ASSERT_EQ(sendingSymmetricState.cipherState.has_value(), receivingSymmetricState.cipherState.has_value());
@@ -103,8 +103,8 @@ TEST(CryptographyNoiseUtils, encryptWithAd_exhaustNonceTest)
 	const std::vector<std::byte> associatedData = hexToBytes("BBBBBBBB");
 	const std::vector<std::byte> plaintext = strToBytes("test text 1");
 
-	Cryptography::DynByteSequence ciphertext;
-	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> ciphertext;
+	ciphertext.resize(plaintext.size() + Cryptography::CipherAuthDataSize);
 	ASSERT_EQ(Noise::Utils::encryptWithAd(sendingState, associatedData, plaintext, ciphertext), Cryptography::EncryptResult::Success);
 	EXPECT_EQ(sendingState.nonce, Cryptography::MaxNonce);
 	ASSERT_EQ(Noise::Utils::encryptWithAd(sendingState, associatedData, plaintext, ciphertext), Cryptography::EncryptResult::NonceExhausted);
@@ -122,8 +122,8 @@ TEST(CryptographyNoiseUtils, decryptWithAd_exhaustNonceTest)
 	const std::vector<std::byte> associatedData = hexToBytes("BBBBBBBB");
 	const std::vector<std::byte> ciphertext = hexToBytes("a0f0d4a9c8b86d8f9b6fc9b2f4612ae3f1383d8fe204e714a94d89ac34c80f4213b1d436");
 
-	Cryptography::DynByteSequence plaintext;
-	plaintext.clearResize(ciphertext.size() + Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> plaintext;
+	plaintext.resize(ciphertext.size() + Cryptography::CipherAuthDataSize);
 	ASSERT_EQ(Noise::Utils::decryptWithAd(receivingState, associatedData, ciphertext, plaintext), Cryptography::DecryptResult::NonceExhausted);
 	EXPECT_EQ(receivingState.nonce, Cryptography::MaxNonce);
 }
@@ -139,11 +139,11 @@ TEST(CryptographyNoiseUtils, encryptWithAd_test)
 
 	std::vector<std::byte> plaintext = strToBytes("test text to encrypt");
 
-	Cryptography::DynByteSequence ciphertext;
-	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> ciphertext;
+	ciphertext.resize(plaintext.size() + Cryptography::CipherAuthDataSize);
 	ASSERT_EQ(Noise::Utils::encryptWithAd(sendingState, associatedData, plaintext, ciphertext), Cryptography::EncryptResult::Success);
 
-	EXPECT_EQ(hexToBytes("a0f0d4a9c8b86d8f9b6fc9b2f4612ae3f1383d8fe204e714a94d89ac34c80f4213b1d436"), ciphertext.raw);
+	EXPECT_EQ(hexToBytes("a0f0d4a9c8b86d8f9b6fc9b2f4612ae3f1383d8fe204e714a94d89ac34c80f4213b1d436"), ciphertext);
 	EXPECT_EQ(sendingState.nonce, static_cast<uint64_t>(0x103));
 }
 
@@ -158,11 +158,11 @@ TEST(CryptographyNoiseUtils, decryptWithAd_test)
 
 	std::vector<std::byte> ciphertext = hexToBytes("f014f652f6e2df09818f24dedeaba13bb23a4e172bcabe066d57e5066c0009ad4210b95db415a73fb83d70");
 
-	Cryptography::DynByteSequence plaintext;
-	plaintext.clearResize(ciphertext.size() - Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> plaintext;
+	plaintext.resize(ciphertext.size() - Cryptography::CipherAuthDataSize);
 	ASSERT_EQ(Noise::Utils::decryptWithAd(receivingState, associatedData, ciphertext, plaintext), Cryptography::DecryptResult::Success);
 
-	EXPECT_EQ(strToBytes("yet another text to encrypt"), plaintext.raw);
+	EXPECT_EQ(strToBytes("yet another text to encrypt"), plaintext);
 	EXPECT_EQ(receivingState.nonce, static_cast<uint64_t>(0x103));
 }
 
@@ -177,12 +177,12 @@ TEST(CryptographyNoiseUtils, encryptTransportMessageInplace_test)
 
 	std::vector<std::byte> plaintext = strToBytes("test text to encrypt");
 
-	Cryptography::DynByteSequence buffer;
-	buffer.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
-	std::copy(plaintext.begin(), plaintext.end(), buffer.raw.begin());
+	std::vector<std::byte> buffer;
+	buffer.resize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	std::copy(plaintext.begin(), plaintext.end(), buffer.begin());
 	ASSERT_EQ(Noise::Utils::encryptTransportMessageInplace(sendingState, buffer), Cryptography::EncryptResult::Success);
 
-	EXPECT_EQ(hexToBytes("a0f0d4a9c8b86d8f9b6fc9b2f4612ae3f1383d8fbc9854875c4b75cafb1ab7fe7f938d40"), buffer.raw);
+	EXPECT_EQ(hexToBytes("a0f0d4a9c8b86d8f9b6fc9b2f4612ae3f1383d8fbc9854875c4b75cafb1ab7fe7f938d40"), buffer);
 	EXPECT_EQ(sendingState.nonce, static_cast<uint64_t>(0x103));
 }
 
@@ -197,16 +197,13 @@ TEST(CryptographyNoiseUtils, decryptTransportMessageInplace_test)
 
 	const std::vector<std::byte> ciphertext = hexToBytes("f014f652f6e2df09818f24dedeaba13bb23a4e172bcabe066d57e5f398d9aa72228139f6ff30e324b43e28");
 
-	Cryptography::DynByteSequence buffer;
-	buffer.clearResize(ciphertext.size());
-	ASSERT_EQ(buffer.size(), ciphertext.size());
-	buffer.raw = ciphertext;
+	std::vector<std::byte> buffer = ciphertext;
 	ASSERT_EQ(Noise::Utils::decryptTransportMessageInplace(receivingState, buffer), Cryptography::DecryptResult::Success);
 
 	// we shouldn't normally do this, but for a test it is fine, also, it only shrinks the buffer
-	buffer.raw.resize(ciphertext.size() - Cryptography::CipherAuthDataSize);
+	buffer.resize(ciphertext.size() - Cryptography::CipherAuthDataSize);
 
-	EXPECT_EQ(strToBytes("yet another text to encrypt"), buffer.raw);
+	EXPECT_EQ(strToBytes("yet another text to encrypt"), buffer);
 	EXPECT_EQ(receivingState.nonce, static_cast<uint64_t>(0x103));
 }
 
@@ -344,11 +341,11 @@ TEST(CryptographyNoiseUtils, encryptAndHash_test)
 	sendingState.cipherState->nonce = static_cast<uint64_t>(0x102);
 	const std::vector<std::byte> plaintext = strToBytes("guess what? a text to encrypt");
 
-	Cryptography::DynByteSequence ciphertext;
-	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> ciphertext;
+	ciphertext.resize(plaintext.size() + Cryptography::CipherAuthDataSize);
 	ASSERT_EQ(Noise::Utils::encryptAndHash(sendingState, plaintext, ciphertext), Cryptography::EncryptResult::Success);
 
-	EXPECT_EQ(hexToBytes("e8476757a9e688d8e26d13d930d754097cfbf08b94621eaee1cd715bdf6a008980e18ea0a1a63e77a2ebd21823"), ciphertext.raw);
+	EXPECT_EQ(hexToBytes("e8476757a9e688d8e26d13d930d754097cfbf08b94621eaee1cd715bdf6a008980e18ea0a1a63e77a2ebd21823"), ciphertext);
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("c87e5b264ee3f8105e645e7d91c71309ce189793b0f63ec7b325ff1e88af4d39")), sendingState.chainingKey.raw);
 	EXPECT_EQ(sendingState.cipherState->nonce, static_cast<uint64_t>(0x103));
 }
@@ -364,11 +361,11 @@ TEST(CryptographyNoiseUtils, decryptAndHash_test)
 	receivingState.cipherState->nonce = static_cast<uint64_t>(0x102);
 	const std::vector<std::byte> ciphertext = hexToBytes("ee127641a2b2dfc4ec39489c3285591c70afb18cdb351eaceeae5a8d3d390d05fc66779489145e4e2a");
 
-	Cryptography::DynByteSequence plaintext;
-	plaintext.clearResize(ciphertext.size() - Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> plaintext;
+	plaintext.resize(ciphertext.size() - Cryptography::CipherAuthDataSize);
 	ASSERT_EQ(Noise::Utils::decryptAndHash(receivingState, ciphertext, plaintext), Cryptography::DecryptResult::Success);
 
-	EXPECT_EQ(strToBytes("a text to decrypt as well"), plaintext.raw);
+	EXPECT_EQ(strToBytes("a text to decrypt as well"), plaintext);
 	EXPECT_EQ(vectorToArray<Cryptography::HASHLEN>(hexToBytes("c87e5b264ee3f8105e645e7d91c71309ce189793b0f63ec7b325ff1e88af4d39")), receivingState.chainingKey.raw);
 	EXPECT_EQ(receivingState.cipherState->nonce, static_cast<uint64_t>(0x103));
 }
@@ -378,8 +375,8 @@ TEST(CryptographyNoiseUtils, encryptAndHash_noKey)
 	Noise::SymmetricState sendingState = Noise::Utils::initializeSymmetric("Noise_XX_25519_ChaChaPoly_BLAKE2b");
 	const std::vector<std::byte> plaintext = strToBytes("text to encrypt");
 
-	Cryptography::DynByteSequence ciphertext;
-	ciphertext.clearResize(plaintext.size() + Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> ciphertext;
+	ciphertext.resize(plaintext.size() + Cryptography::CipherAuthDataSize);
 	AssertHelper::ScopedAssertDisabler d{};
 	ASSERT_EQ(Noise::Utils::encryptAndHash(sendingState, plaintext, ciphertext), Cryptography::EncryptResult::NoEncryptionKey);
 }
@@ -389,8 +386,8 @@ TEST(CryptographyNoiseUtils, decryptAndHash_noKey)
 	Noise::SymmetricState sendingState = Noise::Utils::initializeSymmetric("Noise_XX_25519_ChaChaPoly_BLAKE2b");
 	const std::vector<std::byte> ciphertext = hexToBytes("ee127641a2b2dfc4ec39489c3285591c70afb18cdb351eaceeae5a8d3d390d05fc66779489145e4e2a");
 
-	Cryptography::DynByteSequence plaintext;
-	plaintext.clearResize(ciphertext.size() + Cryptography::CipherAuthDataSize);
+	std::vector<std::byte> plaintext;
+	plaintext.resize(ciphertext.size() + Cryptography::CipherAuthDataSize);
 	AssertHelper::ScopedAssertDisabler d{};
 	ASSERT_EQ(Noise::Utils::decryptAndHash(sendingState, ciphertext, plaintext), Cryptography::DecryptResult::NoEncryptionKey);
 }

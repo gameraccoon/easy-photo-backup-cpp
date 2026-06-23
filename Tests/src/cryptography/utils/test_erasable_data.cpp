@@ -35,59 +35,6 @@ TEST(CryptographyErasableData, ByteSequence_Created_Empty)
 	EXPECT_EQ(data.raw[3], std::byte(0));
 }
 
-TEST(CryptographyErasableData, DynByteSequence_Created_Empty)
-{
-	using TestData = Cryptography::DynByteSequence;
-
-	const TestData data;
-	EXPECT_TRUE(data.raw.empty());
-	EXPECT_EQ(data.size(), size_t(0));
-}
-
-TEST(CryptographyErasableData, DynByteSequence_CreatedFromVector_VectorDataIsMoved)
-{
-	using TestData = Cryptography::DynByteSequence;
-
-	std::vector<std::byte> rawData;
-	rawData.reserve(4);
-	for (size_t i = 0; i < 4; ++i)
-	{
-		rawData.push_back(static_cast<std::byte>(i + 1));
-	}
-
-	const TestData data = TestData::fromVector(std::move(rawData));
-
-	ASSERT_EQ(rawData.size(), size_t(0));
-	ASSERT_EQ(data.size(), size_t(4));
-	EXPECT_EQ(data.raw[0], std::byte(1));
-	EXPECT_EQ(data.raw[1], std::byte(2));
-	EXPECT_EQ(data.raw[2], std::byte(3));
-	EXPECT_EQ(data.raw[3], std::byte(4));
-}
-
-TEST(CryptographyErasableData, DynByteSequenceWithData_ClearResizeToSameSize_DataIsZeroed)
-{
-	using TestData = Cryptography::DynByteSequence;
-
-	TestData data;
-	data.clearResize(4);
-	ASSERT_EQ(data.size(), size_t(4));
-	ASSERT_EQ(data.raw.size(), size_t(4));
-
-	for (size_t i = 0; i < 4; ++i)
-	{
-		data.raw[i] = static_cast<std::byte>(i + 1);
-	}
-
-	data.clearResize(4);
-
-	ASSERT_EQ(data.size(), size_t(4));
-	EXPECT_EQ(data.raw[0], std::byte(0));
-	EXPECT_EQ(data.raw[1], std::byte(0));
-	EXPECT_EQ(data.raw[2], std::byte(0));
-	EXPECT_EQ(data.raw[3], std::byte(0));
-}
-
 TEST(CryptographyErasableData, ByteSequenceWithData_AccessedAsMutSlice_AccessedCorrectData)
 {
 	using TestData = Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 4>;
@@ -112,46 +59,6 @@ TEST(CryptographyErasableData, ByteSequenceWithData_AccessedAsConstSlice_Accesse
 	using TestData = Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 4>;
 
 	TestData data;
-	for (size_t i = 0; i < 4; ++i)
-	{
-		data.raw[i] = static_cast<std::byte>(i + 1);
-	}
-
-	const std::span<const std::byte> ref = data;
-
-	EXPECT_EQ(ref.size(), size_t(4));
-	EXPECT_EQ(ref[0], std::byte(1));
-	EXPECT_EQ(ref[1], std::byte(2));
-	EXPECT_EQ(ref[2], std::byte(3));
-	EXPECT_EQ(ref[3], std::byte(4));
-}
-
-TEST(CryptographyErasableData, DynByteSequenceWithData_AccessedAsMutSlice_AccessedCorrectData)
-{
-	using TestData = Cryptography::DynByteSequence;
-
-	TestData data;
-	data.clearResize(4);
-	for (size_t i = 0; i < 4; ++i)
-	{
-		data.raw[i] = static_cast<std::byte>(i + 1);
-	}
-
-	const std::span<std::byte> ref = data;
-
-	EXPECT_EQ(ref.size(), size_t(4));
-	EXPECT_EQ(ref[0], std::byte(1));
-	EXPECT_EQ(ref[1], std::byte(2));
-	EXPECT_EQ(ref[2], std::byte(3));
-	EXPECT_EQ(ref[3], std::byte(4));
-}
-
-TEST(CryptographyErasableData, DynByteSequenceWithData_AccessedAsConstSlice_AccessedCorrectData)
-{
-	using TestData = Cryptography::DynByteSequence;
-
-	TestData data;
-	data.clearResize(4);
 	for (size_t i = 0; i < 4; ++i)
 	{
 		data.raw[i] = static_cast<std::byte>(i + 1);
@@ -208,68 +115,6 @@ TEST(CryptographyErasableData, ByteSequenceWithData_Clone_ClonedToArrayContainsD
 	using TestData = Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 4>;
 
 	TestData data;
-	for (size_t i = 0; i < 4; ++i)
-	{
-		data.raw[i] = static_cast<std::byte>(i + 1);
-	}
-
-	const TestData data2 = data.clone();
-
-	EXPECT_EQ(data2.raw[0], std::byte(1));
-	EXPECT_EQ(data2.raw[1], std::byte(2));
-	EXPECT_EQ(data2.raw[2], std::byte(3));
-	EXPECT_EQ(data2.raw[3], std::byte(4));
-}
-
-TEST(CryptographyErasableData, DynByteSequenceWithData_Move_MovedToArrayContainsData)
-{
-	using TestData = Cryptography::DynByteSequence;
-
-	TestData data;
-	data.clearResize(4);
-	for (size_t i = 0; i < 4; ++i)
-	{
-		data.raw[i] = static_cast<std::byte>(i + 1);
-	}
-
-	const TestData data2 = std::move(data);
-
-	ASSERT_EQ(data.size(), size_t(0));
-	ASSERT_EQ(data2.size(), size_t(4));
-	EXPECT_EQ(data2.raw[0], std::byte(1));
-	EXPECT_EQ(data2.raw[1], std::byte(2));
-	EXPECT_EQ(data2.raw[2], std::byte(3));
-	EXPECT_EQ(data2.raw[3], std::byte(4));
-}
-
-TEST(CryptographyErasableData, DynByteSequenceWithData_MoveAssign_DataIsMoved)
-{
-	using TestData = Cryptography::DynByteSequence;
-
-	TestData data;
-	data.clearResize(4);
-	for (size_t i = 0; i < 4; ++i)
-	{
-		data.raw[i] = static_cast<std::byte>(i + 1);
-	}
-
-	TestData data2;
-	data2 = std::move(data);
-
-	ASSERT_EQ(data.size(), size_t(0));
-	ASSERT_EQ(data2.size(), size_t(4));
-	EXPECT_EQ(data2.raw[0], std::byte(1));
-	EXPECT_EQ(data2.raw[1], std::byte(2));
-	EXPECT_EQ(data2.raw[2], std::byte(3));
-	EXPECT_EQ(data2.raw[3], std::byte(4));
-}
-
-TEST(CryptographyErasableData, DynByteSequenceWithData_Clone_ClonedToArrayContainsData)
-{
-	using TestData = Cryptography::DynByteSequence;
-
-	TestData data;
-	data.clearResize(4);
 	for (size_t i = 0; i < 4; ++i)
 	{
 		data.raw[i] = static_cast<std::byte>(i + 1);

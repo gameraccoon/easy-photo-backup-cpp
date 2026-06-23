@@ -6,7 +6,6 @@
 #include <array>
 #include <cstddef>
 #include <span>
-#include <vector>
 
 #include "common_shared/cryptography/utils/crypto_wipe.h"
 
@@ -48,44 +47,5 @@ namespace Cryptography
 	private:
 		explicit ByteSequence(const std::array<std::byte, DataLen>& data) noexcept
 			: raw(data) {}
-	};
-
-	// note that growing the buffer while already filled with data will not securely erase the old buffer
-	struct DynByteSequence
-	{
-		std::vector<std::byte> raw;
-
-		DynByteSequence() noexcept = default;
-
-		// note that the data in the source container need to be erased as well
-		[[nodiscard]] static DynByteSequence fromVector(std::vector<std::byte>&& data) noexcept { return DynByteSequence(std::move(data)); }
-
-		// allow the byte sequence being passed as a span
-		operator std::span<std::byte>() noexcept { return raw; }
-		operator std::span<const std::byte>() const noexcept { return raw; }
-		constexpr size_t size() const noexcept { return raw.size(); }
-
-		[[nodiscard]] DynByteSequence clone() const noexcept { return DynByteSequence{ raw }; }
-
-		void clearResize(const size_t newSize) noexcept
-		{
-			// make sure we are clearing the previous buffer before reallocating
-			cryptoWipeRawData(raw);
-			raw.resize(newSize);
-		}
-
-		// rule of five, no implicit copy, allow move, require secure erase of each copy
-		DynByteSequence(const DynByteSequence&) noexcept = delete;
-		DynByteSequence(DynByteSequence&&) noexcept = default;
-		DynByteSequence& operator=(const DynByteSequence&) noexcept = delete;
-		DynByteSequence& operator=(DynByteSequence&&) noexcept = default;
-		~DynByteSequence() noexcept { cryptoWipeRawData(raw); }
-
-	private:
-		explicit DynByteSequence(std::vector<std::byte>&& data) noexcept
-			: raw(std::move(data)) {}
-
-		explicit DynByteSequence(const std::span<const std::byte> data) noexcept
-			: raw(data.begin(), data.end()) {}
 	};
 } // namespace Cryptography

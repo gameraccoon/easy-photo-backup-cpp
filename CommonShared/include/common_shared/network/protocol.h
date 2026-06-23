@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "common_shared/cryptography/types/dh_types.h"
 #include "common_shared/cryptography/types/hash_types.h"

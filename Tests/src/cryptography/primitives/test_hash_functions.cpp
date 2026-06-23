@@ -65,7 +65,7 @@ static void testHkdf_blake2b(std::vector<std::byte>&& chainingKeyVec, std::vecto
 	Cryptography::HashResult actualResult3;
 	Cryptography::HKDF_blake2b(
 		chainingKey,
-		Cryptography::DynByteSequence::fromVector(std::move(inputKeyMaterial)),
+		inputKeyMaterial,
 		numOutputs,
 		actualResult1,
 		expected2Vec.has_value() ? &actualResult2 : nullptr,
