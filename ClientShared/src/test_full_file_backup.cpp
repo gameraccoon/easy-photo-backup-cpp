@@ -55,7 +55,16 @@ void TestFullFileBackup::startDiscovery()
 					Debug::Log::printDebug("NSD: Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port);
 					{
 						std::unique_lock lock(mutex);
-						servers.push_back(event.address);
+						std::array<std::byte, 16> serverId;
+						if (event.extraData.size() >= 16 + 2)
+						{
+							std::copy(event.extraData.begin() + 2, event.extraData.end(), serverId.begin());
+						}
+
+						servers.emplace_back(
+							event.address,
+							serverId
+						);
 					}
 				}
 				else
@@ -66,8 +75,8 @@ void TestFullFileBackup::startDiscovery()
 						auto it = std::find_if(
 							servers.begin(),
 							servers.end(),
-							[&event](const Network::NetworkAddress& item) {
-								return item.ip == event.address.ip;
+							[&event](const TestServerInfo& item) {
+								return item.address.ip == event.address.ip;
 							}
 						);
 
@@ -92,7 +101,7 @@ void TestFullFileBackup::startDiscovery()
 	});
 }
 
-std::vector<Network::NetworkAddress> TestFullFileBackup::getDiscoveryResults()
+std::vector<TestServerInfo> TestFullFileBackup::getDiscoveryResults()
 {
 	std::unique_lock lock(mDataMutex);
 	return mDiscoveredServers;
@@ -136,11 +145,11 @@ std::optional<std::string> TestFullFileBackup::requestServerName(const Network::
 	return serverName;
 }
 
-std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName)
+std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const TestServerInfo& serverInfo)
 {
 	bool isPaired = false;
-	mClientStorage.read([&isPaired, &serverName](const ClientStorageData& storageData) {
-		if (auto it = storageData.confirmedServerBindings.find(serverName); it != storageData.confirmedServerBindings.end())
+	mClientStorage.read([&isPaired, &serverId = serverInfo.serverId](const ClientStorageData& storageData) {
+		if (auto it = storageData.confirmedServerBindings.find(serverId); it != storageData.confirmedServerBindings.end())
 		{
 			isPaired = true;
 		}
@@ -152,9 +161,9 @@ std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const Networ
 	}
 
 	RequestAnswers::RequestAnswer pairAnswer = Requests::prepareConnectionAndProcess(
-		address.ip.data(),
-		address.addressType,
-		address.port,
+		serverInfo.address.ip.data(),
+		serverInfo.address.addressType,
+		serverInfo.address.port,
 		[](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
 			return Requests::sendAndProcessPairingInteractiveRequest(socket);
 		}
@@ -164,7 +173,7 @@ std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const Networ
 
 	std::optional<std::string> result = std::visit(
 		VisitLambda{
-			[&pendingServerBinding, &serverName](RequestAnswers::Pair&& pair) -> std::optional<std::string> {
+			[&pendingServerBinding](RequestAnswers::Pair&& pair) -> std::optional<std::string> {
 				pendingServerBinding = PendingServerBinding{
 					.staticKeys = std::move(pair.staticKeys),
 					.remoteStaticKey = std::move(pair.remoteStaticKey),
@@ -201,10 +210,11 @@ std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const Networ
 			Debug::Log::printDebug("pendingServerBinding is not set, this is incorrect");
 		}
 
-		mClientStorage.mutate([&serverName, &pendingServerBinding](ClientStorageData& storage) {
+		mClientStorage.mutate([&serverId = serverInfo.serverId, &pendingServerBinding](ClientStorageData& storage) {
 			storage.confirmedServerBindings.emplace(
-				serverName,
+				serverId,
 				ClientStorageData::ServerBinding{
+					.serverName = "test server",
 					.connectionId = Cryptography::generateConnectionId(pendingServerBinding->staticKeys.publicKey, pendingServerBinding->remoteStaticKey),
 					.remoteStaticKey = std::move(pendingServerBinding->remoteStaticKey),
 					.staticKeys = std::move(pendingServerBinding->staticKeys),
@@ -225,14 +235,14 @@ std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const Networ
 	return std::nullopt;
 }
 
-std::optional<std::string> TestFullFileBackup::sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath, const std::string& commonRoot)
+std::optional<std::string> TestFullFileBackup::sendFiles(const TestServerInfo& serverInfo, const std::string& folderPath, const std::string& commonRoot)
 {
 	RequestAnswers::RequestAnswer SendFilesAnswer = Requests::prepareConnectionAndProcess(
-		address.ip.data(),
-		address.addressType,
-		address.port,
-		[&storage = mClientStorage, &serverName, &folderPath, &commonRoot](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
-			return Requests::sendAndProcessSendFilesInteractiveRequest(socket, storage, serverName, std::filesystem::path(folderPath), std::filesystem::path(commonRoot));
+		serverInfo.address.ip.data(),
+		serverInfo.address.addressType,
+		serverInfo.address.port,
+		[&storage = mClientStorage, &serverId = serverInfo.serverId, &folderPath, &commonRoot](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
+			return Requests::sendAndProcessSendFilesInteractiveRequest(socket, storage, serverId, std::filesystem::path(folderPath), std::filesystem::path(commonRoot));
 		}
 	);
 
@@ -258,11 +268,11 @@ std::optional<std::string> TestFullFileBackup::sendFiles(const Network::NetworkA
 	);
 }
 
-std::optional<std::string> TestFullFileBackup::removeServer(const std::string& serverName)
+std::optional<std::string> TestFullFileBackup::removeServer(const std::array<std::byte, 16>& serverId)
 {
 	std::optional<std::string> result;
-	mClientStorage.mutate([&serverName, &result](ClientStorageData& storage) {
-		const size_t removed = storage.confirmedServerBindings.erase(serverName);
+	mClientStorage.mutate([&serverId, &result](ClientStorageData& storage) {
+		const size_t removed = storage.confirmedServerBindings.erase(serverId);
 		if (removed == 0)
 		{
 			result = "Server has not been paired";
@@ -281,11 +291,11 @@ std::optional<std::string> TestFullFileBackup::removeServer(const std::string& s
 	return result;
 }
 
-bool TestFullFileBackup::isServerPaired(const std::string& serverName) const
+bool TestFullFileBackup::isServerPaired(const std::array<std::byte, 16>& serverId) const
 {
 	bool isPaired = false;
-	mClientStorage.read([&serverName, &isPaired](const ClientStorageData& storage) {
-		isPaired = storage.confirmedServerBindings.contains(serverName);
+	mClientStorage.read([&serverId, &isPaired](const ClientStorageData& storage) {
+		isPaired = storage.confirmedServerBindings.contains(serverId);
 	});
 
 	return isPaired;

@@ -12,17 +12,30 @@
 #include "common_shared/bstorage/value.h"
 #include "common_shared/cryptography/types/dh_types.h"
 #include "common_shared/cryptography/types/hash_types.h"
+#include "common_shared/hash_utils.h"
 
 struct ClientStorageData
 {
 	struct ServerBinding
 	{
+		std::string serverName;
 		Cryptography::HashResult connectionId;
 		Cryptography::PublicKey remoteStaticKey;
 		Cryptography::Keypair staticKeys;
 	};
 
-	std::unordered_multimap<std::string, ServerBinding> confirmedServerBindings;
+	using ServerId = std::array<std::byte, 16>;
+	struct ServerIdHash
+	{
+		size_t operator()(const ServerId& id) const noexcept
+		{
+			return Hash::hashSpan(id);
+		}
+	};
+
+	using ConfirmedServerBindingsType = std::unordered_map<ServerId, ServerBinding, ServerIdHash>;
+
+	ConfirmedServerBindingsType confirmedServerBindings;
 	std::unordered_set<std::string> sentFiles;
 };
 

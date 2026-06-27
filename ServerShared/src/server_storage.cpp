@@ -14,6 +14,7 @@ namespace ServerStorageInternal
 	static constexpr std::string_view RemoteStaticKeyField = "rs";
 	static constexpr std::string_view StaticPublicKeyField = "s_pub";
 	static constexpr std::string_view StaticSecretKeyField = "s_secret";
+	static constexpr std::string_view ServerIdField = "server_id";
 
 	template<size_t N>
 	static void tryConsumeObjectFieldArray(BStorage::Value::ObjectMap& record, const std::string_view name, std::array<std::byte, N>& result)
@@ -109,6 +110,7 @@ namespace ServerStorageInternal
 			ConfirmedField,
 			WriteConfirmedClientBindingsToValue(data.confirmedClientBindings)
 		);
+		clientStorageDataObject.emplace(ServerIdField, BStorage::Value::makeByteArray(data.serverId));
 		return BStorage::Value::makeObject(std::move(clientStorageDataObject));
 	}
 
@@ -122,6 +124,8 @@ namespace ServerStorageInternal
 			{
 				ReadConfirmedClientBindingsToValue(std::move(it->second), result.confirmedClientBindings);
 			}
+
+			tryConsumeObjectFieldArray(*object, ServerIdField, result.serverId);
 		}
 		return result;
 	}

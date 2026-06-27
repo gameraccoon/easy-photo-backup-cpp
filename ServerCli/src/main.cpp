@@ -1,19 +1,38 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
+#include <algorithm>
+#include <array>
 #include <atomic>
 #include <format>
 #include <thread>
 
+#include "common_shared/cryptography/utils/random.h"
 #include "common_shared/debug/log.h"
 #include "common_shared/network/utils.h"
 #include "common_shared/nsd/nsd_server.h"
 
+#include "server_shared/server_storage.h"
 #include "server_shared/tcp_server.h"
 
 int main()
 {
 	Network::initSocketLib();
+
+	ServerStorage storage = ServerStorage::load();
+
+	std::array<std::byte, 16> serverId{};
+	storage.mutate([&serverId](ServerStorageData& storageData) {
+		if (std::all_of(storageData.serverId.begin(), storageData.serverId.end(), [](std::byte b) {
+				return b == std::byte(0x00);
+			}))
+		{
+			// we don't need cryptographically good random here, can use any simpler method
+			Cryptography::fillWithRandomBytes(storageData.serverId);
+		}
+
+		serverId = storageData.serverId;
+	});
 
 	auto openSocketResult = NsdServer::openNsdSocket(Network::AddressType::IpV4);
 
@@ -37,8 +56,8 @@ int main()
 	std::promise<uint16_t> portPromise{};
 	std::future<uint16_t> portFuture = portPromise.get_future();
 
-	auto serverThread = std::thread([&portPromise] {
-		TcpServer::runServer("0.0.0.0", Network::AddressType::IpV4, portPromise);
+	auto serverThread = std::thread([&storage, &portPromise] {
+		TcpServer::runServer(storage, "0.0.0.0", Network::AddressType::IpV4, portPromise);
 	});
 
 	if (auto status = portFuture.wait_for(std::chrono::seconds(3)); status != std::future_status::ready)
@@ -49,26 +68,12 @@ int main()
 
 	const uint16_t serverPort = portFuture.get();
 
-	std::thread nsdThread([socket, &nsdCloseSocketFlag, serverPort] {
-		const std::vector<std::byte> extraData{ {
-			static_cast<std::byte>(1), // protocol id
-			static_cast<std::byte>(0), // the rest is the server ID
-			static_cast<std::byte>(1),
-			static_cast<std::byte>(2),
-			static_cast<std::byte>(3),
-			static_cast<std::byte>(4),
-			static_cast<std::byte>(5),
-			static_cast<std::byte>(6),
-			static_cast<std::byte>(7),
-			static_cast<std::byte>(8),
-			static_cast<std::byte>(9),
-			static_cast<std::byte>(10),
-			static_cast<std::byte>(11),
-			static_cast<std::byte>(12),
-			static_cast<std::byte>(13),
-			static_cast<std::byte>(14),
-			static_cast<std::byte>(15),
-		} };
+	std::thread nsdThread([socket, &nsdCloseSocketFlag, serverId, serverPort] {
+		std::array<std::byte, 18> extraData;
+		extraData[0] = static_cast<std::byte>(1); // protocol id
+		extraData[1] = static_cast<std::byte>(0); // the rest is the server ID
+		static_assert(extraData.size() >= 2 + serverId.size());
+		std::copy(serverId.begin(), serverId.end(), extraData.begin() + 2);
 
 		NsdServer::ListenResult result = NsdServer::listen(socket, "0.0.0.0", Network::AddressType::IpV4, 5354, "_easy-photo-backup._tcp", serverPort, extraData);
 

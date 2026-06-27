@@ -13,5 +13,5 @@ class ClientStorage;
 
 namespace Requests
 {
-	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept;
+	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::array<std::byte, 16>& serverId, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept;
 }

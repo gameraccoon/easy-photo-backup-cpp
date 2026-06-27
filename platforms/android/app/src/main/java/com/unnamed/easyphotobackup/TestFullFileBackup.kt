@@ -8,14 +8,14 @@ class TestFullFileBackup(path: String) : AutoCloseable {
     private external fun create(localStorageDirectory: String): Long
     private external fun destroy(handle: Long)
     private external fun startDiscoveryNative(handle: Long)
-    private external fun getDiscoveryResultsNative(handle: Long): Array<String>
+    private external fun getDiscoveryResultsNative(handle: Long): LongArray
     private external fun stopDiscoveryNative(handle: Long)
-    private external fun requestServerNameNative(handle: Long, address: String) : String?
+    private external fun requestServerNameNative(handle: Long, serverInfoHandle: Long) : String?
     // ToDo: this is a function that only exists for early testing, it should be removed asap
-    private external fun pairAndApproveServerNative(handle: Long, address: String, serverName: String) : String?
-    private external fun sendFilesNative(handle: Long, address: String, serverName: String, folderPath: String, commonRoot: String) : String?
-    private external fun removeServerNative(handle: Long, serverName: String) : String?
-    private external fun isServerPaired(handle: Long, serverName: String) : Boolean
+    private external fun pairAndApproveServerNative(handle: Long, serverInfoHandle: Long) : String?
+    private external fun sendFilesNative(handle: Long, serverInfoHandle: Long, folderPath: String, commonRoot: String) : String?
+    private external fun removeServerNative(handle: Long, serverInfoHandle: Long) : String?
+    private external fun isServerPaired(handle: Long, serverInfoHandle: Long) : Boolean
 
     override fun close() {
         if (nativeHandle != 0L) {
@@ -29,9 +29,12 @@ class TestFullFileBackup(path: String) : AutoCloseable {
         startDiscoveryNative(nativeHandle)
     }
 
-    fun getDiscoveryResults(): Array<String> {
+    fun getDiscoveryResults(): Array<TestServerInfo> {
         check(nativeHandle != 0L)
+
         return getDiscoveryResultsNative(nativeHandle)
+            .map(::TestServerInfo)
+            .toTypedArray()
     }
 
     fun stopDiscovery() {
@@ -39,30 +42,50 @@ class TestFullFileBackup(path: String) : AutoCloseable {
         stopDiscoveryNative(nativeHandle)
     }
 
-    fun requestServerName(address: String): String? {
+    fun requestServerName(serverInfo: TestServerInfo): String? {
         check(nativeHandle != 0L)
-        return requestServerNameNative(nativeHandle, address)
+        return requestServerNameNative(nativeHandle, serverInfo.nativeHandle)
     }
 
     // ToDo: this is a function that only exists for early testing, it should be removed asap
-    fun pairAndApproveServer(address: String, serverName: String) : String? {
+    fun pairAndApproveServer(serverInfo: TestServerInfo) : String? {
         check(nativeHandle != 0L)
-        return pairAndApproveServerNative(nativeHandle, address, serverName)
+        return pairAndApproveServerNative(nativeHandle, serverInfo.nativeHandle)
     }
 
-    fun sendFiles(address: String, serverName: String, folderPath: String, commonRoot: String) : String? {
+    fun sendFiles(serverInfo: TestServerInfo, folderPath: String, commonRoot: String) : String? {
         check(nativeHandle != 0L)
-        return sendFilesNative(nativeHandle, address, serverName, folderPath, commonRoot)
+        return sendFilesNative(nativeHandle, serverInfo.nativeHandle, folderPath, commonRoot)
     }
 
-    fun removeServer(serverName: String) : String? {
+    fun removeServer(serverInfo: TestServerInfo) : String? {
         check(nativeHandle != 0L)
-        return removeServerNative(nativeHandle, serverName)
+        return removeServerNative(nativeHandle, serverInfo.nativeHandle)
     }
 
-    fun isServerPaired(serverName: String) : Boolean {
+    fun isServerPaired(serverInfo: TestServerInfo) : Boolean {
         check(nativeHandle != 0L)
-        return isServerPaired(nativeHandle, serverName)
+        return isServerPaired(nativeHandle, serverInfo.nativeHandle)
+    }
+
+    companion object {
+        init {
+            System.loadLibrary("EasyPhotoBackupFfi")
+        }
+    }
+}
+
+class TestServerInfo internal constructor(
+    internal var nativeHandle: Long
+) : AutoCloseable {
+
+    private external fun destroy(handle: Long)
+
+    override fun close() {
+        if (nativeHandle != 0L) {
+            destroy(nativeHandle)
+            nativeHandle = 0
+        }
     }
 
     companion object {

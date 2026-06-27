@@ -33,7 +33,7 @@ namespace NsdServer
 		const uint16_t port,
 		const char* serviceIdentifier,
 		const uint16_t advertizedPort,
-		const std::vector<std::byte>& extraData
+		std::span<const std::byte> extraData
 	)
 	{
 		if (serviceIdentifier == nullptr)

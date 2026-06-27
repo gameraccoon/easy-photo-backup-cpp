@@ -9,7 +9,9 @@
 
 #include "common_shared/network/utils.h"
 
+class ServerStorage;
+
 namespace TcpServer
 {
-	std::optional<std::string> runServer(const char* interfaceAddressStr, Network::AddressType addressType, std::promise<uint16_t>& portPromise);
+	std::optional<std::string> runServer(ServerStorage& storage, const char* interfaceAddressStr, Network::AddressType addressType, std::promise<uint16_t>& portPromise);
 }

@@ -24,8 +24,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var testFullFileBackup: TestFullFileBackup
 
-    private var isDiscovering = false;
-    private var isSendingFiles = false;
+    private var isDiscovering = false
+    private var isSendingFiles = false
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,8 +83,8 @@ class MainActivity : AppCompatActivity() {
 
             binding.sampleText.text = "Found ${discoveryResults.size} server(s)"
 
-            for (result in discoveryResults) {
-                var serverName = testFullFileBackup.requestServerName(result)
+            for (discoveryResult in discoveryResults) {
+                var serverName = testFullFileBackup.requestServerName(discoveryResult)
                 if (serverName == null)
                 {
                     serverName = "Unknown"
@@ -116,14 +116,14 @@ class MainActivity : AppCompatActivity() {
                 horizontalBox.addView(removeButton)
 
                 val updateButtonStates = {
-                    val isPaired = testFullFileBackup.isServerPaired(serverName)
+                    val isPaired = testFullFileBackup.isServerPaired(discoveryResult)
                     pairButton.isEnabled = !isSendingFiles && !isPaired
                     sendFilesButton.isEnabled = !isSendingFiles && isPaired
                     removeButton.isEnabled = !isSendingFiles && isPaired
                 }
 
                 pairButton.setOnClickListener {
-                    val result = testFullFileBackup.pairAndApproveServer(result, serverName)
+                    val result = testFullFileBackup.pairAndApproveServer(discoveryResult)
                     if (result == null)
                     {
                         binding.sampleText.text = "Successfully paired"
@@ -150,7 +150,7 @@ class MainActivity : AppCompatActivity() {
                     binding.sampleText.text = "Sending files"
                     isSendingFiles = true
                     updateButtonStates()
-                    sendFiles(lifecycleScope, result, serverName, folderPath, root) { result ->
+                    sendFiles(lifecycleScope, discoveryResult, folderPath, root) { result ->
                         isSendingFiles = false
                         if (result == null)
                         {
@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 removeButton.setOnClickListener {
-                    val result = testFullFileBackup.removeServer(serverName)
+                    val result = testFullFileBackup.removeServer(discoveryResult)
                     if (result == null)
                     {
                         binding.sampleText.text = "Successfully removed"
@@ -185,12 +185,11 @@ class MainActivity : AppCompatActivity() {
         }, 2000)
     }
 
-    fun sendFiles(scope: CoroutineScope, address: String, serverName: String, folderPath: String, commonRoot: String, onComplete: (String?) -> Unit) {
+    fun sendFiles(scope: CoroutineScope, serverInfo: TestServerInfo, folderPath: String, commonRoot: String, onComplete: (String?) -> Unit) {
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 testFullFileBackup.sendFiles(
-                    address,
-                    serverName,
+                    serverInfo,
                     folderPath,
                     commonRoot
                 )

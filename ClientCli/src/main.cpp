@@ -4,16 +4,16 @@
 #include <thread>
 
 #include "common_shared/network/utils.h"
+#include "common_shared/nsd/nsd_client.h"
 
 #include "client_shared/test_full_file_backup.h"
-
 int main()
 {
 	Network::initSocketLib();
 
 	TestFullFileBackup test{ "." };
 	test.startDiscovery();
-	std::vector<Network::NetworkAddress> discoveryResults;
+	std::vector<TestServerInfo> discoveryResults;
 	int tries = 0;
 	do {
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -22,16 +22,9 @@ int main()
 	} while (discoveryResults.empty() && tries < 1000);
 	test.stopDiscovery();
 
-	const std::optional<std::string> serverName = test.requestServerName(discoveryResults.front());
+	test.pairAndApproveServer(discoveryResults.front());
 
-	if (!serverName.has_value())
-	{
-		return 1;
-	}
-
-	test.pairAndApproveServer(discoveryResults.front(), *serverName);
-
-	test.sendFiles(discoveryResults.front(), *serverName, "./client_files_to_send", "./client_files_to_send");
+	test.sendFiles(discoveryResults.front(), "./client_files_to_send", "./client_files_to_send");
 
 	Network::shutdownSocketLib();
 

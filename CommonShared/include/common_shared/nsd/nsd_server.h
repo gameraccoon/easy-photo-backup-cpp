@@ -4,9 +4,9 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <string>
 #include <variant>
-#include <vector>
 
 #include "common_shared/network/utils.h"
 
@@ -33,6 +33,6 @@ namespace NsdServer
 		uint16_t port,
 		const char* serviceIdentifier,
 		uint16_t advertizedPort,
-		const std::vector<std::byte>& extraData
+		std::span<const std::byte> extraData
 	);
 } // namespace NsdServer

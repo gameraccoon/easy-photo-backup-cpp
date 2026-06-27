@@ -15,7 +15,7 @@
 
 namespace Requests
 {
-	bool processKkHandshake(Network::RawSocket socket, ClientStorage& clientStorage, const std::string& serverName, Noise::CipherStateSending& outSendingCipherState, Noise::CipherStateReceiving& outReceivingCipherState) noexcept
+	bool processKkHandshake(Network::RawSocket socket, ClientStorage& clientStorage, const std::array<std::byte, 16>& serverId, Noise::CipherStateSending& outSendingCipherState, Noise::CipherStateReceiving& outReceivingCipherState) noexcept
 	{
 		using namespace Noise;
 
@@ -25,8 +25,8 @@ namespace Requests
 		InitiatorHandshakeState handshakeState;
 		Cryptography::HashResult connectionId;
 
-		clientStorage.read([&handshakeState, &connectionId, &serverName](const ClientStorageData& storageData) {
-			if (auto it = storageData.confirmedServerBindings.find(serverName); it != storageData.confirmedServerBindings.end())
+		clientStorage.read([&handshakeState, &connectionId, &serverId](const ClientStorageData& storageData) {
+			if (auto it = storageData.confirmedServerBindings.find(serverId); it != storageData.confirmedServerBindings.end())
 			{
 				handshakeState = NoiseKK::initializeInitiator(it->second.staticKeys, it->second.remoteStaticKey);
 				connectionId = it->second.connectionId.clone();
@@ -125,18 +125,17 @@ namespace Requests
 				}
 			}
 		}
-
 		return false;
 	}
 
-	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept
+	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::array<std::byte, 16>& serverId, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept
 	{
 		constexpr const int FileTransferMessagesTimeoutSeconds = 2;
 		constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
 
 		Noise::CipherStateSending sendingCipherState;
 		Noise::CipherStateReceiving receivingCipherState;
-		if (!processKkHandshake(socket, storage, serverName, sendingCipherState, receivingCipherState))
+		if (!processKkHandshake(socket, storage, serverId, sendingCipherState, receivingCipherState))
 		{
 			reportDebugError("Failed to process KK handshake");
 			return RequestAnswers::ErrorNoHandling{};

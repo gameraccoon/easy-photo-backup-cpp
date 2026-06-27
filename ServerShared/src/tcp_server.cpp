@@ -146,10 +146,8 @@ namespace TcpServer
 		);
 	}
 
-	std::optional<std::string> runServer(const char* interfaceAddressStr, const Network::AddressType addressType, std::promise<uint16_t>& portPromise)
+	std::optional<std::string> runServer(ServerStorage& storage, const char* interfaceAddressStr, const Network::AddressType addressType, std::promise<uint16_t>& portPromise)
 	{
-		ServerStorage storage = ServerStorage::load();
-
 		std::variant<Network::RawSocket, std::string> createSocketResult = createSocket(Network::SocketType::Tcp, addressType);
 		if (std::holds_alternative<std::string>(createSocketResult))
 		{

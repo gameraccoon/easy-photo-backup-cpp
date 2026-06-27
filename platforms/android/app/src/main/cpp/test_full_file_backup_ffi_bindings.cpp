@@ -18,7 +18,7 @@ public:
 		mTestState.startDiscovery();
 	}
 
-	std::vector<Network::NetworkAddress> getDiscoveryResults()
+	std::vector<TestServerInfo> getDiscoveryResults()
 	{
 		return mTestState.getDiscoveryResults();
 	}
@@ -34,28 +34,38 @@ public:
 	}
 
 	// ToDo: this is the bad and dangerous part, should be removed altogether before the app can be used for real
-	std::optional<std::string> pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName)
+	std::optional<std::string> pairAndApproveServer(const TestServerInfo& serverInfo)
 	{
-		return mTestState.pairAndApproveServer(address, serverName);
+		return mTestState.pairAndApproveServer(serverInfo);
 	}
 
-	std::optional<std::string> sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath, const std::string& commonRoot)
+	std::optional<std::string> sendFiles(const TestServerInfo& serverInfo, const std::string& folderPath, const std::string& commonRoot)
 	{
-		return mTestState.sendFiles(address, serverName, folderPath, commonRoot);
+		return mTestState.sendFiles(serverInfo, folderPath, commonRoot);
 	}
 
-	std::optional<std::string> removeServer(const std::string& serverName)
+	std::optional<std::string> removeServer(const std::array<std::byte, 16>& serverId)
 	{
-		return mTestState.removeServer(serverName);
+		return mTestState.removeServer(serverId);
 	}
 
-	bool isServerPaired(const std::string& serverName) const
+	bool isServerPaired(const std::array<std::byte, 16>& serverId) const
 	{
-		return mTestState.isServerPaired(serverName);
+		return mTestState.isServerPaired(serverId);
 	}
 
 private:
 	TestFullFileBackup mTestState;
+};
+
+class TestServerInfoNative
+{
+public:
+	TestServerInfoNative(TestServerInfo inServerInfo)
+		: serverInfo(std::move(inServerInfo))
+	{}
+
+	TestServerInfo serverInfo;
 };
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -85,6 +95,17 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_destroy(
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_unnamed_easyphotobackup_TestServerInfo_destroy(
+	JNIEnv* env,
+	jobject /*this*/,
+	jlong handle
+)
+{
+	auto* obj = reinterpret_cast<TestServerInfoNative*>(handle);
+	delete obj;
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_unnamed_easyphotobackup_TestFullFileBackup_startDiscoveryNative(
 	JNIEnv* env,
 	jobject /*this*/,
@@ -95,7 +116,7 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_startDiscoveryNative(
 	obj->startDiscovery();
 }
 
-extern "C" JNIEXPORT jobjectArray JNICALL
+extern "C" JNIEXPORT jlongArray JNICALL
 Java_com_unnamed_easyphotobackup_TestFullFileBackup_getDiscoveryResultsNative(
 	JNIEnv* env,
 	jobject /*this*/,
@@ -103,23 +124,24 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_getDiscoveryResultsNative(
 )
 {
 	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
-	std::vector<Network::NetworkAddress> discoveryResults = obj->getDiscoveryResults();
+	auto discoveryResults = obj->getDiscoveryResults();
 
-	jclass stringClass = env->FindClass("java/lang/String");
+	jlongArray result = env->NewLongArray(static_cast<jsize>(discoveryResults.size()));
 
-	jobjectArray result = env->NewObjectArray(
-		static_cast<int>(discoveryResults.size()),
-		stringClass,
-		nullptr
-	);
+	std::vector<jlong> handles;
+	handles.reserve(discoveryResults.size());
 
-	for (size_t i = 0; i < discoveryResults.size(); ++i)
+	for (auto& result : discoveryResults)
 	{
-		std::string addressString = discoveryResults[i].toString();
-		jstring str = env->NewStringUTF(addressString.c_str());
-		env->SetObjectArrayElement(result, static_cast<int>(i), str);
-		env->DeleteLocalRef(str);
+		handles.push_back(reinterpret_cast<jlong>(new TestServerInfoNative(std::move(result))));
 	}
+
+	env->SetLongArrayRegion(
+		result,
+		0,
+		static_cast<jsize>(handles.size()),
+		handles.data()
+	);
 
 	return result;
 }
@@ -140,28 +162,20 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_requestServerNameNative(
 	JNIEnv* env,
 	jobject /*this*/,
 	jlong handle,
-	jstring addressJStr
+	jlong serverInfoHandle
 )
 {
-	//	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
+	// auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
+	auto* info = reinterpret_cast<TestServerInfoNative*>(serverInfoHandle);
 
-	const char* addressChar = env->GetStringUTFChars(addressJStr, nullptr);
-	const std::optional<Network::NetworkAddress> address = Network::NetworkAddress::fromString(addressChar);
-	env->ReleaseStringUTFChars(addressJStr, addressChar);
+	auto serverName = TestFullFileBackupNative::requestServerName(info->serverInfo.address);
 
-	if (!address.has_value())
+	if (!serverName.has_value())
 	{
 		return nullptr;
 	}
 
-	std::optional<std::string> serverName = TestFullFileBackupNative::requestServerName(*address);
-
-	if (serverName.has_value())
-	{
-		return env->NewStringUTF(serverName->c_str());
-	}
-
-	return nullptr;
+	return env->NewStringUTF(serverName->c_str());
 }
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -169,29 +183,19 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_pairAndApproveServerNative(
 	JNIEnv* env,
 	jobject /*this*/,
 	jlong handle,
-	jstring addressJStr,
-	jstring serverNameJStr
+	jlong serverInfoHandle
 )
 {
-	const char* addressChar = env->GetStringUTFChars(addressJStr, nullptr);
-	std::optional<Network::NetworkAddress> address = Network::NetworkAddress::fromString(addressChar);
-	env->ReleaseStringUTFChars(addressJStr, addressChar);
-
-	if (!address.has_value())
-	{
-		return env->NewStringUTF("Address could not be parsed");
-	}
-
-	const char* serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
-	const std::string serverName(serverNameChar);
-	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
-
 	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
-	std::optional<std::string> result = obj->pairAndApproveServer(*address, serverName);
+	auto* info = reinterpret_cast<TestServerInfoNative*>(serverInfoHandle);
+
+	auto result = obj->pairAndApproveServer(info->serverInfo);
+
 	if (result.has_value())
 	{
 		return env->NewStringUTF(result->c_str());
 	}
+
 	return nullptr;
 }
 
@@ -200,39 +204,29 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_sendFilesNative(
 	JNIEnv* env,
 	jobject /*this*/,
 	jlong handle,
-	jstring addressJStr,
-	jstring serverNameJStr,
+	jlong serverInfoHandle,
 	jstring folderPathJStr,
 	jstring commonRootPathJStr
 )
 {
-	const char* addressChar = env->GetStringUTFChars(addressJStr, nullptr);
-	std::optional<Network::NetworkAddress> address = Network::NetworkAddress::fromString(addressChar);
-	env->ReleaseStringUTFChars(addressJStr, addressChar);
-
-	if (!address.has_value())
-	{
-		return env->NewStringUTF("Address could not be parsed");
-	}
-
-	const char* serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
-	const std::string serverName(serverNameChar);
-	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
+	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
+	auto* info = reinterpret_cast<TestServerInfoNative*>(serverInfoHandle);
 
 	const char* folderPathChar = env->GetStringUTFChars(folderPathJStr, nullptr);
-	const std::string folderPath(folderPathChar);
+	std::string folderPath(folderPathChar);
 	env->ReleaseStringUTFChars(folderPathJStr, folderPathChar);
 
 	const char* commonRootPathChar = env->GetStringUTFChars(commonRootPathJStr, nullptr);
-	const std::string commonRootPath(commonRootPathChar);
+	std::string commonRootPath(commonRootPathChar);
 	env->ReleaseStringUTFChars(commonRootPathJStr, commonRootPathChar);
 
-	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
-	std::optional<std::string> result = obj->sendFiles(*address, serverName, folderPath, commonRootPath);
+	auto result = obj->sendFiles(info->serverInfo, folderPath, commonRootPath);
+
 	if (result.has_value())
 	{
 		return env->NewStringUTF(result->c_str());
 	}
+
 	return nullptr;
 }
 
@@ -241,19 +235,19 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_removeServerNative(
 	JNIEnv* env,
 	jobject /*this*/,
 	jlong handle,
-	jstring serverNameJStr
+	jlong serverInfoHandle
 )
 {
-	const char* serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
-	const std::string serverName(serverNameChar);
-	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
-
 	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
-	std::optional<std::string> result = obj->removeServer(serverName);
+	auto* info = reinterpret_cast<TestServerInfoNative*>(serverInfoHandle);
+
+	auto result = obj->removeServer(info->serverInfo.serverId);
+
 	if (result.has_value())
 	{
 		return env->NewStringUTF(result->c_str());
 	}
+
 	return nullptr;
 }
 
@@ -262,13 +256,11 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_isServerPaired(
 	JNIEnv* env,
 	jobject /*this*/,
 	jlong handle,
-	jstring serverNameJStr
+	jlong serverInfoHandle
 )
 {
-	const char* serverNameChar = env->GetStringUTFChars(serverNameJStr, nullptr);
-	const std::string serverName(serverNameChar);
-	env->ReleaseStringUTFChars(serverNameJStr, serverNameChar);
-
 	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
-	return obj->isServerPaired(serverName);
+	auto* info = reinterpret_cast<TestServerInfoNative*>(serverInfoHandle);
+
+	return obj->isServerPaired(info->serverInfo.serverId);
 }

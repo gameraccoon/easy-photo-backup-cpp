@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <array>
 #include <functional>
 #include <mutex>
 #include <unordered_map>
@@ -23,6 +24,7 @@ struct ServerStorageData
 	using ConfirmedClientBindingsType = std::unordered_map<Cryptography::HashResult, ClientBinding>;
 
 	ConfirmedClientBindingsType confirmedClientBindings;
+	std::array<std::byte, 16> serverId;
 };
 
 class ServerStorage

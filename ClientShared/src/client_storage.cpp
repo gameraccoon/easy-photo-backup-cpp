@@ -13,6 +13,7 @@ namespace ClientStorageInternal
 	static constexpr std::string_view ClientStorageFileName = "client_storage.bin";
 	static constexpr std::string_view ConfirmedField = "confirmed";
 	static constexpr std::string_view SentFilesField = "sent_files";
+	static constexpr std::string_view ServerIdField = "server_id";
 	static constexpr std::string_view NameField = "name";
 	static constexpr std::string_view ConnectionIdField = "id";
 	static constexpr std::string_view RemoteStaticKeyField = "rs";
@@ -65,7 +66,7 @@ namespace ClientStorageInternal
 		}
 	}
 
-	static BStorage::Value WriteConfirmedServerBindingsToValue(const std::unordered_multimap<std::string, ClientStorageData::ServerBinding>& confirmedServerBindings)
+	static BStorage::Value WriteConfirmedServerBindingsToValue(const ClientStorageData::ConfirmedServerBindingsType& confirmedServerBindings)
 	{
 		std::vector<BStorage::Value> vec;
 		vec.reserve(confirmedServerBindings.size());
@@ -74,7 +75,8 @@ namespace ClientStorageInternal
 			BStorage::Value::ObjectMap record;
 			record.reserve(4);
 			record.emplace(ConnectionIdField, BStorage::Value::makeByteArray(pair.second.connectionId));
-			record.emplace(NameField, BStorage::Value::makeString(pair.first));
+			record.emplace(ServerIdField, BStorage::Value::makeByteArray(pair.first));
+			record.emplace(NameField, BStorage::Value::makeString(pair.second.serverName));
 			record.emplace(StaticPublicKeyField, BStorage::Value::makeByteArray(pair.second.staticKeys.publicKey));
 			record.emplace(StaticSecretKeyField, BStorage::Value::makeByteArray(pair.second.staticKeys.secretKey.raw));
 			record.emplace(RemoteStaticKeyField, BStorage::Value::makeByteArray(pair.second.remoteStaticKey.raw));
@@ -84,7 +86,7 @@ namespace ClientStorageInternal
 		return BStorage::Value::makeArray(std::move(vec));
 	}
 
-	static void ReadConfirmedServerBindingsFromValue(BStorage::Value&& value, std::unordered_multimap<std::string, ClientStorageData::ServerBinding>& confirmedServerBindings)
+	static void ReadConfirmedServerBindingsFromValue(BStorage::Value&& value, ClientStorageData::ConfirmedServerBindingsType& confirmedServerBindings)
 	{
 		if (std::vector<BStorage::Value>* vec = value.asArray())
 		{
@@ -94,13 +96,14 @@ namespace ClientStorageInternal
 				if (BStorage::Value::ObjectMap* record = val.asObject())
 				{
 					ClientStorageData::ServerBinding newItem{};
-					std::string name;
+					ClientStorageData::ServerId serverId;
+					tryConsumeObjectFieldArray(*record, ServerIdField, serverId);
 					tryConsumeObjectFieldArray(*record, ConnectionIdField, newItem.connectionId.raw);
-					tryConsumeObjectField<std::string>(*record, NameField, name);
+					tryConsumeObjectField<std::string>(*record, NameField, newItem.serverName);
 					tryConsumeObjectFieldArray(*record, StaticPublicKeyField, newItem.staticKeys.publicKey.raw);
 					tryConsumeObjectFieldArray(*record, StaticSecretKeyField, newItem.staticKeys.secretKey.raw);
 					tryConsumeObjectFieldArray(*record, RemoteStaticKeyField, newItem.remoteStaticKey.raw);
-					confirmedServerBindings.emplace(std::move(name), std::move(newItem));
+					confirmedServerBindings.emplace(std::move(serverId), std::move(newItem));
 				}
 			}
 		}
