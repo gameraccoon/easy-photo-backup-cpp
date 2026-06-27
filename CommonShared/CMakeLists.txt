@@ -60,6 +60,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_SRC_DIR}/serialization/raw_data_serialization.cpp
 		${COMMON_SHARED_SRC_DIR}/serialization/string_serialization.cpp
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/utils_internal.h
+		${COMMON_SHARED_SRC_DIR}/hash_utils.cpp
 
 	PUBLIC
 		${COMMON_SHARED_INCLUDE_DIR}/bstorage/storage.h
@@ -92,6 +93,8 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/number_serialization.h
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/raw_data_serialization.h
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/string_serialization.h
+		${COMMON_SHARED_INCLUDE_DIR}/hash_utils.h
+		${COMMON_SHARED_INCLUDE_DIR}/template_utils.h
 )
 
 if(MSVC)

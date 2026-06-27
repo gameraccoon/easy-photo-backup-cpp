@@ -8,6 +8,7 @@
 #include <span>
 
 #include "common_shared/cryptography/utils/crypto_wipe.h"
+#include "common_shared/hash_utils.h"
 
 namespace Cryptography
 {
@@ -35,6 +36,8 @@ namespace Cryptography
 		operator std::span<const std::byte>() const noexcept { return raw; }
 		constexpr size_t size() const noexcept { return raw.size(); }
 
+		auto operator<=>(const ByteSequence& other) const noexcept = default;
+
 		[[nodiscard]] ByteSequence clone() const noexcept { return ByteSequence{ raw }; }
 
 		// rule of five, no implicit copy, allow move, require secure erase of each copy
@@ -49,3 +52,18 @@ namespace Cryptography
 			: raw(data) {}
 	};
 } // namespace Cryptography
+
+namespace std
+{
+	template<typename _Tp>
+	struct hash;
+}
+
+template<Cryptography::ByteSequenceTag Tag, std::size_t DataLen>
+struct std::hash<Cryptography::ByteSequence<Tag, DataLen>>
+{
+	constexpr std::size_t operator()(const Cryptography::ByteSequence<Tag, DataLen>& byteSequence) const noexcept
+	{
+		return Hash::hashSpan(byteSequence.raw);
+	}
+};
