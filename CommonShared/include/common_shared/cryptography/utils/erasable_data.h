@@ -6,13 +6,14 @@
 #include <array>
 #include <cstddef>
 #include <span>
+#include <memory>
 
 #include "common_shared/cryptography/utils/crypto_wipe.h"
 #include "common_shared/hash_utils.h"
 
 namespace Cryptography
 {
-	// we plan to use this data for very speicific needs, and don't want to mix those needs
+	// we plan to use this data for very specific needs, and don't want to mix those needs
 	enum class ByteSequenceTag
 	{
 		PublicKey,
@@ -34,7 +35,7 @@ namespace Cryptography
 		// allow the byte sequence being passed as a span
 		operator std::span<std::byte>() noexcept { return raw; }
 		operator std::span<const std::byte>() const noexcept { return raw; }
-		constexpr size_t size() const noexcept { return raw.size(); }
+		[[nodiscard]] constexpr size_t size() const noexcept { return raw.size(); }
 
 		auto operator<=>(const ByteSequence& other) const noexcept = default;
 
@@ -52,12 +53,6 @@ namespace Cryptography
 			: raw(data) {}
 	};
 } // namespace Cryptography
-
-namespace std
-{
-	template<typename _Tp>
-	struct hash;
-}
 
 template<Cryptography::ByteSequenceTag Tag, std::size_t DataLen>
 struct std::hash<Cryptography::ByteSequence<Tag, DataLen>>

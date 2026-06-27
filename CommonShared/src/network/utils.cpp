@@ -561,7 +561,7 @@ namespace Network
 		}
 
 		// we expect to receive the data exactly to fill the buffer, this also means that the buffer needs to be of the size of the expected message + MAC
-		if (auto recvResult = recv(socket, buffer, buffer.size(), receivedBytes); recvResult.has_value())
+		if (auto recvResult = recv(socket, buffer, static_cast<int>(buffer.size()), receivedBytes); recvResult.has_value())
 		{
 			return recvResult;
 		}
