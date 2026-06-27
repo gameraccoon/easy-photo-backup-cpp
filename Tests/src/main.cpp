@@ -54,7 +54,7 @@ void TestInfoLogger::OnTestPartResult(const TestPartResult& test_part_result)
 {
 	if (test_part_result.failed())
 	{
-		Debug::Log::printDebug(std::format("======= {} in {}:{}\n{}", (test_part_result.failed() ? "Failure" : "Success"), test_part_result.file_name(), test_part_result.line_number(), test_part_result.summary()));
+		Debug::Log::printDebug("======= {} in {}:{}\n{}", (test_part_result.failed() ? "Failure" : "Success"), test_part_result.file_name(), test_part_result.line_number(), test_part_result.summary());
 	}
 }
 

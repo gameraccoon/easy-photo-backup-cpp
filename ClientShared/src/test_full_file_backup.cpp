@@ -52,7 +52,7 @@ void TestFullFileBackup::startDiscovery()
 						idString.push_back(static_cast<int>(b) + '0');
 					}
 
-					Debug::Log::printDebug(std::format("NSD: Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port));
+					Debug::Log::printDebug("NSD: Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port);
 					{
 						std::unique_lock lock(mutex);
 						servers.push_back(event.address);
@@ -83,7 +83,7 @@ void TestFullFileBackup::startDiscovery()
 
 		if (result.has_value())
 		{
-			Debug::Log::printDebug(std::format("NSD client error: '{}'", *result));
+			Debug::Log::printDebug("NSD client error: '{}'", *result);
 		}
 		else
 		{
@@ -118,7 +118,7 @@ std::optional<std::string> TestFullFileBackup::requestServerName(const Network::
 				Debug::Log::printDebug(getServerName.serverName);
 			},
 			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) {
-				Debug::Log::printDebug(std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion));
+				Debug::Log::printDebug("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion);
 			},
 			[](RequestAnswers::Error&& answerReadError) {
 				Debug::Log::printDebug(answerReadError.errorMessage);
@@ -170,7 +170,7 @@ std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const Networ
 					.remoteStaticKey = std::move(pair.remoteStaticKey),
 					.handshakeHash = std::move(pair.handshakeHash),
 				};
-				Debug::Log::printDebug(std::format("Received pairing information from '{}'", serverName));
+				Debug::Log::printDebug("Received pairing information");
 				return {};
 			},
 			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) -> std::optional<std::string> {
