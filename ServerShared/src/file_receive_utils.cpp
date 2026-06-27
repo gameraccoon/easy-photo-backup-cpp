@@ -160,7 +160,7 @@ namespace FileReceiveUtils
 			std::filesystem::path parentDirectory = path.parent_path();
 			if (!std::filesystem::exists(parentDirectory))
 			{
-				std::filesystem::create_directory(parentDirectory);
+				std::filesystem::create_directories(parentDirectory);
 			}
 
 			stream.open(path, std::ios::binary | std::ios::out);
