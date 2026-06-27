@@ -10,7 +10,7 @@
 namespace ClientStorageInternal
 {
 	static constexpr uint16_t ClientStorageVersion = 0;
-	static const std::string ClientStoragePath = "./client_storage.bin";
+	static constexpr std::string_view ClientStorageFileName = "client_storage.bin";
 	static constexpr std::string_view ConfirmedField = "confirmed";
 	static constexpr std::string_view SentFilesField = "sent_files";
 	static constexpr std::string_view NameField = "name";
@@ -170,27 +170,28 @@ namespace ClientStorageInternal
 #ifdef WITH_TESTS
 ClientStorage ClientStorage::testCreateEmpty() noexcept
 {
-	return ClientStorage(BStorage::Value::makeObject({}));
+	return ClientStorage("test_client_storage.bin", BStorage::Value::makeObject({}));
 }
 #endif // WITH_TESTS
 
-ClientStorage ClientStorage::load() noexcept
+ClientStorage ClientStorage::load(const std::filesystem::path& storageDirectory) noexcept
 {
-	std::optional<std::tuple<BStorage::Value, uint16_t>> loaded = BStorage::loadStorage(ClientStorageInternal::ClientStoragePath);
+	std::filesystem::path storagePath = storageDirectory / ClientStorageInternal::ClientStorageFileName;
+	std::optional<std::tuple<BStorage::Value, uint16_t>> loaded = BStorage::loadStorage(storagePath);
 
 	if (loaded.has_value())
 	{
 		if (std::get<1>(*loaded) != ClientStorageInternal::ClientStorageVersion)
 		{
 			// here we need to have an update path
-			return ClientStorage(BStorage::Value::makeObject({}));
+			return ClientStorage(std::move(storagePath), BStorage::Value::makeObject({}));
 		}
 
-		return ClientStorage(std::get<0>(std::move(*loaded)));
+		return ClientStorage(std::move(storagePath), std::get<0>(std::move(*loaded)));
 	}
 	else
 	{
-		return ClientStorage(BStorage::Value::makeObject({}));
+		return ClientStorage(std::move(storagePath), BStorage::Value::makeObject({}));
 	}
 }
 
@@ -199,7 +200,7 @@ bool ClientStorage::save() const noexcept
 	using namespace ClientStorageInternal;
 
 	std::lock_guard g(mMutex);
-	return BStorage::saveStorage(ClientStoragePath, WriteClientStorageDataToValue(mStorageData), ClientStorageVersion);
+	return BStorage::saveStorage(mStoragePath, WriteClientStorageDataToValue(mStorageData), ClientStorageVersion);
 }
 
 void ClientStorage::read(const std::function<void(const ClientStorageData&)>& readFn) const noexcept
@@ -214,7 +215,8 @@ void ClientStorage::mutate(const std::function<void(ClientStorageData&)>& mutate
 	mutateFn(mStorageData);
 }
 
-ClientStorage::ClientStorage(BStorage::Value&& value) noexcept
-	: mStorageData(ClientStorageInternal::ReadClientStorageDataFromValue(std::move(value)))
+ClientStorage::ClientStorage(std::filesystem::path&& storagePath, BStorage::Value&& value) noexcept
+	: mStoragePath(std::move(storagePath))
+	, mStorageData(ClientStorageInternal::ReadClientStorageDataFromValue(std::move(value)))
 {
 }

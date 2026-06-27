@@ -8,19 +8,24 @@
 class TestFullFileBackupNative
 {
 public:
+	TestFullFileBackupNative(const std::filesystem::path& localStorageDirectory)
+		: mTestState(localStorageDirectory)
+	{
+	}
+
 	void startDiscovery()
 	{
-		testState.startDiscovery();
+		mTestState.startDiscovery();
 	}
 
 	std::vector<Network::NetworkAddress> getDiscoveryResults()
 	{
-		return testState.getDiscoveryResults();
+		return mTestState.getDiscoveryResults();
 	}
 
 	void stopDiscovery()
 	{
-		testState.stopDiscovery();
+		mTestState.stopDiscovery();
 	}
 
 	static std::optional<std::string> requestServerName(const Network::NetworkAddress& address)
@@ -31,35 +36,40 @@ public:
 	// ToDo: this is the bad and dangerous part, should be removed altogether before the app can be used for real
 	std::optional<std::string> pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName)
 	{
-		return testState.pairAndApproveServer(address, serverName);
+		return mTestState.pairAndApproveServer(address, serverName);
 	}
 
 	std::optional<std::string> sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath)
 	{
-		return testState.sendFiles(address, serverName, folderPath);
+		return mTestState.sendFiles(address, serverName, folderPath);
 	}
 
 	std::optional<std::string> removeServer(const std::string& serverName)
 	{
-		return testState.removeServer(serverName);
+		return mTestState.removeServer(serverName);
 	}
 
 	bool isServerPaired(const std::string& serverName) const
 	{
-		return testState.isServerPaired(serverName);
+		return mTestState.isServerPaired(serverName);
 	}
 
 private:
-	TestFullFileBackup testState;
+	TestFullFileBackup mTestState;
 };
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_unnamed_easyphotobackup_TestFullFileBackup_create(
 	JNIEnv* env,
-	jobject /*this*/
+	jobject /*this*/,
+	jstring localStoragePathJStr
 )
 {
-	auto* obj = new TestFullFileBackupNative();
+	const char* localStoragePathCStr = env->GetStringUTFChars(localStoragePathJStr, nullptr);
+	const std::filesystem::path localStoragePath(localStoragePathCStr);
+	env->ReleaseStringUTFChars(localStoragePathJStr, localStoragePathCStr);
+
+	auto* obj = new TestFullFileBackupNative(localStoragePath);
 	return reinterpret_cast<jlong>(obj);
 }
 

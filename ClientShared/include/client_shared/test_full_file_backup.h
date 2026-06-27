@@ -8,6 +8,7 @@
 #include <optional>
 #include <thread>
 #include <vector>
+#include <filesystem>
 
 #include "common_shared/network/utils.h"
 
@@ -20,7 +21,7 @@
 class TestFullFileBackup
 {
 public:
-	TestFullFileBackup();
+	TestFullFileBackup(const std::filesystem::path& storageDirectory);
 
 	void startDiscovery();
 	std::vector<Network::NetworkAddress> getDiscoveryResults();

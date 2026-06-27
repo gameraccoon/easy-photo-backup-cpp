@@ -7,6 +7,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
+#include <filesystem>
 
 #include "common_shared/bstorage/value.h"
 #include "common_shared/cryptography/types/dh_types.h"
@@ -32,16 +33,17 @@ public:
 	static ClientStorage testCreateEmpty() noexcept;
 #endif // WITH_TESTS
 
-	static ClientStorage load() noexcept;
+	[[nodiscard]] static ClientStorage load(const std::filesystem::path& storageDirectory) noexcept;
 	[[nodiscard]] bool save() const noexcept;
 
 	void read(const std::function<void(const ClientStorageData&)>& readFn) const noexcept;
 	void mutate(const std::function<void(ClientStorageData&)>& mutateFn) noexcept;
 
 private:
-	explicit ClientStorage(BStorage::Value&& value) noexcept;
+	explicit ClientStorage(std::filesystem::path&& storagePath, BStorage::Value&& value) noexcept;
 
 private:
+	std::filesystem::path mStoragePath;
 	ClientStorageData mStorageData;
 	mutable std::mutex mMutex;
 };

@@ -2,10 +2,10 @@ package com.unnamed.easyphotobackup
 
 import java.lang.AutoCloseable
 
-class TestFullFileBackup : AutoCloseable {
-    private var nativeHandle: Long = create()
+class TestFullFileBackup(path: String) : AutoCloseable {
+    private var nativeHandle: Long = create(path)
 
-    private external fun create(): Long
+    private external fun create(localStorageDirectory: String): Long
     private external fun destroy(handle: Long)
     private external fun startDiscoveryNative(handle: Long)
     private external fun getDiscoveryResultsNative(handle: Long): Array<String>

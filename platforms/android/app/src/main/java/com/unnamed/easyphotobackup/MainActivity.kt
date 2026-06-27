@@ -22,7 +22,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private val testFullFileBackup = TestFullFileBackup()
+    private lateinit var testFullFileBackup: TestFullFileBackup
 
     private var isDiscovering = false;
     private var isSendingFiles = false;
@@ -30,6 +30,8 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        testFullFileBackup = TestFullFileBackup(filesDir.absolutePath)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)

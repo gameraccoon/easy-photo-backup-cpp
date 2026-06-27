@@ -23,8 +23,8 @@ struct PendingServerBinding
 	Cryptography::HashResult handshakeHash;
 };
 
-TestFullFileBackup::TestFullFileBackup()
-	: mClientStorage(ClientStorage::load())
+TestFullFileBackup::TestFullFileBackup(const std::filesystem::path& storageDirectory)
+	: mClientStorage(ClientStorage::load(storageDirectory))
 {
 }
 

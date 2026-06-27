@@ -11,7 +11,7 @@ int main()
 {
 	Network::initSocketLib();
 
-	TestFullFileBackup test;
+	TestFullFileBackup test{ "." };
 	test.startDiscovery();
 	std::vector<Network::NetworkAddress> discoveryResults;
 	int tries = 0;
