@@ -8,6 +8,7 @@
 #include <format>
 #include <thread>
 
+#include "common_shared/cryptography/utils/connection_id_utils.h"
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/raw_sockets.h"
@@ -47,7 +48,7 @@ namespace TcpServer
 		std::array<std::byte, BUFFER_SIZE> buffer = {};
 		size_t readBytes = 0;
 		// we assume the first message is not fragmented, and if it is, we just skip it and let the client retry
-		if (auto result = Network::recv(socket, buffer, 0, readBytes); result.has_value())
+		if (auto result = Network::recv(socket, buffer, -1, readBytes); result.has_value())
 		{
 			return;
 		}
@@ -120,8 +121,9 @@ namespace TcpServer
 
 						storage.mutate([&pendingClientBinding](ServerStorageData& storage) {
 							storage.confirmedClientBindings.emplace(
-								"test_client",
+								Cryptography::generateConnectionId(pendingClientBinding->remoteStaticKey, pendingClientBinding->staticKeys.publicKey),
 								ServerStorageData::ClientBinding{
+									.name = "test_client",
 									.remoteStaticKey = std::move(pendingClientBinding->remoteStaticKey),
 									.staticKeys = std::move(pendingClientBinding->staticKeys),
 								}
@@ -137,7 +139,7 @@ namespace TcpServer
 					}
 				},
 				[socket, &storage](const Requests::SendFiles&& sendFiles) {
-					Requests::processSendFilesInteractiveRequest(sendFiles.firstMessage, socket, storage, "test_client");
+					Requests::processSendFilesInteractiveRequest(sendFiles.connectionId, sendFiles.firstMessage, socket, storage);
 				},
 			},
 			std::move(request)

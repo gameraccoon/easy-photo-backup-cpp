@@ -5,11 +5,12 @@
 
 #include <span>
 
+#include "common_shared/cryptography/types/hash_types.h"
 #include "common_shared/network/utils.h"
 
 class ServerStorage;
 
 namespace Requests
 {
-	void processSendFilesInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage, const std::string& clientName);
+	void processSendFilesInteractiveRequest(const Cryptography::HashResult& clientId, std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage);
 }

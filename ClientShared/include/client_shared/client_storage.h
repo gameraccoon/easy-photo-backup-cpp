@@ -10,11 +10,13 @@
 
 #include "common_shared/bstorage/value.h"
 #include "common_shared/cryptography/types/dh_types.h"
+#include "common_shared/cryptography/types/hash_types.h"
 
 struct ClientStorageData
 {
 	struct ServerBinding
 	{
+		Cryptography::HashResult connectionId;
 		Cryptography::PublicKey remoteStaticKey;
 		Cryptography::Keypair staticKeys;
 	};

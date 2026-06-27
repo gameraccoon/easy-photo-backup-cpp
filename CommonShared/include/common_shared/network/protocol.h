@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -62,6 +63,8 @@ namespace Protocol
 
 		struct SendFiles
 		{
+			// note that this means there is no identity hiding for the client
+			Cryptography::HashResult connectionId;
 			std::vector<std::byte> firstMessage;
 		};
 	} // namespace Requests

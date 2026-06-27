@@ -19,10 +19,21 @@ namespace Requests
 			return Pair{
 				.firstMessage = std::vector<std::byte>(requestData.begin(), requestData.end()),
 			};
-		case static_cast<char>(Protocol::RequestId::SendFiles):
+		case static_cast<char>(Protocol::RequestId::SendFiles): {
+			if (requestData.size() < sizeof(Protocol::Requests::SendFiles::connectionId))
+			{
+				return RequestReadError{ std::format("SendFiles request had shorter data than expected {}", requestData.size()) };
+			}
+
+			Cryptography::HashResult clientIdentifier;
+			const size_t firstMessageStart = clientIdentifier.size();
+			std::copy(requestData.begin(), requestData.begin() + clientIdentifier.size(), clientIdentifier.raw.begin());
+
 			return SendFiles{
-				.firstMessage = std::vector<std::byte>(requestData.begin(), requestData.end()),
+				.connectionId = std::move(clientIdentifier),
+				.firstMessage = std::vector<std::byte>(requestData.begin() + firstMessageStart, requestData.end()),
 			};
+		}
 		default:
 			reportDebugError("Unknown request ID {}", static_cast<int>(requestId));
 			return RequestReadError{ std::format("Unknown request ID {}", static_cast<int>(requestId)) };

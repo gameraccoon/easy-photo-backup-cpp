@@ -18,7 +18,7 @@ namespace Requests
 	constexpr const int FileTransferMessagesTimeoutSeconds = 2;
 	constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
 
-	bool processKkHandshake(std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage, const std::string& clientName, Noise::CipherStateSending& outSendingCipherState, Noise::CipherStateReceiving& outReceivingCipherState)
+	bool processKkHandshake(const Cryptography::HashResult& connectionId, std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage, Noise::CipherStateSending& outSendingCipherState, Noise::CipherStateReceiving& outReceivingCipherState)
 	{
 		using namespace Noise;
 
@@ -26,8 +26,8 @@ namespace Requests
 
 		ResponderHandshakeState handshakeState;
 
-		storage.read([&clientName, &handshakeState](const ServerStorageData& storageData) {
-			if (auto it = storageData.confirmedClientBindings.find(clientName); it != storageData.confirmedClientBindings.end())
+		storage.read([&handshakeState, &connectionId](const ServerStorageData& storageData) {
+			if (auto it = storageData.confirmedClientBindings.find(connectionId); it != storageData.confirmedClientBindings.end())
 			{
 				// for now only apply first found
 				handshakeState = NoiseKK::initializeResponder(it->second.staticKeys, it->second.remoteStaticKey);
@@ -118,11 +118,11 @@ namespace Requests
 		return false;
 	}
 
-	void processSendFilesInteractiveRequest(std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage, const std::string& clientName)
+	void processSendFilesInteractiveRequest(const Cryptography::HashResult& connectionId, std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage)
 	{
 		Noise::CipherStateSending sendingCipherState;
 		Noise::CipherStateReceiving receivingCipherState;
-		if (!processKkHandshake(firstMessage, socket, storage, clientName, sendingCipherState, receivingCipherState))
+		if (!processKkHandshake(connectionId, firstMessage, socket, storage, sendingCipherState, receivingCipherState))
 		{
 			reportDebugError("Could not process KK handshake");
 			return;

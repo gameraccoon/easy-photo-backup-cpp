@@ -1,6 +1,7 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
+#include <array>
 #include <streambuf>
 
 #include <gtest/gtest.h>
@@ -445,6 +446,17 @@ TEST(BStorageValue, bytearray_const_test)
 	EXPECT_EQ(v.asOption(), nullptr);
 	EXPECT_EQ(v.asArray(), nullptr);
 	EXPECT_EQ(v.asObject(), nullptr);
+}
+
+TEST(BStorageValue, bytearray_construct_from_span_test)
+{
+	std::array<std::byte, 3> bytes = { std::byte(0xAA), std::byte(0xBB), std::byte(0xCC) };
+
+	BStorage::Value v = BStorage::Value::makeByteArray(bytes);
+
+	ASSERT_TRUE(v.isA(BStorage::Tag::ByteArray));
+	ASSERT_NE(v.asByteArray(), nullptr);
+	EXPECT_EQ((*v.asByteArray()), (std::vector<std::byte>{ std::byte(0xAA), std::byte(0xBB), std::byte(0xCC) }));
 }
 
 TEST(BStorageValue, bytearray_move_construct_test)

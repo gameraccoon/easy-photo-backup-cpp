@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <chrono>
 #include <functional>
 #include <mutex>
 #include <unordered_map>
@@ -16,11 +15,14 @@ struct ServerStorageData
 {
 	struct ClientBinding
 	{
+		std::string name;
 		Cryptography::PublicKey remoteStaticKey;
 		Cryptography::Keypair staticKeys;
 	};
 
-	std::unordered_multimap<std::string, ClientBinding> confirmedClientBindings;
+	using ConfirmedClientBindingsType = std::unordered_map<Cryptography::HashResult, ClientBinding>;
+
+	ConfirmedClientBindingsType confirmedClientBindings;
 };
 
 class ServerStorage

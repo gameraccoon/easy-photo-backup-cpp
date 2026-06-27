@@ -45,6 +45,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/cipher_functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/dh_functions.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/primitives/hash_functions.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/utils/connection_id_utils.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/utils/crypto_wipe.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/utils/erasable_data.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/utils/random.cpp
@@ -79,6 +80,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/types/cipher_types.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/types/dh_types.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/types/hash_types.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/connection_id_utils.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/crypto_wipe.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/erasable_data.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/random.h

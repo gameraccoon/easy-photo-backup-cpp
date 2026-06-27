@@ -5,6 +5,7 @@
 
 #include <format>
 
+#include "common_shared/cryptography/utils/connection_id_utils.h"
 #include "common_shared/debug/assert.h"
 #include "common_shared/debug/log.h"
 #include "common_shared/nsd/nsd_client.h"
@@ -204,6 +205,7 @@ std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const Networ
 			storage.confirmedServerBindings.emplace(
 				serverName,
 				ClientStorageData::ServerBinding{
+					.connectionId = Cryptography::generateConnectionId(pendingServerBinding->staticKeys.publicKey, pendingServerBinding->remoteStaticKey),
 					.remoteStaticKey = std::move(pendingServerBinding->remoteStaticKey),
 					.staticKeys = std::move(pendingServerBinding->staticKeys),
 				}

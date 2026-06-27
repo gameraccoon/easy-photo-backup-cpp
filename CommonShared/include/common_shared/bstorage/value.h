@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -55,6 +56,7 @@ namespace BStorage
 		[[nodiscard]] static Value makeU64(uint64_t v) noexcept;
 		[[nodiscard]] static Value makeString(std::string_view v) noexcept;
 		[[nodiscard]] static Value makeString(std::string&& v) noexcept;
+		[[nodiscard]] static Value makeByteArray(std::span<const std::byte> v) noexcept;
 		[[nodiscard]] static Value makeByteArray(std::vector<std::byte>&& v) noexcept;
 		[[nodiscard]] static Value makeOption(std::unique_ptr<Value>&& v) noexcept;
 		[[nodiscard]] static Value makeArray(std::vector<Value>&& v) noexcept;

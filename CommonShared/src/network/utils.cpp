@@ -453,12 +453,18 @@ namespace Network
 		return std::nullopt;
 	}
 
-	std::optional<std::string> recv(const RawSocket socket, std::span<std::byte> outData, size_t minBytesToRead, size_t& receivedBytes)
+	std::optional<std::string> recv(const RawSocket socket, std::span<std::byte> outData, int bytesToRead, size_t& receivedBytes)
 	{
-		receivedBytes = 0;
-		while (receivedBytes < minBytesToRead || (receivedBytes == 0 && minBytesToRead == 0))
+		// -1 is a special value meaning "read once up to the buffer size"
+		if (bytesToRead < -1 || bytesToRead == 0 || bytesToRead > static_cast<int>(outData.size()))
 		{
-			const int messageSize = ::recv(socket, reinterpret_cast<char*>(outData.data() + receivedBytes), static_cast<int>(outData.size() - receivedBytes), 0);
+			return std::format("Logical error, incorrect number bytes to read {} with buffer size {}", bytesToRead, outData.size());
+		}
+
+		receivedBytes = 0;
+		while ((receivedBytes == 0 && bytesToRead == -1) || (static_cast<int>(receivedBytes) < bytesToRead))
+		{
+			const int messageSize = ::recv(socket, reinterpret_cast<char*>(outData.data() + receivedBytes), bytesToRead > 0 ? static_cast<int>(bytesToRead - receivedBytes) : static_cast<int>(outData.size() - receivedBytes), 0);
 			if (messageSize == -1) [[unlikely]]
 			{
 				return std::format("Failed to recv data from TCP socket, error code {}.", getLastSocketError());
@@ -476,6 +482,11 @@ namespace Network
 			}
 
 			receivedBytes += static_cast<size_t>(messageSize);
+
+			if (bytesToRead != -1 && static_cast<int>(receivedBytes) > bytesToRead) [[unlikely]]
+			{
+				return std::format("Logical error, we received more bytes than requested to read {} of {}", receivedBytes, bytesToRead);
+			}
 
 			assertFatalRelease(receivedBytes <= outData.size(), "recv wrote more bytes than the size of the buffer. This should never happen and may result in buffer overflow vulnerability. We have to crash.");
 
@@ -553,11 +564,6 @@ namespace Network
 		if (auto recvResult = recv(socket, buffer, buffer.size(), receivedBytes); recvResult.has_value())
 		{
 			return recvResult;
-		}
-
-		if (receivedBytes != buffer.size())
-		{
-			return std::format("Logical error, we should have received enough data to fill the buffer, expected: {} got: {}", buffer.size(), receivedBytes);
 		}
 
 		const Cryptography::DecryptResult decryptResult = Noise::Utils::decryptTransportMessageInplace(cipherState, buffer);

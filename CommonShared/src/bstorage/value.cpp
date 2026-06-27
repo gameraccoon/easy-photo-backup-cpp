@@ -201,6 +201,12 @@ namespace BStorage
 		new (&newValue.mStorage.String) std::string(std::move(v));
 		return newValue;
 	}
+	Value Value::makeByteArray(std::span<const std::byte> v) noexcept
+	{
+		Value newValue(Tag::ByteArray);
+		new (&newValue.mStorage.ByteArray) std::vector<std::byte>(v.begin(), v.end());
+		return newValue;
+	}
 
 	Value Value::makeByteArray(std::vector<std::byte>&& v) noexcept
 	{

@@ -61,7 +61,7 @@ namespace ServerStorageInternal
 		}
 	}
 
-	static BStorage::Value WriteConfirmedClientBindingsToValue(const std::unordered_multimap<std::string, ServerStorageData::ClientBinding>& confirmedClientBindings)
+	static BStorage::Value WriteConfirmedClientBindingsToValue(const ServerStorageData::ConfirmedClientBindingsType& confirmedClientBindings)
 	{
 		std::vector<BStorage::Value> vec;
 		vec.reserve(confirmedClientBindings.size());
@@ -69,7 +69,7 @@ namespace ServerStorageInternal
 		{
 			BStorage::Value::ObjectMap record;
 			record.reserve(4);
-			record.emplace(NameField, BStorage::Value::makeString(pair.first));
+			record.emplace(NameField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.first.raw.begin(), pair.first.raw.end())));
 			record.emplace(StaticPublicKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.staticKeys.publicKey.raw.begin(), pair.second.staticKeys.publicKey.raw.end())));
 			record.emplace(StaticSecretKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.staticKeys.secretKey.raw.begin(), pair.second.staticKeys.secretKey.raw.end())));
 			record.emplace(RemoteStaticKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.remoteStaticKey.raw.begin(), pair.second.remoteStaticKey.raw.end())));
@@ -79,7 +79,7 @@ namespace ServerStorageInternal
 		return BStorage::Value::makeArray(std::move(vec));
 	}
 
-	static void ReadConfirmedClientBindingsToValue(BStorage::Value&& value, std::unordered_multimap<std::string, ServerStorageData::ClientBinding>& confirmedClientBindings)
+	static void ReadConfirmedClientBindingsToValue(BStorage::Value&& value, ServerStorageData::ConfirmedClientBindingsType& confirmedClientBindings)
 	{
 		if (std::vector<BStorage::Value>* vec = value.asArray())
 		{
@@ -89,12 +89,13 @@ namespace ServerStorageInternal
 				if (BStorage::Value::ObjectMap* record = val.asObject())
 				{
 					ServerStorageData::ClientBinding newItem{};
-					std::string name;
-					tryConsumeObjectField<std::string>(*record, NameField, name);
+					Cryptography::HashResult id;
+					tryConsumeObjectFieldArray(*record, StaticPublicKeyField, id.raw);
+					tryConsumeObjectField<std::string>(*record, NameField, newItem.name);
 					tryConsumeObjectFieldArray(*record, StaticPublicKeyField, newItem.staticKeys.publicKey.raw);
 					tryConsumeObjectFieldArray(*record, StaticSecretKeyField, newItem.staticKeys.secretKey.raw);
 					tryConsumeObjectFieldArray(*record, RemoteStaticKeyField, newItem.remoteStaticKey.raw);
-					confirmedClientBindings.emplace(std::move(name), std::move(newItem));
+					confirmedClientBindings.emplace(std::move(id), std::move(newItem));
 				}
 			}
 		}

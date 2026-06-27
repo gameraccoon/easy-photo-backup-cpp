@@ -19,15 +19,17 @@ namespace Requests
 	{
 		using namespace Noise;
 
-		constexpr size_t FirstMessagePreludeSize = sizeof(Protocol::NetworkProtocolVersion) + sizeof(Protocol::RequestId);
+		constexpr size_t FirstMessagePreludeSize = sizeof(Protocol::NetworkProtocolVersion) + sizeof(Protocol::RequestId) + DHLEN;
 		constexpr size_t SecondMessagePreludeSize = sizeof(Protocol::RequestAnswerId);
 
 		InitiatorHandshakeState handshakeState;
+		Cryptography::HashResult connectionId;
 
-		clientStorage.read([&handshakeState, &serverName](const ClientStorageData& storageData) {
+		clientStorage.read([&handshakeState, &connectionId, &serverName](const ClientStorageData& storageData) {
 			if (auto it = storageData.confirmedServerBindings.find(serverName); it != storageData.confirmedServerBindings.end())
 			{
 				handshakeState = NoiseKK::initializeInitiator(it->second.staticKeys, it->second.remoteStaticKey);
+				connectionId = it->second.connectionId.clone();
 			}
 		});
 
@@ -36,7 +38,7 @@ namespace Requests
 			return false;
 		}
 
-		constexpr size_t BufferSize = SecondMessagePreludeSize + DHLEN + DHLEN + CipherAuthDataSize;
+		constexpr size_t BufferSize = SecondMessagePreludeSize + DHLEN + DHLEN + DHLEN + CipherAuthDataSize;
 		Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, BufferSize> buffer;
 
 		{
@@ -46,6 +48,8 @@ namespace Requests
 
 			Serialization::writeUint16(buffer.raw[0], buffer.raw[1], Protocol::NetworkProtocolVersion);
 			buffer.raw[2] = static_cast<std::byte>(Protocol::RequestId::SendFiles);
+			static_assert(buffer.raw.size() >= connectionId.size() + 3);
+			std::copy(connectionId.raw.begin(), connectionId.raw.end(), buffer.raw.begin() + 3);
 			cursor += FirstMessagePreludeSize;
 
 			NoiseKK::AppendHandshakeMessage1Result result = NoiseKK::appendHandshakeMessage1(
@@ -78,15 +82,9 @@ namespace Requests
 			static_assert(buffer.size() >= NoiseKK::Message2ExpectedSize + SecondMessagePreludeSize, "Buffer size is too small to fit the second KK message");
 
 			size_t readBytes = 0;
-			if (auto result = Network::recv(socket, buffer, NoiseKK::Message2ExpectedSize, readBytes); result.has_value())
+			if (auto result = Network::recv(socket, buffer, SecondMessagePreludeSize, readBytes); result.has_value())
 			{
 				reportDebugError("Could not recv the second KK message: {}", *result);
-				return false;
-			}
-
-			if (readBytes != NoiseKK::Message2ExpectedSize + SecondMessagePreludeSize)
-			{
-				reportDebugError("Unexpected message size for the second KK message {}", readBytes);
 				return false;
 			}
 
@@ -95,8 +93,16 @@ namespace Requests
 				reportDebugError("Unexpected second KK message prelude {}", static_cast<uint8_t>(buffer.raw[0]));
 				return false;
 			}
+		}
+		{
+			size_t readBytes = 0;
+			if (auto result = Network::recv(socket, buffer, NoiseKK::Message2ExpectedSize, readBytes); result.has_value())
+			{
+				reportDebugError("Could not recv the second KK message: {}", *result);
+				return false;
+			}
 
-			size_t cursor = SecondMessagePreludeSize;
+			size_t cursor = 0;
 			NoiseKK::ProcessHandshakeMessage2Result result = NoiseKK::processHandshakeMessage2(
 				std::move(handshakeState),
 				buffer,
