@@ -5,8 +5,8 @@
 
 #include <array>
 #include <cstddef>
-#include <span>
 #include <memory>
+#include <span>
 
 #include "common_shared/cryptography/utils/crypto_wipe.h"
 #include "common_shared/hash_utils.h"
