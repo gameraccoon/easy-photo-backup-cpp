@@ -35,5 +35,5 @@ namespace FileSendUtils
 	};
 #endif
 
-	[[nodiscard]] std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, ClientStorage& storage, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, Mocks mocks = {}) noexcept;
+	[[nodiscard]] std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, const std::filesystem::path& commonRoot, Network::RawSocket socket, ClientStorage& storage, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, Mocks mocks = {}) noexcept;
 } // namespace FileSendUtils

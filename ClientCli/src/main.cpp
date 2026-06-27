@@ -31,7 +31,7 @@ int main()
 
 	test.pairAndApproveServer(discoveryResults.front(), *serverName);
 
-	test.sendFiles(discoveryResults.front(), *serverName, "./client_files_to_send");
+	test.sendFiles(discoveryResults.front(), *serverName, "./client_files_to_send", "./client_files_to_send");
 
 	Network::shutdownSocketLib();
 

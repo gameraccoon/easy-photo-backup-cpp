@@ -150,7 +150,7 @@ class MainActivity : AppCompatActivity() {
                     binding.sampleText.text = "Sending files"
                     isSendingFiles = true
                     updateButtonStates()
-                    sendFiles(lifecycleScope, result, serverName, folderPath) { result ->
+                    sendFiles(lifecycleScope, result, serverName, folderPath, root) { result ->
                         isSendingFiles = false
                         if (result == null)
                         {
@@ -185,13 +185,14 @@ class MainActivity : AppCompatActivity() {
         }, 2000)
     }
 
-    fun sendFiles(scope: CoroutineScope, address: String, serverName: String, folderPath: String, onComplete: (String?) -> Unit) {
+    fun sendFiles(scope: CoroutineScope, address: String, serverName: String, folderPath: String, commonRoot: String, onComplete: (String?) -> Unit) {
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 testFullFileBackup.sendFiles(
                     address,
                     serverName,
-                    folderPath
+                    folderPath,
+                    commonRoot
                 )
             }
 

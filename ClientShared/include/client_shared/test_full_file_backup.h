@@ -32,7 +32,7 @@ public:
 	// this is the bad and dangerous part, should be removed altogether before the app can be used for real
 	std::optional<std::string> pairAndApproveServer(const Network::NetworkAddress& address, const std::string& serverName);
 
-	std::optional<std::string> sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath);
+	std::optional<std::string> sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath, const std::string& commonRoot);
 
 	std::optional<std::string> removeServer(const std::string& serverName);
 

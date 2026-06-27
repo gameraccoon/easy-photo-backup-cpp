@@ -225,14 +225,14 @@ std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const Networ
 	return std::nullopt;
 }
 
-std::optional<std::string> TestFullFileBackup::sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath)
+std::optional<std::string> TestFullFileBackup::sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath, const std::string& commonRoot)
 {
 	RequestAnswers::RequestAnswer SendFilesAnswer = Requests::prepareConnectionAndProcess(
 		address.ip.data(),
 		address.addressType,
 		address.port,
-		[&storage = mClientStorage, &serverName, &folderPath](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
-			return Requests::sendAndProcessSendFilesInteractiveRequest(socket, storage, serverName, folderPath);
+		[&storage = mClientStorage, &serverName, &folderPath, &commonRoot](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
+			return Requests::sendAndProcessSendFilesInteractiveRequest(socket, storage, serverName, std::filesystem::path(folderPath), std::filesystem::path(commonRoot));
 		}
 	);
 

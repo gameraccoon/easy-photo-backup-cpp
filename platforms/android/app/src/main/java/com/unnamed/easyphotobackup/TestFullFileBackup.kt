@@ -13,7 +13,7 @@ class TestFullFileBackup(path: String) : AutoCloseable {
     private external fun requestServerNameNative(handle: Long, address: String) : String?
     // ToDo: this is a function that only exists for early testing, it should be removed asap
     private external fun pairAndApproveServerNative(handle: Long, address: String, serverName: String) : String?
-    private external fun sendFilesNative(handle: Long, address: String, serverName: String, folderPath: String) : String?
+    private external fun sendFilesNative(handle: Long, address: String, serverName: String, folderPath: String, commonRoot: String) : String?
     private external fun removeServerNative(handle: Long, serverName: String) : String?
     private external fun isServerPaired(handle: Long, serverName: String) : Boolean
 
@@ -50,9 +50,9 @@ class TestFullFileBackup(path: String) : AutoCloseable {
         return pairAndApproveServerNative(nativeHandle, address, serverName)
     }
 
-    fun sendFiles(address: String, serverName: String, folderPath: String) : String? {
+    fun sendFiles(address: String, serverName: String, folderPath: String, commonRoot: String) : String? {
         check(nativeHandle != 0L)
-        return sendFilesNative(nativeHandle, address, serverName, folderPath)
+        return sendFilesNative(nativeHandle, address, serverName, folderPath, commonRoot)
     }
 
     fun removeServer(serverName: String) : String? {

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <filesystem>
+
 #include "common_shared/network/utils.h"
 
 #include "client_shared/request_answers.h"
@@ -11,5 +13,5 @@ class ClientStorage;
 
 namespace Requests
 {
-	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName, const std::string& folderPath) noexcept;
+	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept;
 }

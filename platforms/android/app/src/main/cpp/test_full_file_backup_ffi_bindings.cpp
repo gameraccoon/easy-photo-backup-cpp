@@ -39,9 +39,9 @@ public:
 		return mTestState.pairAndApproveServer(address, serverName);
 	}
 
-	std::optional<std::string> sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath)
+	std::optional<std::string> sendFiles(const Network::NetworkAddress& address, const std::string& serverName, const std::string& folderPath, const std::string& commonRoot)
 	{
-		return mTestState.sendFiles(address, serverName, folderPath);
+		return mTestState.sendFiles(address, serverName, folderPath, commonRoot);
 	}
 
 	std::optional<std::string> removeServer(const std::string& serverName)
@@ -202,7 +202,8 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_sendFilesNative(
 	jlong handle,
 	jstring addressJStr,
 	jstring serverNameJStr,
-	jstring folderPathJStr
+	jstring folderPathJStr,
+	jstring commonRootPathJStr
 )
 {
 	const char* addressChar = env->GetStringUTFChars(addressJStr, nullptr);
@@ -222,8 +223,12 @@ Java_com_unnamed_easyphotobackup_TestFullFileBackup_sendFilesNative(
 	const std::string folderPath(folderPathChar);
 	env->ReleaseStringUTFChars(folderPathJStr, folderPathChar);
 
+	const char* commonRootPathChar = env->GetStringUTFChars(commonRootPathJStr, nullptr);
+	const std::string commonRootPath(commonRootPathChar);
+	env->ReleaseStringUTFChars(commonRootPathJStr, commonRootPathChar);
+
 	auto* obj = reinterpret_cast<TestFullFileBackupNative*>(handle);
-	std::optional<std::string> result = obj->sendFiles(*address, serverName, folderPath);
+	std::optional<std::string> result = obj->sendFiles(*address, serverName, folderPath, commonRootPath);
 	if (result.has_value())
 	{
 		return env->NewStringUTF(result->c_str());

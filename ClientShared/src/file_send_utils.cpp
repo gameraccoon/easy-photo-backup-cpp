@@ -516,7 +516,7 @@ namespace FileSendUtils
 		}
 	};
 
-	std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, Network::RawSocket socket, ClientStorage& storage, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
+	std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, const std::filesystem::path& commonRoot, Network::RawSocket socket, ClientStorage& storage, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
 	{
 		FileSendingState sendingState;
 
@@ -535,11 +535,11 @@ namespace FileSendUtils
 			for (const auto& dirEntry : files)
 			{
 				bool hasFileBeenTransferred = false;
-				storage.read([&hasFileBeenTransferred, &dirEntry, &directoryPath](const ClientStorageData& storageData) {
+				storage.read([&hasFileBeenTransferred, &dirEntry, &commonRoot](const ClientStorageData& storageData) {
 #if defined(_WIN32) || defined(_WIN64)
-					if (storageData.sentFiles.contains(dirEntry.lexically_relative(directoryPath).string()))
+					if (storageData.sentFiles.contains(dirEntry.lexically_relative(commonRoot).string()))
 #else
-					if (storageData.sentFiles.contains(dirEntry.lexically_relative(directoryPath)))
+					if (storageData.sentFiles.contains(dirEntry.lexically_relative(commonRoot)))
 #endif
 
 					{
@@ -561,7 +561,7 @@ namespace FileSendUtils
 					return sendingState.acceptedFilesCache.consumeAllFiles();
 				}
 
-				sendingState.newFile(dirEntry.lexically_relative(directoryPath), sendingState.getFileLength(file));
+				sendingState.newFile(dirEntry.lexically_relative(commonRoot), sendingState.getFileLength(file));
 
 				while (true)
 				{

@@ -129,7 +129,7 @@ namespace Requests
 		return false;
 	}
 
-	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName, const std::string& folderPath) noexcept
+	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::string& serverName, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept
 	{
 		constexpr const int FileTransferMessagesTimeoutSeconds = 2;
 		constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
@@ -157,7 +157,7 @@ namespace Requests
 
 		Debug::Log::printDebug("Start sending files");
 
-		std::vector<std::filesystem::path> sentFiles = FileSendUtils::sendDirectory(std::filesystem::path(folderPath), socket, storage, sendingCipherState, receivingCipherState);
+		std::vector<std::filesystem::path> sentFiles = FileSendUtils::sendDirectory(folderPath, commonRoot, socket, storage, sendingCipherState, receivingCipherState);
 
 		storage.mutate([&sentFiles](ClientStorageData& data) {
 			for (std::filesystem::path& path : sentFiles)
