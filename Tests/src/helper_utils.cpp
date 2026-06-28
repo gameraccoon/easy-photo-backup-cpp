@@ -44,8 +44,8 @@ std::vector<std::byte> hexToBytes(const std::string_view inString)
 	outVector.resize(inString.size() / 2);
 	for (size_t i = 0; i < outVector.size(); ++i)
 	{
-		std::byte v1;
-		std::byte v2;
+		std::byte v1{};
+		std::byte v2{};
 		hexCharToInt(inString[i * 2], v1);
 		hexCharToInt(inString[i * 2 + 1], v2);
 		outVector[i] = (v1 << 4) | v2;
@@ -72,8 +72,8 @@ void appendHexBytes(const std::string_view inString, std::vector<std::byte>& inO
 	inOutVec.resize(writePos + byteSize);
 	for (size_t i = 0; i < byteSize; ++i)
 	{
-		std::byte v1;
-		std::byte v2;
+		std::byte v1{};
+		std::byte v2{};
 		hexCharToInt(inString[i * 2], v1);
 		hexCharToInt(inString[i * 2 + 1], v2);
 		inOutVec[writePos + i] = (v1 << 4) | v2;
