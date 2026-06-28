@@ -48,7 +48,7 @@ int main()
 	auto stopNsdServer = [socket, &nsdCloseSocketFlag] {
 		if (nsdCloseSocketFlag.load(std::memory_order::acquire) == false)
 		{
-			nsdCloseSocketFlag.store(true, std::memory_order::acq_rel);
+			nsdCloseSocketFlag.store(true, std::memory_order::seq_cst);
 			Network::closeSocket(socket);
 		}
 	};
