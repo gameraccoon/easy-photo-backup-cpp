@@ -10,6 +10,7 @@ namespace ServerStorageInternal
 	static constexpr uint16_t ServerStorageVersion = 0;
 	static constexpr std::string_view ServerStoragePath = "./server_storage.bin";
 	static constexpr std::string_view ConfirmedField = "confirmed";
+	static constexpr std::string_view ConnectionIdField = "conn_id";
 	static constexpr std::string_view NameField = "name";
 	static constexpr std::string_view RemoteStaticKeyField = "rs";
 	static constexpr std::string_view StaticPublicKeyField = "s_pub";
@@ -70,7 +71,8 @@ namespace ServerStorageInternal
 		{
 			BStorage::Value::ObjectMap record;
 			record.reserve(4);
-			record.emplace(NameField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.first.raw.begin(), pair.first.raw.end())));
+			record.emplace(ConnectionIdField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.first.raw.begin(), pair.first.raw.end())));
+			record.emplace(NameField, BStorage::Value::makeString(pair.second.name));
 			record.emplace(StaticPublicKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.staticKeys.publicKey.raw.begin(), pair.second.staticKeys.publicKey.raw.end())));
 			record.emplace(StaticSecretKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.staticKeys.secretKey.raw.begin(), pair.second.staticKeys.secretKey.raw.end())));
 			record.emplace(RemoteStaticKeyField, BStorage::Value::makeByteArray(std::vector<std::byte>(pair.second.remoteStaticKey.raw.begin(), pair.second.remoteStaticKey.raw.end())));
@@ -91,7 +93,7 @@ namespace ServerStorageInternal
 				{
 					ServerStorageData::ClientBinding newItem{};
 					Cryptography::HashResult id;
-					tryConsumeObjectFieldArray(*record, StaticPublicKeyField, id.raw);
+					tryConsumeObjectFieldArray(*record, ConnectionIdField, id.raw);
 					tryConsumeObjectField<std::string>(*record, NameField, newItem.name);
 					tryConsumeObjectFieldArray(*record, StaticPublicKeyField, newItem.staticKeys.publicKey.raw);
 					tryConsumeObjectFieldArray(*record, StaticSecretKeyField, newItem.staticKeys.secretKey.raw);
