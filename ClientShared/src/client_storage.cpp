@@ -96,7 +96,7 @@ namespace ClientStorageInternal
 				if (BStorage::Value::ObjectMap* record = val.asObject())
 				{
 					ClientStorageData::ServerBinding newItem{};
-					ClientStorageData::ServerId serverId;
+					ClientStorageData::ServerId serverId{};
 					tryConsumeObjectFieldArray(*record, ServerIdField, serverId);
 					tryConsumeObjectFieldArray(*record, ConnectionIdField, newItem.connectionId.raw);
 					tryConsumeObjectField<std::string>(*record, NameField, newItem.serverName);
