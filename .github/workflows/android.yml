@@ -41,24 +41,20 @@ jobs:
       run: chmod +x gradlew
       working-directory: platforms/android
 
-    # - name: Prepare gradle.properties for signing
-    #   run: |
-    #     echo -n '${{ secrets.TEST_APK_SIGNING_STORE_FILE }}' | base64 --decode > ~/app_signing_file.jks
-    #     mkdir -p ~/.gradle
-    #     echo RELEASE_STORE_FILE=~/app_signing_file.jks >> ~/.gradle/gradle.properties
-    #     echo RELEASE_STORE_PASSWORD=${{ secrets.TEST_APK_SIGNING_STORE_PASSWORD }} >> ~/.gradle/gradle.properties
-    #     echo RELEASE_KEY_ALIAS=${{ secrets.TEST_APK_SIGNING_KEY_ALIAS }} >> ~/.gradle/gradle.properties
-    #     echo RELEASE_KEY_PASSWORD=${{ secrets.TEST_APK_SIGNING_KEY_PASSWORD }} >> ~/.gradle/gradle.properties
+    - name: Prepare gradle.properties for signing
+      run: |
+        echo -n '${{ secrets.TEST_APK_SIGNING_STORE_FILE }}' | base64 --decode > ~/app_signing_file.jks
+        mkdir -p ~/.gradle
+        echo RELEASE_STORE_FILE=~/app_signing_file.jks >> ~/.gradle/gradle.properties
+        echo RELEASE_STORE_PASSWORD=${{ secrets.TEST_APK_SIGNING_STORE_PASSWORD }} >> ~/.gradle/gradle.properties
+        echo RELEASE_KEY_ALIAS=${{ secrets.TEST_APK_SIGNING_KEY_ALIAS }} >> ~/.gradle/gradle.properties
+        echo RELEASE_KEY_PASSWORD=${{ secrets.TEST_APK_SIGNING_KEY_PASSWORD }} >> ~/.gradle/gradle.properties
 
     - uses: burrunan/gradle-cache-action@v3
       name: Build with Gradle
       with:
-        arguments: build
+        arguments: assembleRelease
         build-root-directory: platforms/android
-
-    # - name: Sign the Apk
-    #   run: ./gradlew assembleRelease
-    #   working-directory: platforms/android
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4

@@ -22,9 +22,26 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val storeFilePath = findProperty("RELEASE_STORE_FILE") as String?
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+                storePassword = findProperty("RELEASE_STORE_PASSWORD") as String
+                keyAlias = findProperty("RELEASE_KEY_ALIAS") as String
+                keyPassword = findProperty("RELEASE_KEY_PASSWORD") as String
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+
+            if (findProperty("RELEASE_STORE_FILE") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
