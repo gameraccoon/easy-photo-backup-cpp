@@ -22,9 +22,12 @@ int main()
 	} while (discoveryResults.empty() && tries < 1000);
 	test.stopDiscovery();
 
-	test.pairAndApproveServer(discoveryResults.front());
+	if (!discoveryResults.empty())
+	{
+		test.pairAndApproveServer(discoveryResults.front());
 
-	test.sendFiles(discoveryResults.front(), "./client_files_to_send", "./client_files_to_send");
+		test.sendFiles(discoveryResults.front(), "./client_files_to_send", "./client_files_to_send");
+	}
 
 	Network::shutdownSocketLib();
 
