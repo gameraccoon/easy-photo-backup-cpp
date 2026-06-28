@@ -8,16 +8,18 @@
 // order matters
 #include <windows.h>
 #include <bcrypt.h>
-
-#include "common_shared/debug/assert.h"
 // clang-format on
+
 #elif defined(__linux__) && !defined(__ANDROID__)
+#include <errno.h>
 #include <sys/random.h>
 #elif defined(__FreeBSD__)
 #include <bsd/stdlib.h>
 #else
 #include <cstdlib>
 #endif
+
+#include "common_shared/debug/assert.h"
 
 namespace Cryptography
 {
@@ -28,7 +30,8 @@ namespace Cryptography
 		const NTSTATUS randStatus = BCryptGenRandom(BCRYPT_RNG_ALG_HANDLE, reinterpret_cast<PUCHAR>(outNumber.data()), static_cast<ULONG>(outNumber.size()), 0);
 		assertFatalRelease(randStatus == 0, "Failed to generate random number {}", randStatus);
 #elif defined(__linux__) && !defined(__ANDROID__)
-		getrandom(outNumber.data(), outNumber.size(), 0);
+		const ssize_t bytesWritten = getrandom(outNumber.data(), outNumber.size(), 0);
+		assertFatalRelease(bytesWritten == static_cast<ssize_t>(outNumber.size()), "Random generated unexpected number of bytes {} of {}, errno {}", bytesWritten, outNumber.size(), errno);
 #else
 		arc4random_buf(outNumber.data(), outNumber.size());
 #endif
