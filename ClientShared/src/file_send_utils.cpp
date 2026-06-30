@@ -6,6 +6,7 @@
 #include <fstream>
 
 #include "common_shared/cryptography/noise/cipher_utils.h"
+#include "common_shared/cryptography/primitives/hash_functions.h"
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
@@ -28,6 +29,9 @@ namespace FileSendUtils
 		constexpr static size_t ChunksBetweenAnswers = Protocol::FileExchange::ChunksBetweenAnswers;
 		constexpr static size_t AnswerChunkSize = Protocol::FileExchange::AnswerChunkSize;
 
+		// it doesn't make sense to hash very small files as it doesn't save us any bandwidth
+		constexpr static uint64_t MaxSizeWithoutHash = 64;
+
 #ifdef DEBUG_CHECKS
 		constexpr static bool debugPrint = false;
 #endif // DEBUG_CHECKS
@@ -38,6 +42,7 @@ namespace FileSendUtils
 			FileSize,
 			FilePathSize,
 			FilePath,
+			FileHash,
 			FileContent,
 			FileContentSkipped,
 			EndFile,
@@ -66,6 +71,9 @@ namespace FileSendUtils
 					break;
 				case DebugState::FilePath:
 					Debug::Log::printDebug("Send: |    file path     |");
+					break;
+				case DebugState::FileHash:
+					Debug::Log::printDebug("Send: |    file hash     |");
 					break;
 				case DebugState::FileContent:
 					Debug::Log::printDebug("Send: |   file content   |");
@@ -107,10 +115,12 @@ namespace FileSendUtils
 		size_t chunksSent = 0;
 		size_t fileMetadataBytes = 0; // 8 bytes of size + 2 bytes of path + name
 		size_t fileMetadataWritten = 0;
-		size_t fileSizeBytes = 0;
+		uint64_t fileSizeBytes = 0;
 		uint16_t filePathSize = 0;
-		size_t bytesReadFromFile = 0;
+		uint64_t bytesReadFromFile = 0;
 		size_t fileIndex = 0;
+		bool isHashed = false;
+		Cryptography::HashResult fileHash;
 		std::vector<std::filesystem::path> filesAwaitingConfirmation;
 		FileListCache acceptedFilesCache{ "sent_cache.txt" };
 
@@ -124,9 +134,15 @@ namespace FileSendUtils
 			return bytesFilledInChunk == ChunkSize;
 		}
 
+		[[nodiscard]] bool hasMetadataBeenFullyWritten() const noexcept
+		{
+			assertFatalRelease(fileMetadataWritten <= fileMetadataBytes, "Logical error, we can't write more metadata than exists");
+			return fileMetadataWritten == fileMetadataBytes;
+		}
+
 		[[nodiscard]] bool hasFileFinished() const noexcept
 		{
-			return fileMetadataWritten == fileMetadataBytes && bytesReadFromFile == fileSizeBytes;
+			return hasMetadataBeenFullyWritten() && bytesReadFromFile == fileSizeBytes;
 		}
 
 		[[nodiscard]] bool haveUnconfirmedFiles() const noexcept
@@ -164,7 +180,7 @@ namespace FileSendUtils
 			stream.open(path, std::ios::binary | std::ios::in);
 		}
 
-		size_t getFileLength(std::ifstream& file) const
+		uint64_t getFileLength(std::ifstream& file) const
 		{
 #ifdef WITH_TESTS
 			if (mocks.getFileLength)
@@ -174,7 +190,7 @@ namespace FileSendUtils
 #endif
 
 			file.seekg(0, std::ios::end);
-			const size_t size = static_cast<size_t>(file.tellg());
+			const uint64_t size = static_cast<uint64_t>(file.tellg());
 			file.seekg(0, std::ios::beg);
 			return size;
 		}
@@ -189,6 +205,19 @@ namespace FileSendUtils
 #endif
 
 			return stream.is_open();
+		}
+
+		int calculateFileHash(std::ifstream& stream, size_t fileSize, Cryptography::HashResult& outHash) const
+		{
+#ifdef WITH_TESTS
+			if (mocks.calculateFileHash)
+			{
+				return mocks.calculateFileHash(stream, fileSize, outHash);
+			}
+#endif
+			int result = Cryptography::hashFileBytes(stream, fileSize, outHash);
+			stream.seekg(0, std::ios::beg);
+			return result;
 		}
 
 		void readFileStreamIntoSpan(std::ifstream& stream, std::span<std::byte> bufferSpan)
@@ -241,14 +270,15 @@ namespace FileSendUtils
 			return bytesToCopy;
 		}
 
-		void newFile(const std::filesystem::path& path, size_t size) noexcept
+		void newFile(const std::filesystem::path& path, uint64_t size) noexcept
 		{
 			filePath = path.generic_string();
 			fileSizeBytes = size;
 			bytesReadFromFile = 0;
 			fileMetadataWritten = 0;
 			filePathSize = static_cast<uint16_t>(filePath.size());
-			fileMetadataBytes = 8 + 2 + filePathSize;
+			isHashed = size > MaxSizeWithoutHash ? true : false;
+			fileMetadataBytes = 8 + 2 + filePathSize + (isHashed ? Cryptography::HASHLEN : 0);
 			filesAwaitingConfirmation.push_back(path);
 			++fileIndex;
 			debugPrintState(DebugState::NewFile);
@@ -256,13 +286,14 @@ namespace FileSendUtils
 
 		void readFileIntoBuffer(std::ifstream& file) noexcept
 		{
-			if (fileMetadataWritten < fileMetadataBytes)
+			if (!hasMetadataBeenFullyWritten())
 			{
 				if (fileMetadataWritten < 8)
 				{
 					debugPrintState(DebugState::FileSize);
 					std::array<std::byte, 8> data;
-					Serialization::writeUint64(data, fileSizeBytes);
+					constexpr uint64_t hashedBit = static_cast<size_t>(0b1) << (sizeof(size_t) * 8 - 1);
+					Serialization::writeUint64(data, fileSizeBytes | (isHashed ? hashedBit : 0));
 					fileMetadataWritten += partiallyWriteDataToChunk(data, fileMetadataWritten);
 					if (isBufferFull())
 					{
@@ -282,16 +313,30 @@ namespace FileSendUtils
 					}
 				}
 
-				debugPrintState(DebugState::FilePath);
-				fileMetadataWritten += partiallyWriteDataToChunk(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize), fileMetadataWritten - (8 + 2));
-				if (isBufferFull())
+				if (fileMetadataWritten < 8 + 2 + static_cast<uint32_t>(filePathSize))
 				{
-					return;
+					debugPrintState(DebugState::FilePath);
+					fileMetadataWritten += partiallyWriteDataToChunk(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize), fileMetadataWritten - (8 + 2));
+					if (isBufferFull())
+					{
+						return;
+					}
+				}
+
+				if (isHashed)
+				{
+					debugPrintState(DebugState::FileHash);
+					fileMetadataWritten += partiallyWriteDataToChunk(fileHash, fileMetadataWritten - (8 + 2 + filePathSize));
+					if (isBufferFull())
+					{
+						return;
+					}
 				}
 			}
 
+			assertFatalRelease(hasMetadataBeenFullyWritten(), "Logical error, we should not get here before we finish writing metadata");
 			debugPrintState(DebugState::FileContent);
-			const size_t bytesToRead = std::min(fileSizeBytes - bytesReadFromFile, ChunkSize - bytesFilledInChunk);
+			const size_t bytesToRead = std::min(fileSizeBytes - bytesReadFromFile, static_cast<uint64_t>(ChunkSize - bytesFilledInChunk));
 			readFileStreamIntoSpan(file, std::span(buffer.raw.data() + bytesFilledInChunk, bytesToRead));
 			bytesReadFromFile += bytesToRead;
 			bytesFilledInChunk += bytesToRead;
@@ -333,18 +378,26 @@ namespace FileSendUtils
 			bytesFilledInChunk = ChunkSize;
 		}
 
-		void recordAndClearConfirmations(const std::vector<size_t>& errorIndexes) noexcept
+		void recordAndClearConfirmations(const std::vector<size_t>& errorIndexes, const std::vector<size_t>& skipFileIndexes) noexcept
 		{
 			const bool shouldRecordLast = hasFileFinished();
 			const size_t count = filesAwaitingConfirmation.size() + (shouldRecordLast ? 0 : -1);
 			size_t indexPos = 0;
+			size_t skipFileIndexPos = 0;
 			const size_t indexesSize = errorIndexes.size();
 			for (size_t i = 0; i < count; ++i)
 			{
 				if (indexPos < indexesSize && errorIndexes[indexPos] == i)
 				{
 					++indexPos;
-					continue;
+					if (skipFileIndexPos < skipFileIndexes.size() && skipFileIndexes[skipFileIndexPos] == i)
+					{
+						++skipFileIndexPos;
+					}
+					else
+					{
+						continue;
+					}
 				}
 
 				acceptedFilesCache.recordFile(filesAwaitingConfirmation[i]);
@@ -411,7 +464,7 @@ namespace FileSendUtils
 			static_assert(AnswerChunkSize >= 3, "This code doesn't expect answer chunk size less than 3 bytes");
 			static_assert(ChunksBetweenAnswers * ChunkSize > 2 + 8, "We can't have less data sent between answers than the size of the static metadata + 1");
 
-			debugAssert(statusesToRead == filesAwaitingConfirmation.size() + (isMidSendingEndState ? 1 : 0), "Received unexpected number of file statuses {} == {}", statusesToRead, filesAwaitingConfirmation.size() + (isMidSendingEndState ? 1 : 0));
+			debugAssert(statusesToRead == filesAwaitingConfirmation.size() + (isMidSendingEndState ? 1 : 0), "Received unexpected number of file statuses expected {} got {}", filesAwaitingConfirmation.size() + (isMidSendingEndState ? 1 : 0), statusesToRead);
 
 			const size_t bytesInBitset = (statusesToRead + 7) / 8;
 
@@ -428,7 +481,7 @@ namespace FileSendUtils
 				// this is the most likely situation, that we have only a few files that got confirmed
 				if (popcount == 0) [[likely]]
 				{
-					recordAndClearConfirmations({});
+					recordAndClearConfirmations({}, {});
 					return true;
 				}
 			}
@@ -471,6 +524,7 @@ namespace FileSendUtils
 			assertFatalRelease(chunksToReseive != 0, "Can't have zero chunks to send as an answer");
 
 			errorStartIndex = 0;
+			std::vector<size_t> skipFileIndexes;
 			for (size_t chunkIdx = 0; chunkIdx < chunksToReseive; ++chunkIdx)
 			{
 				for (; errorStartIndex < errorFileIndexes.size() && posInChunk < AnswerChunkSize; ++errorStartIndex, ++posInChunk)
@@ -479,7 +533,13 @@ namespace FileSendUtils
 					switch (static_cast<uint8_t>(receivingBuffer.raw[posInChunk]))
 					{
 					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::BadFilePath):
+					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::CorruptedFile):
+					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::CouldNotCreate):
+					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::CouldNotWriteToFile):
 						// ToDo: log an error
+						break;
+					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::AlreadyExists):
+						skipFileIndexes.push_back(fileIdx);
 						break;
 					default:
 						reportDebugError("Unknown file error status {}", static_cast<uint8_t>(receivingBuffer.raw[posInChunk]));
@@ -511,7 +571,7 @@ namespace FileSendUtils
 				}
 			}
 
-			recordAndClearConfirmations(errorFileIndexes);
+			recordAndClearConfirmations(errorFileIndexes, skipFileIndexes);
 			return true;
 		}
 	};
@@ -561,7 +621,17 @@ namespace FileSendUtils
 					return sendingState.acceptedFilesCache.consumeAllFiles();
 				}
 
-				sendingState.newFile(dirEntry.lexically_relative(commonRoot), sendingState.getFileLength(file));
+				const uint64_t fileLength = sendingState.getFileLength(file);
+				sendingState.newFile(dirEntry.lexically_relative(commonRoot), fileLength);
+
+				if (sendingState.isHashed)
+				{
+					if (sendingState.calculateFileHash(file, fileLength, sendingState.fileHash) != 0)
+					{
+						reportDebugError("Could not calculate hash for file: {}", dirEntry.string());
+						return sendingState.acceptedFilesCache.consumeAllFiles();
+					}
+				}
 
 				while (true)
 				{

@@ -132,6 +132,10 @@ namespace Protocol
 			CouldNotCreate = 2,
 			// e.g. out of disk space
 			CouldNotWriteToFile = 3,
+			// the provided hashsum didn't match the actual hashsum, possibly corrupted file
+			CorruptedFile = 4,
+			// file with the same name and hash already exists
+			AlreadyExists = 5,
 		};
 	}
 } // namespace Protocol

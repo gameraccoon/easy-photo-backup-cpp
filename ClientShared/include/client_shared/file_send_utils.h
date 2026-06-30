@@ -12,6 +12,7 @@
 #include <filesystem>
 
 #include "common_shared/cryptography/noise/cipher_types.h"
+#include "common_shared/cryptography/types/hash_types.h"
 #include "common_shared/network/utils.h"
 
 #include "client_shared/client_storage.h"
@@ -23,8 +24,9 @@ namespace FileSendUtils
 	{
 		std::function<void(std::vector<std::filesystem::path>&)> getAllFiles;
 		std::function<void(std::ifstream&, const std::filesystem::path&)> openFile;
-		std::function<size_t(std::ifstream& file)> getFileLength;
+		std::function<uint64_t(std::ifstream& file)> getFileLength;
 		std::function<bool(std::ifstream&)> isFileOpen;
+		std::function<int(std::ifstream&, size_t, Cryptography::HashResult&)> calculateFileHash;
 		std::function<void(std::ifstream&, std::span<std::byte>)> readFileStreamIntoSpan;
 		std::function<std::optional<std::string>(Network::RawSocket, std::span<std::byte>, size_t, Noise::CipherStateSending&)> sendBuffer;
 		std::function<std::optional<std::string>(Network::RawSocket, std::span<std::byte>, size_t&, Noise::CipherStateReceiving&)> recvAnswerBuffer;

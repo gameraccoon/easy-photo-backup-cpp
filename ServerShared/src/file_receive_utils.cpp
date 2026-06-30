@@ -7,7 +7,9 @@
 #include <limits>
 
 #include "common_shared/cryptography/noise/cipher_utils.h"
+#include "common_shared/cryptography/primitives/hash_functions.h"
 #include "common_shared/debug/assert.h"
+#include "common_shared/debug/debug_print_helpers.h"
 #include "common_shared/files/file_utils.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/utils.h"
@@ -38,6 +40,7 @@ namespace FileReceiveUtils
 			FileSize,
 			FilePathSize,
 			FilePath,
+			FileHash,
 			FileContent,
 			FileContentSkipped,
 			EndFile,
@@ -66,6 +69,9 @@ namespace FileReceiveUtils
 					break;
 				case DebugState::FilePath:
 					Debug::Log::printDebug("Receive:\t\t\t |    file path     |");
+					break;
+				case DebugState::FileHash:
+					Debug::Log::printDebug("Receive:\t\t\t |    file hash     |");
 					break;
 				case DebugState::FileContent:
 					Debug::Log::printDebug("Receive:\t\t\t |   file content   |");
@@ -112,7 +118,20 @@ namespace FileReceiveUtils
 		uint16_t filePathSize = 0;
 		size_t bytesWrittenToFile = 0;
 		size_t currentFileIndex = std::numeric_limits<size_t>::max();
+		bool isHashed = false;
+		Cryptography::HashResult fileHash;
 		std::vector<Protocol::FileExchange::FileReceiveStatus> lastFileStatuses;
+
+		[[nodiscard]] size_t getMetadataLen() const noexcept
+		{
+			return static_cast<size_t>(8 + 2) + filePathSize + (isHashed ? Cryptography::HASHLEN : 0);
+		}
+
+		[[nodiscard]] bool isMetadataFullyRead() const noexcept
+		{
+			assertFatalRelease(fileMetadataRead <= getMetadataLen(), "Logical error, we can't read more metadata than available");
+			return fileMetadataRead == getMetadataLen();
+		}
 
 		[[nodiscard]] bool isBufferFullyRead() const noexcept
 		{
@@ -121,7 +140,7 @@ namespace FileReceiveUtils
 
 		[[nodiscard]] bool hasFileFinished() const noexcept
 		{
-			return fileMetadataRead == static_cast<size_t>(2 + 8) + filePathSize && bytesWrittenToFile == fileSizeBytes;
+			return isMetadataFullyRead() && bytesWrittenToFile == fileSizeBytes;
 		}
 
 		[[nodiscard]] bool haveUnconfirmedFiles() const noexcept
@@ -135,6 +154,17 @@ namespace FileReceiveUtils
 			return !lastFileStatuses.empty() && lastFileStatuses.back() == Protocol::FileExchange::FileReceiveStatus::Success;
 		}
 
+		void recordFileError(Protocol::FileExchange::FileReceiveStatus error)
+		{
+			debugAssert(!lastFileStatuses.empty(), "last file statuses is not expected to be empty");
+			if (!lastFileStatuses.empty())
+			{
+				// save the error, so we ignore writing to the file and send the status to the client
+				// but otherwise continue receiving and decoding the data until the time of reporting
+				lastFileStatuses.back() = error;
+			}
+		}
+
 		std::optional<std::string> recvBuffer(Network::RawSocket socket, std::span<std::byte> bufferSpan, size_t& bytesReceived, Noise::CipherStateReceiving& receivingCipherstate)
 		{
 #ifdef WITH_TESTS
@@ -145,6 +175,18 @@ namespace FileReceiveUtils
 #endif
 
 			return Network::recvEncrypted(socket, bufferSpan, bytesReceived, receivingCipherstate);
+		}
+
+		bool isFileExists(const std::filesystem::path& path) const
+		{
+#ifdef WITH_TESTS
+			if (mocks.isFileExists)
+			{
+				return mocks.isFileExists(path);
+			}
+#endif
+
+			return std::filesystem::exists(path);
 		}
 
 		void openFile(std::ofstream& stream, const std::filesystem::path& path)
@@ -178,10 +220,34 @@ namespace FileReceiveUtils
 			return stream.is_open();
 		}
 
+		[[nodiscard]] int calculateFileHash(Cryptography::HashResult& outHash) const
+		{
+#ifdef WITH_TESTS
+			if (mocks.calculateFileHash)
+			{
+				return mocks.calculateFileHash(filePath, outHash);
+			}
+#endif
+
+			try
+			{
+				if (Cryptography::hashFile(rootPath / filePath, outHash) != 0)
+				{
+					return -1;
+				}
+			}
+			catch (const std::exception& e)
+			{
+				Debug::Log::printDebug("Exception thrown when computing file size: {}", e.what());
+				return -1;
+			}
+			return 0;
+		}
+
 		void writeSpanIntoStream(std::ofstream& stream, std::span<const std::byte> bufferSpan)
 		{
 #ifdef WITH_TESTS
-			if (mocks.openFile)
+			if (mocks.writeSpanIntoStream)
 			{
 				mocks.writeSpanIntoStream(stream, bufferSpan);
 				return;
@@ -218,7 +284,7 @@ namespace FileReceiveUtils
 
 		bool isEndOfTransmission() const noexcept
 		{
-			return fileMetadataRead == static_cast<size_t>(2 + 8) && filePathSize == 0 && fileSizeBytes == 0;
+			return fileMetadataRead == static_cast<size_t>(8 + 2) && filePathSize == 0 && fileSizeBytes == 0;
 		}
 
 		void newFile() noexcept
@@ -232,6 +298,7 @@ namespace FileReceiveUtils
 			fileMetadataRead = 0;
 			filePathSize = 0;
 			fileSizeBytes = 0;
+			isHashed = false;
 			filePath.clear();
 			// set the default status to update later
 			lastFileStatuses.push_back(Protocol::FileExchange::FileReceiveStatus::Success);
@@ -241,7 +308,7 @@ namespace FileReceiveUtils
 
 		void writeFileToDiskFromBuffer()
 		{
-			if (fileMetadataRead < static_cast<size_t>(2 + 8 + filePathSize))
+			if (!isMetadataFullyRead())
 			{
 				if (fileMetadataRead < 8)
 				{
@@ -253,6 +320,14 @@ namespace FileReceiveUtils
 					}
 					fileMetadataRead += partiallyReadDataFromChunk(data, fileMetadataRead);
 					fileSizeBytes = Serialization::readUint64(data);
+
+					if (fileMetadataRead >= 8)
+					{
+						const size_t hashedBit = static_cast<size_t>(0b1) << (sizeof(size_t) * 8 - 1);
+						isHashed = ((fileSizeBytes & hashedBit) != 0);
+						fileSizeBytes &= ~hashedBit;
+					}
+
 					if (isBufferFullyRead())
 					{
 						return;
@@ -275,52 +350,76 @@ namespace FileReceiveUtils
 						return;
 					}
 
+					if (fileMetadataRead >= 8 + 2)
+					{
+						filePath.resize(filePathSize);
+					}
+
 					if (isBufferFullyRead())
 					{
 						return;
 					}
 				}
-				filePath.resize(filePathSize);
 
-				fileMetadataRead += partiallyReadDataFromChunk(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize), fileMetadataRead - (8 + 2));
-
-				// if we have not finished reading name, but buffer is full, break here to return later
-				if (fileMetadataRead < static_cast<size_t>(2 + 8 + filePathSize) && isBufferFullyRead())
+				if (fileMetadataRead < 8 + 2 + static_cast<size_t>(filePathSize))
 				{
-					return;
+					debugPrintState(DebugState::FilePath);
+					fileMetadataRead += partiallyReadDataFromChunk(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize), fileMetadataRead - (8 + 2));
+
+					if (isBufferFullyRead() && !isMetadataFullyRead())
+					{
+						return;
+					}
 				}
 
+				if (isHashed)
+				{
+					debugPrintState(DebugState::FileHash);
+					fileMetadataRead += partiallyReadDataFromChunk(fileHash, fileMetadataRead - (8 + 2 + filePathSize));
+
+					if (isBufferFullyRead() && !isMetadataFullyRead())
+					{
+						return;
+					}
+				}
+			}
+
+			assertFatalRelease(isMetadataFullyRead(), "Logical error, we should not get here before we finish reading metadata");
+			if (isMetadataFullyRead() && bytesWrittenToFile == 0)
+			{
 				if (Files::isFilePathAcceptable(filePath))
 				{
-					openFile(file, rootPath / filePath);
-
-					if (!isFileOpen(file))
+					std::filesystem::path fullPath = rootPath / filePath;
+					bool shouldSkip = false;
+					if (isHashed && isFileExists(fullPath))
 					{
-						reportDebugError("Could not open file for writing {}", filePath);
-						debugAssert(!lastFileStatuses.empty(), "last file statuses is not expected to be empty");
-						if (!lastFileStatuses.empty())
+						Cryptography::HashResult previousHash;
+						if (calculateFileHash(previousHash) != 0)
 						{
-							// save the error, so we ignore writing to the file and send the status to the client
-							// but otherwise continue receiving and decoding the data until the time of reporting
-							lastFileStatuses.back() = Protocol::FileExchange::FileReceiveStatus::CouldNotCreate;
+							reportDebugError("Could not calculate file hash {}", filePath);
+							recordFileError(Protocol::FileExchange::FileReceiveStatus::CouldNotCreate);
+						}
+						if (fileHash == previousHash)
+						{
+							recordFileError(Protocol::FileExchange::FileReceiveStatus::AlreadyExists);
+							shouldSkip = true;
+						}
+					}
+
+					if (!shouldSkip)
+					{
+						openFile(file, fullPath);
+
+						if (!isFileOpen(file))
+						{
+							reportDebugError("Could not open file for writing {}", filePath);
+							recordFileError(Protocol::FileExchange::FileReceiveStatus::CouldNotCreate);
 						}
 					}
 				}
 				else
 				{
-					debugAssert(!lastFileStatuses.empty(), "last file statuses is not expected to be empty when rejecting file name");
-					if (!lastFileStatuses.empty())
-					{
-						// save the error, so we ignore writing to the file and send the status to the client
-						// but otherwise continue receiving and decoding the data until the time of reporting
-						lastFileStatuses.back() = Protocol::FileExchange::FileReceiveStatus::BadFilePath;
-					}
-				}
-
-				// if we finished reading metadata and the buffer if full
-				if (fileMetadataRead == static_cast<size_t>(2 + 8 + filePathSize) && isBufferFullyRead())
-				{
-					return;
+					recordFileError(Protocol::FileExchange::FileReceiveStatus::BadFilePath);
 				}
 			}
 
@@ -538,12 +637,35 @@ namespace FileReceiveUtils
 			{
 				receivingState.writeFileToDiskFromBuffer();
 
-#ifdef DEBUG_CHECKS
 				if (receivingState.hasFileFinished())
 				{
+					if (receivingState.file.is_open())
+					{
+						receivingState.file.close();
+					}
+
+					// this shouldn't be necessary, but since we have the hash why not check it
+					if (receivingState.isHashed)
+					{
+						Cryptography::HashResult fileHash;
+						if (receivingState.calculateFileHash(fileHash) != 0)
+						{
+							reportDebugError("could not calculate hash {}", receivingState.filePath);
+							return;
+						}
+
+						if (receivingState.fileHash != fileHash)
+						{
+							Debug::Print::printSpan("received hash", receivingState.fileHash);
+							Debug::Print::printSpan("actual hash", fileHash);
+							receivingState.recordFileError(Protocol::FileExchange::FileReceiveStatus::CorruptedFile);
+						}
+					}
+
+#ifdef DEBUG_CHECKS
 					receivingState.debugPrintState(FileReceivingState::DebugState::EndFile);
-				}
 #endif // DEBUG_CHECKS
+				}
 
 				if (receivingState.isEndOfTransmission())
 				{
