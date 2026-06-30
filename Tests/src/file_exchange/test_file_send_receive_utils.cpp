@@ -256,7 +256,7 @@ static void runFileExchangeTest(const std::vector<TestFileExchangeFile>& filesTo
 			{
 				return -1;
 			}
-			const int idx = std::distance(filesToSend.begin(), it);
+			const int idx = static_cast<int>(std::distance(filesToSend.begin(), it));
 
 			if (lastHashRequestIdx != idx && it->isFileExist)
 			{
