@@ -38,7 +38,7 @@
         android:autofillHints=""
         android:ems="10"
         android:inputType="text"
-        android:text="Pictures" />
+        android:text="DCIM" />
 
     <LinearLayout
         android:id="@+id/buttonContainer"
