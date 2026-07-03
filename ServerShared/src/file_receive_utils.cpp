@@ -660,7 +660,7 @@ namespace FileReceiveUtils
 					}
 
 					// this shouldn't be necessary, but since we have the hash why not check it
-					if (receivingState.isHashed)
+					if (receivingState.isHashed && receivingState.currentFileHasNoErrors())
 					{
 						Cryptography::HashResult fileHash;
 						if (receivingState.calculateFileHash(fileHash) != 0)

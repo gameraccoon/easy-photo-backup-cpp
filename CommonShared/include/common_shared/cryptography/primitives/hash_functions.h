@@ -29,6 +29,7 @@ namespace Cryptography
 		HashResult* output3
 	) noexcept;
 
+	void hashSpan(std::span<const std::byte> span, HashResult& outHash);
 	// 0 means success
 	[[nodiscard]] int hashFile(const std::filesystem::path& path, HashResult& outHash);
 	[[nodiscard]] int hashFileBytes(std::ifstream& stream, size_t fileSize, HashResult& outHash);
