@@ -306,81 +306,96 @@ namespace FileReceiveUtils
 			++currentFileIndex;
 		}
 
+		void readData(size_t offset, size_t size, DebugState debugState, auto readData, auto onFullyRead)
+		{
+			if (fileMetadataRead >= offset && fileMetadataRead < offset + size && !isBufferFullyRead())
+			{
+				debugPrintState(debugState);
+				auto readFn = [this, offset](std::span<std::byte> data) {
+					fileMetadataRead += partiallyReadDataFromChunk(data, fileMetadataRead - offset);
+				};
+
+				readData(readFn);
+
+				if (fileMetadataRead >= offset + size)
+				{
+					onFullyRead();
+				}
+			}
+		}
+
 		void writeFileToDiskFromBuffer()
 		{
 			if (!isMetadataFullyRead())
 			{
-				if (fileMetadataRead < 8)
-				{
-					debugPrintState(DebugState::FileSize);
-					Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 8> data;
-					if (fileMetadataRead != 0)
-					{
-						Serialization::writeUint64(data, fileSizeBytes);
+				readData(
+					0, 8,
+					DebugState::FileSize,
+					[this](auto readFn) {
+						Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 8> data;
+						if (fileMetadataRead != 0)
+						{
+							Serialization::writeUint64(data, fileSizeBytes);
+						}
+						readFn(data);
+						fileSizeBytes = Serialization::readUint64(data);
+					},
+					[this] {
+						if (fileMetadataRead >= 8)
+						{
+							const size_t hashedBit = static_cast<size_t>(0b1) << (sizeof(size_t) * 8 - 1);
+							isHashed = ((fileSizeBytes & hashedBit) != 0);
+							fileSizeBytes &= ~hashedBit;
+						}
 					}
-					fileMetadataRead += partiallyReadDataFromChunk(data, fileMetadataRead);
-					fileSizeBytes = Serialization::readUint64(data);
+				);
 
-					if (fileMetadataRead >= 8)
-					{
-						const size_t hashedBit = static_cast<size_t>(0b1) << (sizeof(size_t) * 8 - 1);
-						isHashed = ((fileSizeBytes & hashedBit) != 0);
-						fileSizeBytes &= ~hashedBit;
-					}
-
-					if (isBufferFullyRead())
-					{
-						return;
-					}
-				}
-
-				if (fileMetadataRead < 8 + 2)
-				{
-					debugPrintState(DebugState::FilePathSize);
-					Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 2> data;
-					if (fileMetadataRead != 8)
-					{
-						Serialization::writeUint16(data.raw[0], data.raw[1], filePathSize);
-					}
-					fileMetadataRead += partiallyReadDataFromChunk(data, fileMetadataRead - 8);
-					filePathSize = Serialization::readUint16(data.raw[0], data.raw[1]);
-
-					if (isEndOfTransmission())
-					{
-						return;
-					}
-
-					if (fileMetadataRead >= 8 + 2)
-					{
+				readData(
+					8, 2,
+					DebugState::FilePathSize,
+					[this](auto readFn) {
+						Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 2> data;
+						if (fileMetadataRead != 8)
+						{
+							Serialization::writeUint16(data.raw[0], data.raw[1], filePathSize);
+						}
+						readFn(data);
+						filePathSize = Serialization::readUint16(data.raw[0], data.raw[1]);
+					},
+					[this] {
 						filePath.resize(filePathSize);
 					}
+				);
 
-					if (isBufferFullyRead())
-					{
-						return;
-					}
-				}
-
-				if (fileMetadataRead < 8 + 2 + static_cast<size_t>(filePathSize))
+				if (isEndOfTransmission())
 				{
-					debugPrintState(DebugState::FilePath);
-					fileMetadataRead += partiallyReadDataFromChunk(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize), fileMetadataRead - (8 + 2));
-
-					if (isBufferFullyRead() && !isMetadataFullyRead())
-					{
-						return;
-					}
+					return;
 				}
+
+				readData(
+					8 + 2, static_cast<size_t>(filePathSize),
+					DebugState::FilePath,
+					[this](auto readFn) {
+						readFn(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize));
+					},
+					[] {}
+				);
 
 				if (isHashed)
 				{
-					debugPrintState(DebugState::FileHash);
-					fileMetadataRead += partiallyReadDataFromChunk(fileHash, fileMetadataRead - (8 + 2 + filePathSize));
+					readData(
+						8 + 2 + static_cast<size_t>(filePathSize), Cryptography::HASHLEN,
+						DebugState::FileHash,
+						[this](auto readFn) {
+							readFn(fileHash);
+						},
+						[] {}
+					);
+				}
 
-					if (isBufferFullyRead() && !isMetadataFullyRead())
-					{
-						return;
-					}
+				if (isBufferFullyRead() && !isMetadataFullyRead())
+				{
+					return;
 				}
 			}
 

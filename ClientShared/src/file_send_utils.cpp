@@ -284,53 +284,46 @@ namespace FileSendUtils
 			debugPrintState(DebugState::NewFile);
 		}
 
+		void writeData(size_t offset, size_t size, DebugState debugState, auto getData)
+		{
+			if (fileMetadataWritten >= offset && fileMetadataWritten < offset + size && !isBufferFull())
+			{
+				debugPrintState(debugState);
+				fileMetadataWritten += partiallyWriteDataToChunk(getData(), fileMetadataWritten - offset);
+			}
+		}
+
 		void readFileIntoBuffer(std::ifstream& file) noexcept
 		{
 			if (!hasMetadataBeenFullyWritten())
 			{
-				if (fileMetadataWritten < 8)
-				{
-					debugPrintState(DebugState::FileSize);
+				writeData(0, 8, DebugState::FileSize, [this] {
 					std::array<std::byte, 8> data;
 					constexpr uint64_t hashedBit = static_cast<size_t>(0b1) << (sizeof(size_t) * 8 - 1);
 					Serialization::writeUint64(data, fileSizeBytes | (isHashed ? hashedBit : 0));
-					fileMetadataWritten += partiallyWriteDataToChunk(data, fileMetadataWritten);
-					if (isBufferFull())
-					{
-						return;
-					}
-				}
+					return data;
+				});
 
-				if (fileMetadataWritten < 8 + 2)
-				{
-					debugPrintState(DebugState::FilePathSize);
+				writeData(8, 2, DebugState::FilePathSize, [this] {
 					std::array<std::byte, 2> data;
 					Serialization::writeUint16(data[0], data[1], filePathSize);
-					fileMetadataWritten += partiallyWriteDataToChunk(data, fileMetadataWritten - 8);
-					if (isBufferFull())
-					{
-						return;
-					}
-				}
+					return data;
+				});
 
-				if (fileMetadataWritten < 8 + 2 + static_cast<uint32_t>(filePathSize))
-				{
-					debugPrintState(DebugState::FilePath);
-					fileMetadataWritten += partiallyWriteDataToChunk(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize), fileMetadataWritten - (8 + 2));
-					if (isBufferFull())
-					{
-						return;
-					}
-				}
+				writeData(8 + 2, filePathSize, DebugState::FilePath, [this] {
+					return std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize);
+				});
 
 				if (isHashed)
 				{
-					debugPrintState(DebugState::FileHash);
-					fileMetadataWritten += partiallyWriteDataToChunk(fileHash, fileMetadataWritten - (8 + 2 + filePathSize));
-					if (isBufferFull())
-					{
-						return;
-					}
+					writeData(8 + 2 + filePathSize, Cryptography::HASHLEN, DebugState::FileHash, [this] {
+						return std::span<std::byte>(fileHash);
+					});
+				}
+
+				if (isBufferFull())
+				{
+					return;
 				}
 			}
 
