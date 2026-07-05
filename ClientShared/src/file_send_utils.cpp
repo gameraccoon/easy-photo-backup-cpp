@@ -556,12 +556,12 @@ namespace FileSendUtils
 			assertFatalRelease(posInChunk == (BitsetOffset + bytesInBitset) % AnswerChunkSize || posInChunk == AnswerChunkSize, "Unexpected chunk pos {} == {}", posInChunk, (BitsetOffset + bytesInBitset) % AnswerChunkSize);
 
 			const size_t errorsArraySize = errorFileIndexes.size();
-			const size_t chunksToReseive = (posInChunk + errorsArraySize + AnswerChunkSize - 1) / AnswerChunkSize;
-			assertFatalRelease(chunksToReseive != 0, "Can't have zero chunks to send as an answer");
+			const size_t chunksToReceive = (posInChunk + errorsArraySize + AnswerChunkSize - 1) / AnswerChunkSize;
+			assertFatalRelease(chunksToReceive != 0, "Can't have zero chunks to send as an answer");
 
 			errorStartIndex = 0;
 			std::vector<size_t> skipFileIndexes;
-			for (size_t chunkIdx = 0; chunkIdx < chunksToReseive; ++chunkIdx)
+			for (size_t chunkIdx = 0; chunkIdx < chunksToReceive; ++chunkIdx)
 			{
 				for (; errorStartIndex < errorFileIndexes.size() && posInChunk < AnswerChunkSize; ++errorStartIndex, ++posInChunk)
 				{
@@ -600,7 +600,7 @@ namespace FileSendUtils
 					}
 				}
 
-				if (chunkIdx + 1 < chunksToReseive)
+				if (chunkIdx + 1 < chunksToReceive)
 				{
 					debugPrintState(DebugState::AnswerExtraChunk);
 					debugAssert(posInChunk == AnswerChunkSize, "We finished reading not last chunk too early: {}", posInChunk);
