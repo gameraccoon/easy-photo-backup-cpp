@@ -133,6 +133,16 @@ namespace Requests
 		constexpr const int FileTransferMessagesTimeoutSeconds = 2;
 		constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
 
+		std::vector<std::filesystem::path> files = FileSendUtils::collectFilesFromDirectory(folderPath);
+
+		std::vector<uint64_t> previouslySentBytes;
+		FileSendUtils::filterOutSentFiles(commonRoot, storage, files, previouslySentBytes);
+
+		if (files.empty())
+		{
+			return Protocol::RequestAnswers::SendFiles{};
+		}
+
 		Noise::CipherStateSending sendingCipherState;
 		Noise::CipherStateReceiving receivingCipherState;
 		if (!processKkHandshake(socket, storage, serverId, sendingCipherState, receivingCipherState))
@@ -156,7 +166,7 @@ namespace Requests
 
 		Debug::Log::printDebug("Start sending files");
 
-		FileSendUtils::sendDirectory(folderPath, commonRoot, socket, storage, localDataPath, sendingCipherState, receivingCipherState);
+		FileSendUtils::sendDirectory(files, previouslySentBytes, commonRoot, socket, storage, localDataPath, sendingCipherState, receivingCipherState);
 
 		return Protocol::RequestAnswers::SendFiles{};
 	}

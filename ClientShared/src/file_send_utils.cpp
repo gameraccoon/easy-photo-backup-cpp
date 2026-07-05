@@ -162,24 +162,6 @@ namespace FileSendUtils
 			return !filesAwaitingConfirmation.empty();
 		}
 
-		void getAllFiles(const std::filesystem::path& rootPath, std::vector<std::filesystem::path>& outPaths)
-		{
-#ifdef WITH_TESTS
-			if (mocks.getAllFiles)
-			{
-				return mocks.getAllFiles(outPaths);
-			}
-#endif
-
-			for (const std::filesystem::directory_entry& dirEntry : std::filesystem::recursive_directory_iterator(rootPath))
-			{
-				if (!std::filesystem::is_directory(dirEntry))
-				{
-					outPaths.push_back(dirEntry.path());
-				}
-			}
-		}
-
 		void openFile(std::ifstream& stream, size_t cursor, const std::filesystem::path& path)
 		{
 #ifdef WITH_TESTS
@@ -676,51 +658,77 @@ namespace FileSendUtils
 		}
 	}
 
-	void sendDirectory(const std::filesystem::path& directoryPath, const std::filesystem::path& commonRoot, Network::RawSocket socket, ClientStorage& storage, const std::filesystem::path& localDataPath, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
+	std::vector<std::filesystem::path> collectFilesFromDirectory(std::filesystem::path folderPath) noexcept
+	{
+		std::vector<std::filesystem::path> result;
+
+		try
+		{
+			for (const std::filesystem::directory_entry& dirEntry : std::filesystem::recursive_directory_iterator(folderPath))
+			{
+				if (!std::filesystem::is_directory(dirEntry))
+				{
+					result.push_back(dirEntry.path());
+				}
+			}
+		}
+		catch (std::exception& e)
+		{
+			reportDebugError("An exception caught when reading files: {}", e.what());
+		}
+		catch (...)
+		{
+			reportDebugError("An exception caught when reading files");
+		}
+
+		return result;
+	}
+
+	void filterOutSentFiles(const std::filesystem::path& commonRoot, ClientStorage& storage, std::vector<std::filesystem::path>& inOutFiles, std::vector<uint64_t>& outPreviouslySentBytes) noexcept
+	{
+		storage.read([&commonRoot, &inOutFiles, &outPreviouslySentBytes](
+						 const ClientStorageData& storageData
+					 ) {
+			auto getRelativePath = [&commonRoot](const std::filesystem::path& path) -> auto {
+#if defined(_WIN32) || defined(_WIN64)
+				return path.lexically_relative(commonRoot).string();
+#else
+				return path.lexically_relative(commonRoot);
+#endif
+			};
+
+			// remove already sent files
+			inOutFiles.erase(
+				std::remove_if(inOutFiles.begin(), inOutFiles.end(), [&storageData, &getRelativePath](const std::filesystem::path& path) {
+					return storageData.sentFiles.contains(getRelativePath(path));
+				}),
+				inOutFiles.end()
+			);
+
+			for (auto it = storageData.partiallySentFiles.begin();
+				 it != storageData.partiallySentFiles.end(); ++it)
+			{
+				auto filesIt = std::find(inOutFiles.begin(), inOutFiles.end(), commonRoot / it->first);
+				if (filesIt != inOutFiles.end())
+				{
+					// place the element at the beginning
+					std::rotate(inOutFiles.begin(), inOutFiles.begin() + 1, filesIt + 1);
+					outPreviouslySentBytes.insert(outPreviouslySentBytes.begin(), it->second);
+				}
+			}
+		});
+	}
+
+	void sendDirectory(const std::vector<std::filesystem::path>& files, const std::vector<uint64_t>& previouslySentBytes, const std::filesystem::path& commonRoot, Network::RawSocket socket, ClientStorage& storage, const std::filesystem::path& localDataPath, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
 	{
 		FileSendingState sendingState{ localDataPath };
 
 #ifdef WITH_TESTS
 		sendingState.mocks = std::move(mocks);
 #endif
-
-		std::vector<std::filesystem::path> files;
-
 		try
 		{
-			sendingState.getAllFiles(directoryPath, files);
-
 			sendingState.debugPrintState(FileSendingState::DebugState::StartChunk);
-
-			std::vector<uint64_t> previouslySentBytes;
-			storage.read([&commonRoot, &files, &previouslySentBytes](const ClientStorageData& storageData) {
-				auto getRelativePath = [&commonRoot](const std::filesystem::path& path) -> auto {
-#if defined(_WIN32) || defined(_WIN64)
-					return path.lexically_relative(commonRoot).string();
-#else
-					return path.lexically_relative(commonRoot);
-#endif
-				};
-
-				// remove already sent files
-				files.erase(
-					std::remove_if(files.begin(), files.end(), [&storageData, &getRelativePath](const std::filesystem::path& path) {
-						return storageData.sentFiles.contains(getRelativePath(path));
-					}),
-					files.end()
-				);
-
-				for (auto it = storageData.partiallySentFiles.begin(); it != storageData.partiallySentFiles.end(); ++it)
-				{
-					auto filesIt = std::find(files.begin(), files.end(), commonRoot / it->first);
-					if (filesIt != files.end())
-					{
-						// place the element at the beginning
-						std::rotate(files.begin(), files.begin() + 1, filesIt + 1);
-						previouslySentBytes.insert(previouslySentBytes.begin(), it->second);
-					}
-				}
-			});
 
 			for (size_t fileIdx = 0; fileIdx < files.size(); ++fileIdx)
 			{
@@ -735,7 +743,6 @@ namespace FileSendUtils
 					reportDebugError("Could not open file for reading: {}", dirEntry.string());
 					return concludeSendingFiles(sendingState, storage);
 				}
-
 				const uint64_t fileLength = sendingState.getFileLength(file);
 				sendingState.newFile(dirEntry.lexically_relative(commonRoot), fileLength, partialSendStartByte);
 

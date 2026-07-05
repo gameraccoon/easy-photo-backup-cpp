@@ -202,17 +202,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 		int fileToWriteIdx = -1;
 		size_t bytesWritten = 0;
 		size_t fileCursor = 0;
-		bool getAllFilesCalled = false;
 		FileSendUtils::Mocks sendMocks{
-			.getAllFiles = [&filesToSend, &getAllFilesCalled](std::vector<std::filesystem::path>& files) {
-				EXPECT_FALSE(getAllFilesCalled); // expected to be called only once
-				files.reserve(filesToSend.size());
-				for (const TestFileExchangeFile& file : filesToSend)
-				{
-					files.push_back(file.path);
-				}
-				getAllFilesCalled = true;
-			},
 			.openFile = [&filesToSend, &fileToWriteIdx, &fileCursor](std::ifstream&, size_t cursor, const std::filesystem::path& path) {
 				auto it = std::find_if(filesToSend.begin(), filesToSend.end(), [&path](const TestFileExchangeFile& file) {
 					return file.path == path;
@@ -288,9 +278,15 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 		Noise::CipherStateReceiving cipherStateReceiving;
 		cipherStateReceiving.cipherKey = cipherKeyFromReceiverToSender.clone();
 
-		FileSendUtils::sendDirectory("", "", 0, clientStorage, cipherStateSending, cipherStateReceiving, sendMocks);
-
-		EXPECT_TRUE(getAllFilesCalled);
+		std::vector<std::filesystem::path> filePathsToSend;
+		filePathsToSend.reserve(filesToSend.size());
+		for (const auto& file : filesToSend)
+		{
+			filePathsToSend.push_back(file.path);
+		}
+		std::vector<uint64_t> previouslySentBytes;
+		FileSendUtils::filterOutSentFiles("", clientStorage, filePathsToSend, previouslySentBytes);
+		FileSendUtils::sendDirectory(filePathsToSend, previouslySentBytes, "", 0, clientStorage, "", cipherStateSending, cipherStateReceiving, sendMocks);
 	});
 
 	std::vector<TestFileExchangeFile> receivedFiles = cloneTestFiles(instructions.existingFiles);
@@ -433,9 +429,6 @@ TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
 	bool getFileLengthCalled = false;
 	bool readAnswerCalled = false;
 	FileSendUtils::Mocks sendMocks{
-		.getAllFiles = [](std::vector<std::filesystem::path>&) {
-			// do nothing
-		},
 		.openFile = [](std::ifstream&, size_t, const std::filesystem::path&) {
 			FAIL();
 		},
@@ -478,7 +471,9 @@ TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
 	cipherStateReceiving.cipherKey = cipherStateSending.cipherKey.clone();
 
 	ClientStorage storage = ClientStorage::testCreateEmpty();
-	FileSendUtils::sendDirectory("", "", 0, storage, cipherStateSending, cipherStateReceiving, sendMocks);
+	std::vector<std::filesystem::path> filePathsToSend;
+	std::vector<uint64_t> previouslySentBytes;
+	FileSendUtils::sendDirectory(filePathsToSend, previouslySentBytes, "", 0, storage, "", cipherStateSending, cipherStateReceiving, sendMocks);
 
 	storage.read([](const ClientStorageData& storageData) {
 		EXPECT_TRUE(storageData.sentFiles.empty());
