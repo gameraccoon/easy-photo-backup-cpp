@@ -211,10 +211,14 @@ namespace FileReceiveUtils
 				std::filesystem::create_directories(parentDirectory);
 			}
 
-			stream.open(path, std::ios::binary | std::ios::out);
 			if (cursor > 0)
 			{
-				stream.seekp(0, std::ios::beg);
+				stream.open(path, std::ios::binary | std::ios::app);
+				stream.seekp(cursor, std::ios::beg);
+			}
+			else
+			{
+				stream.open(path, std::ios::binary | std::ios::out);
 			}
 		}
 
@@ -241,14 +245,26 @@ namespace FileReceiveUtils
 
 			try
 			{
-				if (Cryptography::hashFile(rootPath / filePath, outHash) != 0)
+				if (size == -1)
 				{
-					return -1;
+					if (Cryptography::hashFile(rootPath / filePath, outHash) != 0)
+					{
+						return -1;
+					}
+				}
+				else
+				{
+					std::ifstream stream;
+					stream.open(rootPath / filePath, std::ios::binary | std::ios::in);
+					if (Cryptography::hashFileBytes(stream, size, outHash) != 0)
+					{
+						return -1;
+					}
 				}
 			}
 			catch (const std::exception& e)
 			{
-				Debug::Log::printDebug("Exception thrown when computing file size: {}", e.what());
+				Debug::Log::printDebug("Exception thrown when computing file hash: {}", e.what());
 				return -1;
 			}
 			return 0;
