@@ -223,7 +223,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 					return;
 				}
 
-				fileToWriteIdx = static_cast<size_t>(std::distance(filesToSend.begin(), it));
+				fileToWriteIdx = std::distance(filesToSend.begin(), it);
 				fileCursor = cursor;
 			},
 			.getFileLength = [&filesToSend, &fileToWriteIdx](std::ifstream&) -> uint64_t {
@@ -630,7 +630,7 @@ TEST(FileSendReceiveUtils, Roundtrip_SendAndReceiveTwentyFiles_SuccessfullyRecei
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			.path = std::format("path{}", i),
-			.data = generateTestFileData(sizes[i], seed + i),
+			.data = generateTestFileData(sizes[i], seed + static_cast<std::minstd_rand::result_type>(i)),
 		});
 	}
 
@@ -661,14 +661,14 @@ TEST(FileSendReceiveUtils, Roundtrip_EverySecondEscapesRoot_EverySecondRejected)
 			filesToSend.push_back(TestFileExchangeFile{
 				// paths that try to escape the directory should be rejected
 				.path = std::format("../path{}", i),
-				.data = generateTestFileData(sizes[i], seed + i),
+				.data = generateTestFileData(sizes[i], seed + static_cast<std::minstd_rand::result_type>(i)),
 			});
 		}
 		else
 		{
 			filesToSend.push_back(TestFileExchangeFile{
 				.path = std::format("path{}", i),
-				.data = generateTestFileData(sizes[i], seed + i),
+				.data = generateTestFileData(sizes[i], seed + static_cast<std::minstd_rand::result_type>(i)),
 			});
 			expectedFilesToReceive.push_back(TestFileExchangeFile{
 				.path = filesToSend[i].path,
@@ -701,7 +701,7 @@ TEST(FileSendReceiveUtils, Roundtrip_SendAndReceiveFilesWithWrongPath_AllRejecte
 		filesToSend.push_back(TestFileExchangeFile{
 			// paths that try to escape the directory should be rejected
 			.path = std::format("../path{}", i),
-			.data = generateTestFileData(sizes[i], seed + i),
+			.data = generateTestFileData(sizes[i], seed + static_cast<std::minstd_rand::result_type>(i)),
 		});
 	}
 
@@ -754,7 +754,7 @@ TEST(FileSendReceiveUtils, Roundtrip_BigAlreadyExistingFiles_AllSkipped)
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			.path = std::format("f{}", i),
-			.data = generateTestFileData(4000, seed + i),
+			.data = generateTestFileData(4000, seed + static_cast<std::minstd_rand::result_type>(i)),
 		});
 	}
 
@@ -786,12 +786,12 @@ TEST(FileSendReceiveUtils, Roundtrip_BigAlreadyExistingButWithHashMismatch_AllRe
 		std::string fileName = std::format("f{}", i);
 		filesToSend.push_back(TestFileExchangeFile{
 			.path = fileName,
-			.data = generateTestFileData(4000, seed + i * 2),
+			.data = generateTestFileData(4000, seed + static_cast<std::minstd_rand::result_type>(i) * 2),
 		});
 
 		existingFiles.push_back(TestFileExchangeFile{
 			.path = fileName,
-			.data = generateTestFileData(4000, seed + i * 2 + 1),
+			.data = generateTestFileData(4000, seed + static_cast<std::minstd_rand::result_type>(i) * 2 + 1),
 		});
 
 		expectedOverriddenFiles.push_back(std::move(fileName));
@@ -822,7 +822,7 @@ TEST(FileSendReceiveUtils, Roundtrip_BigFilesReceivedCorrupted_AllRejected)
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			.path = std::format("f{}", i),
-			.data = generateTestFileData(4000, seed + i),
+			.data = generateTestFileData(4000, seed + static_cast<std::minstd_rand::result_type>(i)),
 		});
 
 		expectedFiles.push_back(TestFileExchangeFile{
@@ -853,7 +853,7 @@ TEST(FileSendReceiveUtils, Roundtrip_BigFilesPartiallySentAndThenContinued_OnlyT
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			.path = std::format("f{}", i),
-			.data = generateTestFileData(8000, seed + i),
+			.data = generateTestFileData(8000, seed + static_cast<std::minstd_rand::result_type>(i)),
 		});
 	}
 
@@ -906,7 +906,7 @@ TEST(FileSendReceiveUtils, Roundtrip_BigFilesPartiallySentAndThenDiscoveredCorru
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			.path = std::format("f{}", i),
-			.data = generateTestFileData(8000, seed + i),
+			.data = generateTestFileData(8000, seed + static_cast<std::minstd_rand::result_type>(i)),
 		});
 	}
 
