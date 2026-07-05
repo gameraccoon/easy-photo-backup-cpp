@@ -223,7 +223,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 					return;
 				}
 
-				fileToWriteIdx = std::distance(filesToSend.begin(), it);
+				fileToWriteIdx = static_cast<int>(std::distance(filesToSend.begin(), it));
 				fileCursor = cursor;
 			},
 			.getFileLength = [&filesToSend, &fileToWriteIdx](std::ifstream&) -> uint64_t {

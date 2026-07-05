@@ -163,7 +163,7 @@ namespace FileSendUtils
 			}
 #endif
 
-			for (auto dirEntry : std::filesystem::recursive_directory_iterator(rootPath))
+			for (const std::filesystem::directory_entry& dirEntry : std::filesystem::recursive_directory_iterator(rootPath))
 			{
 				if (!std::filesystem::is_directory(dirEntry))
 				{
