@@ -27,7 +27,7 @@ struct TestServerInfo
 class TestFullFileBackup
 {
 public:
-	TestFullFileBackup(const std::filesystem::path& storageDirectory);
+	TestFullFileBackup(const std::filesystem::path& localDataPath);
 
 	void startDiscovery();
 	std::vector<TestServerInfo> getDiscoveryResults();
@@ -50,4 +50,5 @@ private:
 	std::vector<TestServerInfo> mDiscoveredServers;
 	std::atomic_bool mNsdStopFlag{};
 	ClientStorage mClientStorage;
+	std::filesystem::path mLocalDataPath;
 };

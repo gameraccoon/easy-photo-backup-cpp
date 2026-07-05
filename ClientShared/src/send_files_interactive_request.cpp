@@ -128,7 +128,7 @@ namespace Requests
 		return false;
 	}
 
-	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::array<std::byte, 16>& serverId, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept
+	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::filesystem::path& localDataPath, const std::array<std::byte, 16>& serverId, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept
 	{
 		constexpr const int FileTransferMessagesTimeoutSeconds = 2;
 		constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
@@ -156,7 +156,7 @@ namespace Requests
 
 		Debug::Log::printDebug("Start sending files");
 
-		FileSendUtils::sendDirectory(folderPath, commonRoot, socket, storage, sendingCipherState, receivingCipherState);
+		FileSendUtils::sendDirectory(folderPath, commonRoot, socket, storage, localDataPath, sendingCipherState, receivingCipherState);
 
 		return Protocol::RequestAnswers::SendFiles{};
 	}

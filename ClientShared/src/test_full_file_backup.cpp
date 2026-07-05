@@ -23,8 +23,9 @@ struct PendingServerBinding
 	Cryptography::HashResult handshakeHash;
 };
 
-TestFullFileBackup::TestFullFileBackup(const std::filesystem::path& storageDirectory)
-	: mClientStorage(ClientStorage::load(storageDirectory))
+TestFullFileBackup::TestFullFileBackup(const std::filesystem::path& localDataPath)
+	: mClientStorage(ClientStorage::load(localDataPath))
+	, mLocalDataPath(localDataPath)
 {
 }
 
@@ -241,8 +242,8 @@ std::optional<std::string> TestFullFileBackup::sendFiles(const TestServerInfo& s
 		serverInfo.address.ip.data(),
 		serverInfo.address.addressType,
 		serverInfo.address.port,
-		[&storage = mClientStorage, &serverId = serverInfo.serverId, &folderPath, &commonRoot](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
-			return Requests::sendAndProcessSendFilesInteractiveRequest(socket, storage, serverId, std::filesystem::path(folderPath), std::filesystem::path(commonRoot));
+		[&storage = mClientStorage, &serverId = serverInfo.serverId, &folderPath, &commonRoot, localDataPath = mLocalDataPath](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
+			return Requests::sendAndProcessSendFilesInteractiveRequest(socket, storage, localDataPath, serverId, std::filesystem::path(folderPath), std::filesystem::path(commonRoot));
 		}
 	);
 
