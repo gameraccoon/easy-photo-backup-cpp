@@ -22,9 +22,9 @@ namespace FileReceiveUtils
 	{
 		std::function<std::optional<std::string>(Network::RawSocket, std::span<std::byte>, size_t&, Noise::CipherStateReceiving&)> recvBuffer;
 		std::function<bool(const std::filesystem::path&)> isFileExists;
-		std::function<void(std::ofstream&, const std::filesystem::path&)> openFile;
+		std::function<void(std::ofstream&, size_t, const std::filesystem::path&)> openFile;
 		std::function<bool(std::ofstream&)> isFileOpen;
-		std::function<int(const std::filesystem::path&, Cryptography::HashResult&)> calculateFileHash;
+		std::function<int(const std::filesystem::path&, int64_t, Cryptography::HashResult&)> calculateFileHash;
 		std::function<void(std::ofstream&, std::span<const std::byte>)> writeSpanIntoStream;
 		std::function<std::optional<std::string>(Network::RawSocket, std::span<std::byte>, size_t, Noise::CipherStateSending&)> sendAnswerBuffer;
 	};

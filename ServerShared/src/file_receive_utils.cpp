@@ -41,6 +41,7 @@ namespace FileReceiveUtils
 			FilePathSize,
 			FilePath,
 			FileHash,
+			FileAlreadySentSize,
 			FileContent,
 			FileContentSkipped,
 			EndFile,
@@ -114,17 +115,19 @@ namespace FileReceiveUtils
 		size_t bytesReadInChunk = ChunkSize;
 		size_t chunksReceived = 0;
 		size_t fileMetadataRead = 0;
-		size_t fileSizeBytes = 0;
+		uint64_t fileSizeBytes = 0;
 		uint16_t filePathSize = 0;
-		size_t bytesWrittenToFile = 0;
+		uint64_t bytesWrittenToFile = 0;
+		uint64_t previousFileSize = 0;
 		size_t currentFileIndex = std::numeric_limits<size_t>::max();
-		bool isHashed = false;
+		bool isEndFileHashed = false;
+		bool isPartial = false;
 		Cryptography::HashResult fileHash;
 		std::vector<Protocol::FileExchange::FileReceiveStatus> lastFileStatuses;
 
 		[[nodiscard]] size_t getMetadataLen() const noexcept
 		{
-			return static_cast<size_t>(8 + 2) + filePathSize + (isHashed ? Cryptography::HASHLEN : 0);
+			return static_cast<size_t>(8 + 2) + filePathSize + (isEndFileHashed ? Cryptography::HASHLEN : 0) + (isPartial ? Cryptography::HASHLEN + 8 : 0);
 		}
 
 		[[nodiscard]] bool isMetadataFullyRead() const noexcept
@@ -177,7 +180,7 @@ namespace FileReceiveUtils
 			return Network::recvEncrypted(socket, bufferSpan, bytesReceived, receivingCipherstate);
 		}
 
-		bool isFileExists(const std::filesystem::path& path) const
+		bool isFileExist(const std::filesystem::path& path) const
 		{
 #ifdef WITH_TESTS
 			if (mocks.isFileExists)
@@ -189,12 +192,12 @@ namespace FileReceiveUtils
 			return std::filesystem::exists(path);
 		}
 
-		void openFile(std::ofstream& stream, const std::filesystem::path& path)
+		void openFile(std::ofstream& stream, size_t cursor, const std::filesystem::path& path)
 		{
 #ifdef WITH_TESTS
 			if (mocks.openFile)
 			{
-				mocks.openFile(stream, path);
+				mocks.openFile(stream, cursor, path);
 				return;
 			}
 #endif
@@ -206,6 +209,10 @@ namespace FileReceiveUtils
 			}
 
 			stream.open(path, std::ios::binary | std::ios::out);
+			if (cursor > 0)
+			{
+				stream.seekp(0, std::ios::beg);
+			}
 		}
 
 		bool isFileOpen(std::ofstream& stream) const
@@ -220,12 +227,12 @@ namespace FileReceiveUtils
 			return stream.is_open();
 		}
 
-		[[nodiscard]] int calculateFileHash(Cryptography::HashResult& outHash) const
+		[[nodiscard]] int calculateFileHash(int64_t size, Cryptography::HashResult& outHash) const
 		{
 #ifdef WITH_TESTS
 			if (mocks.calculateFileHash)
 			{
-				return mocks.calculateFileHash(filePath, outHash);
+				return mocks.calculateFileHash(filePath, size, outHash);
 			}
 #endif
 
@@ -295,10 +302,12 @@ namespace FileReceiveUtils
 			}
 
 			bytesWrittenToFile = 0;
+			previousFileSize = 0;
 			fileMetadataRead = 0;
 			filePathSize = 0;
 			fileSizeBytes = 0;
-			isHashed = false;
+			isEndFileHashed = false;
+			isPartial = false;
 			filePath.clear();
 			// set the default status to update later
 			lastFileStatuses.push_back(Protocol::FileExchange::FileReceiveStatus::Success);
@@ -344,8 +353,10 @@ namespace FileReceiveUtils
 						if (fileMetadataRead >= 8)
 						{
 							const size_t hashedBit = static_cast<size_t>(0b1) << (sizeof(size_t) * 8 - 1);
-							isHashed = ((fileSizeBytes & hashedBit) != 0);
-							fileSizeBytes &= ~hashedBit;
+							const size_t partialBit = static_cast<size_t>(0b1) << (sizeof(size_t) * 8 - 2);
+							isEndFileHashed = ((fileSizeBytes & hashedBit) != 0);
+							isPartial = ((fileSizeBytes & partialBit) != 0);
+							fileSizeBytes &= ~(hashedBit | partialBit);
 						}
 					}
 				);
@@ -381,10 +392,37 @@ namespace FileReceiveUtils
 					[] {}
 				);
 
-				if (isHashed)
+				if (isEndFileHashed)
 				{
 					readData(
 						8 + 2 + static_cast<size_t>(filePathSize), Cryptography::HASHLEN,
+						DebugState::FileHash,
+						[this](auto readFn) {
+							readFn(fileHash);
+						},
+						[] {}
+					);
+				}
+
+				if (isPartial)
+				{
+					readData(
+						8 + 2 + static_cast<size_t>(filePathSize), 8,
+						DebugState::FileAlreadySentSize,
+						[this](auto readFn) {
+							Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, 8> data;
+							if (fileMetadataRead != 0)
+							{
+								Serialization::writeUint64(data, previousFileSize);
+							}
+							readFn(data);
+							previousFileSize = Serialization::readUint64(data);
+						},
+						[] {}
+					);
+
+					readData(
+						8 + 2 + static_cast<size_t>(filePathSize) + 8, Cryptography::HASHLEN,
 						DebugState::FileHash,
 						[this](auto readFn) {
 							readFn(fileHash);
@@ -406,13 +444,13 @@ namespace FileReceiveUtils
 				{
 					std::filesystem::path fullPath = rootPath / filePath;
 					bool shouldSkip = false;
-					if (isHashed && isFileExists(fullPath))
+					if (isEndFileHashed && isFileExist(fullPath))
 					{
 						Cryptography::HashResult previousHash;
-						if (calculateFileHash(previousHash) != 0)
+						if (calculateFileHash(-1, previousHash) != 0)
 						{
 							reportDebugError("Could not calculate file hash {}", filePath);
-							recordFileError(Protocol::FileExchange::FileReceiveStatus::CouldNotCreate);
+							recordFileError(Protocol::FileExchange::FileReceiveStatus::CouldNotRead);
 						}
 						if (fileHash == previousHash)
 						{
@@ -421,9 +459,37 @@ namespace FileReceiveUtils
 						}
 					}
 
+					if (isPartial)
+					{
+						bytesWrittenToFile = previousFileSize;
+
+						if (isFileExist(fullPath))
+						{
+							Cryptography::HashResult previousHash;
+							if (calculateFileHash(static_cast<int64_t>(previousFileSize), previousHash) != 0)
+							{
+								reportDebugError("Could not calculate file hash {}", filePath);
+								recordFileError(Protocol::FileExchange::FileReceiveStatus::CouldNotRead);
+							}
+							if (fileHash != previousHash)
+							{
+								Debug::Log::printDebug("The existing part of a partially received file mismatched hash '{}'", filePath);
+								Debug::Print::printSpan("received file hash", fileHash);
+								Debug::Print::printSpan("existing file hash", previousHash);
+								recordFileError(Protocol::FileExchange::FileReceiveStatus::PartCorrupted);
+								shouldSkip = true;
+							}
+						}
+						else
+						{
+							recordFileError(Protocol::FileExchange::FileReceiveStatus::PartMissing);
+							shouldSkip = true;
+						}
+					}
+
 					if (!shouldSkip)
 					{
-						openFile(file, fullPath);
+						openFile(file, bytesWrittenToFile, fullPath);
 
 						if (!isFileOpen(file))
 						{
@@ -660,17 +726,18 @@ namespace FileReceiveUtils
 					}
 
 					// this shouldn't be necessary, but since we have the hash why not check it
-					if (receivingState.isHashed && receivingState.currentFileHasNoErrors())
+					if (receivingState.isEndFileHashed && receivingState.currentFileHasNoErrors())
 					{
 						Cryptography::HashResult fileHash;
-						if (receivingState.calculateFileHash(fileHash) != 0)
+						if (receivingState.calculateFileHash(-1, fileHash) != 0)
 						{
-							reportDebugError("could not calculate hash {}", receivingState.filePath);
+							reportDebugError("Could not calculate hash for '{}'", receivingState.filePath);
 							return;
 						}
 
 						if (receivingState.fileHash != fileHash)
 						{
+							Debug::Log::printDebug("File '{}' hash mismatch", receivingState.filePath);
 							Debug::Print::printSpan("received hash", receivingState.fileHash);
 							Debug::Print::printSpan("actual hash", fileHash);
 							receivingState.recordFileError(Protocol::FileExchange::FileReceiveStatus::CorruptedFile);

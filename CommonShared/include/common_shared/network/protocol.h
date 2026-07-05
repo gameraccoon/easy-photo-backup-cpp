@@ -136,6 +136,12 @@ namespace Protocol
 			CorruptedFile = 4,
 			// file with the same name and hash already exists
 			AlreadyExists = 5,
+			// can't read existing file, e.g. missing permissions
+			CouldNotRead = 6,
+			// tried to partially receive file, but the previous part is missing
+			PartMissing = 7,
+			// tried to partially receive file, but the existing part is corrupted
+			PartCorrupted = 8,
 		};
 	}
 } // namespace Protocol

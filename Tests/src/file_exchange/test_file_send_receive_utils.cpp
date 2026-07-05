@@ -10,6 +10,7 @@
 #include <random>
 #include <thread>
 
+#include "tests/assert_helper.h"
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
@@ -120,10 +121,44 @@ static std::vector<TestFileExchangeFile> cloneTestFiles(const std::vector<TestFi
 	return result;
 }
 
-static std::vector<std::byte> generateTestFileData(size_t size)
+static void expectTwoArraysEqual(std::vector<TestFileExchangeFile> a, std::vector<TestFileExchangeFile> b)
+{
+	ASSERT_EQ(a.size(), b.size());
+
+	std::sort(a.begin(), a.end(), [](const TestFileExchangeFile& a, const TestFileExchangeFile& b) {
+		return a.path < b.path;
+	});
+
+	std::sort(b.begin(), b.end(), [](const TestFileExchangeFile& a, const TestFileExchangeFile& b) {
+		return a.path < b.path;
+	});
+
+	for (size_t i = 0; i < a.size(); ++i)
+	{
+		if (a[i].path != b[i].path)
+		{
+			ADD_FAILURE() << std::format("a[{}].path != b[{}].path, values are '{}' and '{}'", i, i, a[i].path.string(), b[i].path.string());
+		}
+		else if (a[i].data != b[i].data)
+		{
+			EXPECT_EQ(a[i].data.size(), b[i].data.size());
+			ADD_FAILURE() << std::format("a[{}].data != b[{}].data for file '{}'", i, i, a[i].path.string());
+			for (size_t dataIdx = 0; dataIdx < a[i].data.size(); ++dataIdx)
+			{
+				if (a[i].data[dataIdx] != b[i].data[dataIdx])
+				{
+					Debug::Log::printDebug("First diverged byte at index {}", dataIdx);
+					break;
+				}
+			}
+		}
+	}
+}
+
+static std::vector<std::byte> generateTestFileData(size_t size, std::minstd_rand::result_type seed)
 {
 	std::minstd_rand random;
-	random.seed(static_cast<std::minstd_rand::result_type>(time(nullptr)));
+	random.seed(seed);
 
 	std::vector<std::byte> result;
 	result.resize(size);
@@ -134,10 +169,16 @@ static std::vector<std::byte> generateTestFileData(size_t size)
 	return result;
 }
 
+static std::minstd_rand::result_type getRandomSeed() noexcept
+{
+	return static_cast<std::minstd_rand::result_type>(time(nullptr));
+}
+
 struct FileExchangeTestInstructions
 {
-	size_t breakSendPipeAfterBytes = std::numeric_limits<size_t>::max();
+	size_t breakFileSendPipeAfterBytes = std::numeric_limits<size_t>::max();
 	std::vector<TestFileExchangeFile> existingFiles = {};
+	std::vector<std::string> expectedOverriddenFiles = {};
 	std::optional<std::byte> corruptReceivedFilesPattern = {};
 	bool checkNoFilesWritten = false;
 };
@@ -147,7 +188,7 @@ struct FileExchangeTestResult
 	std::vector<TestFileExchangeFile> totalReceivedFiles = {};
 };
 
-static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, const std::vector<TestFileExchangeFile>& filesToSend, const std::vector<TestFileExchangeFile>& expectedFilesToReceive, const std::vector<TestFileExchangeFile>& expectedFilesToConfirm, const FileExchangeTestInstructions& instructions = {})
+static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, const std::vector<TestFileExchangeFile>& filesToSend, std::vector<TestFileExchangeFile> expectedFilesToReceive, const std::vector<TestFileExchangeFile>& expectedFilesToConfirm, const FileExchangeTestInstructions& instructions = {})
 {
 	Cryptography::CipherKey cipherKeyFromSenderToReceiver;
 	Cryptography::fillWithRandomBytes(cipherKeyFromSenderToReceiver);
@@ -157,9 +198,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 	TestMessagePipe<Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize> fileMessages;
 	TestMessagePipe<Protocol::FileExchange::AnswerChunkSize + Cryptography::CipherAuthDataSize> answerMessages;
 
-	std::vector<std::filesystem::path> confirmedFiles;
-
-	auto sendingThread = std::thread([&filesToSend, &confirmedFiles, &fileMessages, &answerMessages, &cipherKeyFromSenderToReceiver, &cipherKeyFromReceiverToSender, &clientStorage, &instructions]() {
+	auto sendingThread = std::thread([&filesToSend, &fileMessages, &answerMessages, &cipherKeyFromSenderToReceiver, &cipherKeyFromReceiverToSender, &clientStorage, &instructions]() {
 		int fileToWriteIdx = -1;
 		size_t bytesWritten = 0;
 		size_t fileCursor = 0;
@@ -174,10 +213,18 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				}
 				getAllFilesCalled = true;
 			},
-			.openFile = [&filesToSend, &fileToWriteIdx, &fileCursor](std::ifstream&, const std::filesystem::path& path) {
-				++fileToWriteIdx;
-				fileCursor = 0;
-				EXPECT_EQ(filesToSend[fileToWriteIdx].path, path);
+			.openFile = [&filesToSend, &fileToWriteIdx, &fileCursor](std::ifstream&, size_t cursor, const std::filesystem::path& path) {
+				auto it = std::find_if(filesToSend.begin(), filesToSend.end(), [&path](const TestFileExchangeFile& file) {
+					return file.path == path;
+				});
+
+				if (it == filesToSend.end())
+				{
+					return;
+				}
+
+				fileToWriteIdx = static_cast<size_t>(std::distance(filesToSend.begin(), it));
+				fileCursor = cursor;
 			},
 			.getFileLength = [&filesToSend, &fileToWriteIdx](std::ifstream&) -> uint64_t {
 				return static_cast<uint64_t>(filesToSend[fileToWriteIdx].data.size());
@@ -185,11 +232,20 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 			.isFileOpen = [](std::ifstream&) -> bool {
 				return true;
 			},
-			.calculateFileHash = [&filesToSend, &fileToWriteIdx](std::ifstream&, size_t, Cryptography::HashResult& result) -> int {
+			.seek = [&fileCursor](std::ifstream&, size_t position) -> void {
+				fileCursor = position;
+			},
+			.calculateFileHash = [&filesToSend, &fileToWriteIdx](std::ifstream&, size_t size, Cryptography::HashResult& result) -> int {
+				if (size > filesToSend[fileToWriteIdx].data.size())
+				{
+					return -1;
+				}
 				Cryptography::hashSpan(filesToSend[fileToWriteIdx].data, result);
+				Cryptography::hashSpan(std::span<const std::byte>(filesToSend[fileToWriteIdx].data.data(), size), result);
 				return 0;
 			},
 			.readFileStreamIntoSpan = [&filesToSend, &fileToWriteIdx, &fileCursor](std::ifstream&, std::span<std::byte> buffer) {
+				ASSERT_LE(fileCursor, filesToSend[fileToWriteIdx].data.size());
 				std::copy(filesToSend[fileToWriteIdx].data.data() + fileCursor, filesToSend[fileToWriteIdx].data.data() + fileCursor + buffer.size(), buffer.data());
 				fileCursor += buffer.size();
 			},
@@ -200,7 +256,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				fileMessages.push(buffer);
 
 				bytesWritten += bytesToWrite;
-				if (bytesWritten > instructions.breakSendPipeAfterBytes)
+				if (bytesWritten > instructions.breakFileSendPipeAfterBytes)
 				{
 					return "Pipe is broken as per test request";
 				}
@@ -232,16 +288,17 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 		Noise::CipherStateReceiving cipherStateReceiving;
 		cipherStateReceiving.cipherKey = cipherKeyFromReceiverToSender.clone();
 
-		confirmedFiles = FileSendUtils::sendDirectory("", "", 0, clientStorage, cipherStateSending, cipherStateReceiving, sendMocks);
+		FileSendUtils::sendDirectory("", "", 0, clientStorage, cipherStateSending, cipherStateReceiving, sendMocks);
 
 		EXPECT_TRUE(getAllFilesCalled);
 	});
 
 	std::vector<TestFileExchangeFile> receivedFiles = cloneTestFiles(instructions.existingFiles);
-	receivedFiles.reserve(filesToSend.size());
+	receivedFiles.reserve(receivedFiles.size() + filesToSend.size());
+	size_t bytesRead = 0;
 
 	FileReceiveUtils::Mocks receiveMocks{
-		.recvBuffer = [&fileMessages](Network::RawSocket, std::span<std::byte> buffer, size_t& bytesReceived, Noise::CipherStateReceiving& receivingState) -> std::optional<std::string> {
+		.recvBuffer = [&fileMessages, &instructions, &bytesRead](Network::RawSocket, std::span<std::byte> buffer, size_t& bytesReceived, Noise::CipherStateReceiving& receivingState) -> std::optional<std::string> {
 			constexpr const size_t BytesToRead = Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize;
 			constexpr const size_t BytesToReturn = Protocol::FileExchange::ChunkSize;
 			EXPECT_EQ(buffer.size(), BytesToRead);
@@ -256,6 +313,12 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				return std::format("Could not decode the message from the stream: {}", static_cast<int>(result));
 			}
 
+			bytesRead += BytesToReturn;
+			if (bytesRead > instructions.breakFileSendPipeAfterBytes)
+			{
+				return "Pipe is broken as per test request";
+			}
+
 			bytesReceived = BytesToReturn;
 			return std::nullopt;
 		},
@@ -265,17 +328,32 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				   })
 				!= receivedFiles.end();
 		},
-		.openFile = [&receivedFiles, &instructions](std::ofstream&, const std::filesystem::path& path) {
-			receivedFiles.push_back(TestFileExchangeFile{
-				.path = path,
-				.data = {},
-			});
+		.openFile = [&receivedFiles, &instructions](std::ofstream&, size_t cursor, const std::filesystem::path& path) {
+			if (auto it = std::find_if(receivedFiles.begin(), receivedFiles.end(), [path](const TestFileExchangeFile& file) {
+					return file.path == path;
+				});
+				it != receivedFiles.end())
+			{
+				ASSERT_NE(std::find(instructions.expectedOverriddenFiles.begin(), instructions.expectedOverriddenFiles.end(), path), instructions.expectedOverriddenFiles.end());
+				std::swap(receivedFiles.back(), *it);
+			}
+			else
+			{
+				ASSERT_EQ(std::find(instructions.expectedOverriddenFiles.begin(), instructions.expectedOverriddenFiles.end(), path), instructions.expectedOverriddenFiles.end());
+				receivedFiles.push_back(TestFileExchangeFile{
+					.path = path,
+					.data = {},
+				});
+			}
+
+			ASSERT_LE(cursor, receivedFiles.back().data.size());
+			receivedFiles.back().data.resize(cursor);
 			ASSERT_FALSE(instructions.checkNoFilesWritten);
 		},
 		.isFileOpen = [](std::ofstream&) -> bool {
 			return true;
 		},
-		.calculateFileHash = [&receivedFiles](const std::filesystem::path& path, Cryptography::HashResult& hashResult) -> int {
+		.calculateFileHash = [&receivedFiles](const std::filesystem::path& path, int64_t size, Cryptography::HashResult& hashResult) -> int {
 			auto it = std::find_if(receivedFiles.begin(), receivedFiles.end(), [&path](const TestFileExchangeFile& file) {
 				return file.path == path;
 			});
@@ -285,7 +363,18 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				return -1;
 			}
 
-			Cryptography::hashSpan(it->data, hashResult);
+			if (size == -1)
+			{
+				Cryptography::hashSpan(it->data, hashResult);
+			}
+			else
+			{
+				EXPECT_LT(static_cast<size_t>(size), it->data.size());
+				if (static_cast<size_t>(size) < it->data.size())
+				{
+					Cryptography::hashSpan(std::span<std::byte>(it->data.begin(), it->data.begin() + size), hashResult);
+				}
+			}
 			return 0;
 		},
 		.writeSpanIntoStream = [&receivedFiles, &instructions](std::ofstream&, std::span<const std::byte> buffer) {
@@ -322,14 +411,15 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 	EXPECT_EQ(size_t(0), fileMessages.size());
 	EXPECT_EQ(size_t(0), answerMessages.size());
 
-	EXPECT_EQ(receivedFiles.size(), expectedFilesToReceive.size());
-	EXPECT_EQ(receivedFiles, expectedFilesToReceive);
+	expectTwoArraysEqual(receivedFiles, expectedFilesToReceive);
 
-	EXPECT_EQ(expectedFilesToConfirm.size(), confirmedFiles.size());
-	for (const auto& expectedFile : expectedFilesToConfirm)
-	{
-		EXPECT_NE(std::find(confirmedFiles.begin(), confirmedFiles.end(), expectedFile.path), confirmedFiles.end());
-	}
+	clientStorage.read([&expectedFilesToConfirm](const ClientStorageData& storageData) {
+		EXPECT_EQ(expectedFilesToConfirm.size(), storageData.sentFiles.size());
+		for (const auto& expectedFile : expectedFilesToConfirm)
+		{
+			EXPECT_NE(std::find(storageData.sentFiles.begin(), storageData.sentFiles.end(), expectedFile.path), storageData.sentFiles.end()) << std::format("File '{}' expected to be confirmed but wasn't", expectedFile.path.string());
+		}
+	});
 
 	return FileExchangeTestResult{
 		.totalReceivedFiles = cloneTestFiles(receivedFiles),
@@ -346,7 +436,7 @@ TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
 		.getAllFiles = [](std::vector<std::filesystem::path>&) {
 			// do nothing
 		},
-		.openFile = [](std::ifstream&, const std::filesystem::path&) {
+		.openFile = [](std::ifstream&, size_t, const std::filesystem::path&) {
 			FAIL();
 		},
 		.getFileLength = [&getFileLengthCalled](std::ifstream&) -> uint64_t {
@@ -356,6 +446,8 @@ TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
 		.isFileOpen = [&isFileOpenCalled](std::ifstream&) -> bool {
 			isFileOpenCalled = true;
 			return false;
+		},
+		.seek = [](std::ifstream&, size_t) -> void {
 		},
 		.calculateFileHash = [](std::ifstream&, size_t, Cryptography::HashResult& outHash) -> int {
 			outHash = {};
@@ -386,7 +478,12 @@ TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
 	cipherStateReceiving.cipherKey = cipherStateSending.cipherKey.clone();
 
 	ClientStorage storage = ClientStorage::testCreateEmpty();
-	EXPECT_EQ(FileSendUtils::sendDirectory("", "", 0, storage, cipherStateSending, cipherStateReceiving, sendMocks), std::vector<std::filesystem::path>{});
+	FileSendUtils::sendDirectory("", "", 0, storage, cipherStateSending, cipherStateReceiving, sendMocks);
+
+	storage.read([](const ClientStorageData& storageData) {
+		EXPECT_TRUE(storageData.sentFiles.empty());
+		EXPECT_TRUE(storageData.partiallySentFiles.empty());
+	});
 
 	EXPECT_TRUE(sendBufferCalled);
 	EXPECT_FALSE(isFileOpenCalled);
@@ -408,13 +505,13 @@ TEST(FileSendReceiveUtils, ReceiveChunkOfZeros_SavedNoFiles)
 		.isFileExists = [](const std::filesystem::path&) {
 			return false;
 		},
-		.openFile = [](std::ofstream&, const std::filesystem::path&) {
+		.openFile = [](std::ofstream&, size_t, const std::filesystem::path&) {
 			FAIL();
 		},
 		.isFileOpen = [](std::ofstream&) -> bool {
 			return false;
 		},
-		.calculateFileHash = [](const std::filesystem::path&, Cryptography::HashResult& outHash) -> int {
+		.calculateFileHash = [](const std::filesystem::path&, size_t, Cryptography::HashResult& outHash) -> int {
 			outHash = {};
 			return 0;
 		},
@@ -456,7 +553,7 @@ TEST(FileSendReceiveUtils, Roundtrip_SendAndReceiveOneTinyFile_SuccessfullyRecei
 	std::vector<TestFileExchangeFile> filesToSend;
 	filesToSend.push_back(TestFileExchangeFile{
 		.path = "tiny.txt",
-		.data = generateTestFileData(4),
+		.data = generateTestFileData(4, getRandomSeed()),
 	});
 
 	runFileExchangeTest(clientStorage, filesToSend, filesToSend, filesToSend);
@@ -468,7 +565,7 @@ TEST(FileSendReceiveUtils, Roundtrip_SendAndReceiveOneSmallFile_SuccessfullyRece
 	std::vector<TestFileExchangeFile> filesToSend;
 	filesToSend.push_back(TestFileExchangeFile{
 		.path = "small.txt",
-		.data = generateTestFileData(500),
+		.data = generateTestFileData(500, getRandomSeed()),
 	});
 
 	runFileExchangeTest(clientStorage, filesToSend, filesToSend, filesToSend);
@@ -480,7 +577,7 @@ TEST(FileSendReceiveUtils, Roundtrip_SendAndReceiveOneMediumFile_SuccessfullyRec
 	std::vector<TestFileExchangeFile> filesToSend;
 	filesToSend.push_back(TestFileExchangeFile{
 		.path = "med.txt",
-		.data = generateTestFileData(3000),
+		.data = generateTestFileData(3000, getRandomSeed()),
 	});
 
 	runFileExchangeTest(clientStorage, filesToSend, filesToSend, filesToSend);
@@ -492,7 +589,7 @@ TEST(FileSendReceiveUtils, Roundtrip_SendAndReceiveOneBigFile_SuccessfullyReceiv
 	std::vector<TestFileExchangeFile> filesToSend;
 	filesToSend.push_back(TestFileExchangeFile{
 		.path = "big.txt",
-		.data = generateTestFileData(200000),
+		.data = generateTestFileData(200000, getRandomSeed()),
 	});
 
 	runFileExchangeTest(clientStorage, filesToSend, filesToSend, filesToSend);
@@ -528,11 +625,12 @@ TEST(FileSendReceiveUtils, Roundtrip_SendAndReceiveTwentyFiles_SuccessfullyRecei
 	ClientStorage clientStorage = ClientStorage::testCreateEmpty();
 	std::vector<TestFileExchangeFile> filesToSend;
 	filesToSend.reserve(sizes.size());
+	const std::minstd_rand::result_type seed = getRandomSeed();
 	for (size_t i = 0; i < sizes.size(); ++i)
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			.path = std::format("path{}", i),
-			.data = generateTestFileData(sizes[i]),
+			.data = generateTestFileData(sizes[i], seed + i),
 		});
 	}
 
@@ -555,6 +653,7 @@ TEST(FileSendReceiveUtils, Roundtrip_EverySecondEscapesRoot_EverySecondRejected)
 	filesToSend.reserve(sizes.size());
 	std::vector<TestFileExchangeFile> expectedFilesToReceive;
 	expectedFilesToReceive.reserve(sizes.size());
+	const std::minstd_rand::result_type seed = getRandomSeed();
 	for (size_t i = 0; i < sizes.size(); ++i)
 	{
 		if ((i + 1) % 2 == 0)
@@ -562,14 +661,14 @@ TEST(FileSendReceiveUtils, Roundtrip_EverySecondEscapesRoot_EverySecondRejected)
 			filesToSend.push_back(TestFileExchangeFile{
 				// paths that try to escape the directory should be rejected
 				.path = std::format("../path{}", i),
-				.data = generateTestFileData(sizes[i]),
+				.data = generateTestFileData(sizes[i], seed + i),
 			});
 		}
 		else
 		{
 			filesToSend.push_back(TestFileExchangeFile{
 				.path = std::format("path{}", i),
-				.data = generateTestFileData(sizes[i]),
+				.data = generateTestFileData(sizes[i], seed + i),
 			});
 			expectedFilesToReceive.push_back(TestFileExchangeFile{
 				.path = filesToSend[i].path,
@@ -596,12 +695,13 @@ TEST(FileSendReceiveUtils, Roundtrip_SendAndReceiveFilesWithWrongPath_AllRejecte
 	ClientStorage clientStorage = ClientStorage::testCreateEmpty();
 	std::vector<TestFileExchangeFile> filesToSend;
 	filesToSend.reserve(sizes.size());
+	const std::minstd_rand::result_type seed = getRandomSeed();
 	for (size_t i = 0; i < sizes.size(); ++i)
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			// paths that try to escape the directory should be rejected
 			.path = std::format("../path{}", i),
-			.data = generateTestFileData(sizes[i]),
+			.data = generateTestFileData(sizes[i], seed + i),
 		});
 	}
 
@@ -649,11 +749,12 @@ TEST(FileSendReceiveUtils, Roundtrip_BigAlreadyExistingFiles_AllSkipped)
 	std::vector<TestFileExchangeFile> filesToSend;
 	constexpr size_t FilesCount = 5;
 	filesToSend.reserve(FilesCount);
+	const std::minstd_rand::result_type seed = getRandomSeed();
 	for (size_t i = 0; i < FilesCount; ++i)
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			.path = std::format("f{}", i),
-			.data = generateTestFileData(4000),
+			.data = generateTestFileData(4000, seed + i),
 		});
 	}
 
@@ -677,17 +778,23 @@ TEST(FileSendReceiveUtils, Roundtrip_BigAlreadyExistingButWithHashMismatch_AllRe
 	filesToSend.reserve(FilesCount);
 	std::vector<TestFileExchangeFile> existingFiles;
 	existingFiles.reserve(FilesCount);
+	std::vector<std::string> expectedOverriddenFiles;
+	expectedOverriddenFiles.reserve(FilesCount);
+	const std::minstd_rand::result_type seed = getRandomSeed();
 	for (size_t i = 0; i < FilesCount; ++i)
 	{
+		std::string fileName = std::format("f{}", i);
 		filesToSend.push_back(TestFileExchangeFile{
-			.path = std::format("f{}", i),
-			.data = generateTestFileData(4000),
+			.path = fileName,
+			.data = generateTestFileData(4000, seed + i * 2),
 		});
 
 		existingFiles.push_back(TestFileExchangeFile{
-			.path = std::format("f{}", i),
-			.data = generateTestFileData(4000), // different hash
+			.path = fileName,
+			.data = generateTestFileData(4000, seed + i * 2 + 1),
 		});
+
+		expectedOverriddenFiles.push_back(std::move(fileName));
 	}
 
 	runFileExchangeTest(
@@ -697,6 +804,7 @@ TEST(FileSendReceiveUtils, Roundtrip_BigAlreadyExistingButWithHashMismatch_AllRe
 		filesToSend,
 		FileExchangeTestInstructions{
 			.existingFiles = std::move(existingFiles),
+			.expectedOverriddenFiles = std::move(expectedOverriddenFiles),
 		}
 	);
 }
@@ -709,11 +817,12 @@ TEST(FileSendReceiveUtils, Roundtrip_BigFilesReceivedCorrupted_AllRejected)
 	filesToSend.reserve(FilesCount);
 	std::vector<TestFileExchangeFile> expectedFiles;
 	expectedFiles.reserve(FilesCount);
+	const std::minstd_rand::result_type seed = getRandomSeed();
 	for (size_t i = 0; i < FilesCount; ++i)
 	{
 		filesToSend.push_back(TestFileExchangeFile{
 			.path = std::format("f{}", i),
-			.data = generateTestFileData(4000),
+			.data = generateTestFileData(4000, seed + i),
 		});
 
 		expectedFiles.push_back(TestFileExchangeFile{
@@ -729,6 +838,138 @@ TEST(FileSendReceiveUtils, Roundtrip_BigFilesReceivedCorrupted_AllRejected)
 		{},
 		FileExchangeTestInstructions{
 			.corruptReceivedFilesPattern = std::byte(0x79),
+		}
+	);
+}
+
+TEST(FileSendReceiveUtils, Roundtrip_BigFilesPartiallySentAndThenContinued_OnlyTheRemainderIsReceived)
+{
+	ClientStorage clientStorage = ClientStorage::testCreateEmpty();
+	std::vector<TestFileExchangeFile> filesToSend;
+	constexpr size_t FilesCount = 7;
+	filesToSend.reserve(FilesCount);
+	const std::minstd_rand::result_type seed = getRandomSeed();
+	for (size_t i = 0; i < FilesCount; ++i)
+	{
+		filesToSend.push_back(TestFileExchangeFile{
+			.path = std::format("f{}", i),
+			.data = generateTestFileData(8000, seed + i),
+		});
+	}
+
+	std::vector<TestFileExchangeFile> filesToReceiveFirstChunk;
+	filesToReceiveFirstChunk.push_back(filesToSend[0].clone());
+	filesToReceiveFirstChunk.push_back(filesToSend[1].clone());
+	filesToReceiveFirstChunk.push_back(filesToSend[2].clone());
+	filesToReceiveFirstChunk.push_back(filesToSend[3].clone());
+	filesToReceiveFirstChunk.push_back(filesToSend[4].clone());
+	filesToReceiveFirstChunk[4].data.resize(2596);
+	std::vector<TestFileExchangeFile> filesToConfirmFirstChunk;
+	filesToConfirmFirstChunk.push_back(filesToSend[0].clone());
+	filesToConfirmFirstChunk.push_back(filesToSend[1].clone());
+	filesToConfirmFirstChunk.push_back(filesToSend[2].clone());
+	filesToConfirmFirstChunk.push_back(filesToSend[3].clone());
+
+	AssertHelper::disableAsserts();
+	FileExchangeTestResult firstResult = runFileExchangeTest(
+		clientStorage,
+		filesToSend,
+		filesToReceiveFirstChunk,
+		filesToConfirmFirstChunk,
+		FileExchangeTestInstructions{
+			// break right after we received an answer, so we have some files fully received and one file in partiallly confirmed state
+			.breakFileSendPipeAfterBytes = Protocol::FileExchange::ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers + 2048,
+		}
+	);
+	AssertHelper::enableAsserts();
+
+	runFileExchangeTest(
+		clientStorage,
+		filesToSend, // we try to send all files
+		filesToSend, // all files should exist on the receiving end after the operation
+		filesToSend, // all files wiil be confirmed in the end (skipped, previously partially received, and the rest of received)
+		FileExchangeTestInstructions{
+			.existingFiles = std::move(firstResult.totalReceivedFiles),
+			.expectedOverriddenFiles = std::vector<std::string>({ "f4" }),
+		}
+	);
+}
+
+TEST(FileSendReceiveUtils, Roundtrip_BigFilesPartiallySentAndThenDiscoveredCorrupted_ThePartiallySentFileIsFullyResent)
+{
+	ClientStorage clientStorage = ClientStorage::testCreateEmpty();
+	std::vector<TestFileExchangeFile> filesToSend;
+	constexpr size_t FilesCount = 7;
+	filesToSend.reserve(FilesCount);
+	const std::minstd_rand::result_type seed = getRandomSeed();
+	for (size_t i = 0; i < FilesCount; ++i)
+	{
+		filesToSend.push_back(TestFileExchangeFile{
+			.path = std::format("f{}", i),
+			.data = generateTestFileData(8000, seed + i),
+		});
+	}
+
+	std::vector<TestFileExchangeFile> filesToReceiveFirstChunk;
+	filesToReceiveFirstChunk.push_back(filesToSend[0].clone());
+	filesToReceiveFirstChunk.push_back(filesToSend[1].clone());
+	filesToReceiveFirstChunk.push_back(filesToSend[2].clone());
+	filesToReceiveFirstChunk.push_back(filesToSend[3].clone());
+	filesToReceiveFirstChunk.push_back(filesToSend[4].clone());
+	filesToReceiveFirstChunk[4].data.resize(2596);
+	std::vector<TestFileExchangeFile> filesToConfirmFirstChunk;
+	filesToConfirmFirstChunk.push_back(filesToSend[0].clone());
+	filesToConfirmFirstChunk.push_back(filesToSend[1].clone());
+	filesToConfirmFirstChunk.push_back(filesToSend[2].clone());
+	filesToConfirmFirstChunk.push_back(filesToSend[3].clone());
+
+	std::vector<TestFileExchangeFile> filesToReceiveSecondChunk = filesToReceiveFirstChunk;
+	filesToReceiveSecondChunk[4].data[0] = static_cast<std::byte>(static_cast<uint8_t>(filesToReceiveFirstChunk[4].data[0]) + 1);
+	filesToReceiveSecondChunk.push_back(filesToSend[5].clone());
+	filesToReceiveSecondChunk.push_back(filesToSend[6].clone());
+	std::vector<TestFileExchangeFile> filesToConfirmSecondChunk;
+	filesToConfirmSecondChunk.push_back(filesToSend[0].clone());
+	filesToConfirmSecondChunk.push_back(filesToSend[1].clone());
+	filesToConfirmSecondChunk.push_back(filesToSend[2].clone());
+	filesToConfirmSecondChunk.push_back(filesToSend[3].clone());
+	filesToConfirmSecondChunk.push_back(filesToSend[5].clone());
+	filesToConfirmSecondChunk.push_back(filesToSend[6].clone());
+
+	AssertHelper::disableAsserts();
+	FileExchangeTestResult firstResult = runFileExchangeTest(
+		clientStorage,
+		filesToSend,
+		filesToReceiveFirstChunk,
+		filesToConfirmFirstChunk,
+		FileExchangeTestInstructions{
+			// break right after we received an answer, so we have some files fully received and one file in partiallly confirmed state
+			.breakFileSendPipeAfterBytes = Protocol::FileExchange::ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers + 2048,
+		}
+	);
+	AssertHelper::enableAsserts();
+
+	ASSERT_EQ(firstResult.totalReceivedFiles.size(), size_t(5));
+	// corrupt the partially received file on the receiving party
+	firstResult.totalReceivedFiles[4].data[0] = static_cast<std::byte>(static_cast<uint8_t>(firstResult.totalReceivedFiles[4].data[0]) + 1);
+
+	FileExchangeTestResult secondResult = runFileExchangeTest(
+		clientStorage,
+		filesToSend,
+		filesToReceiveSecondChunk,
+		filesToConfirmSecondChunk,
+		FileExchangeTestInstructions{
+			.existingFiles = std::move(firstResult.totalReceivedFiles),
+		}
+	);
+
+	runFileExchangeTest(
+		clientStorage,
+		filesToSend,
+		filesToSend,
+		filesToSend,
+		FileExchangeTestInstructions{
+			.existingFiles = std::move(secondResult.totalReceivedFiles),
+			.expectedOverriddenFiles = std::vector<std::string>({ "f4" }),
 		}
 	);
 }

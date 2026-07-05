@@ -43,6 +43,7 @@ namespace FileSendUtils
 			FilePathSize,
 			FilePath,
 			FileHash,
+			FileAlreadySentSize,
 			FileContent,
 			FileContentSkipped,
 			EndFile,
@@ -119,10 +120,13 @@ namespace FileSendUtils
 		uint16_t filePathSize = 0;
 		uint64_t bytesReadFromFile = 0;
 		size_t fileIndex = 0;
-		bool isHashed = false;
+		bool isEndFileHashed = false;
+		bool isPartial = false;
 		Cryptography::HashResult fileHash;
 		std::vector<std::filesystem::path> filesAwaitingConfirmation;
-		FileListCache acceptedFilesCache{ "sent_cache.txt" };
+		uint64_t firstAwaitingFileBytesConfirmed = 0;
+		FileListCache confirmedFilesCache{ "sent_cache.txt" };
+		std::vector<std::filesystem::path> rejectedPartialFiles;
 
 		[[nodiscard]] bool isBufferEmpty() const noexcept
 		{
@@ -140,7 +144,7 @@ namespace FileSendUtils
 			return fileMetadataWritten == fileMetadataBytes;
 		}
 
-		[[nodiscard]] bool hasFileFinished() const noexcept
+		[[nodiscard]] bool isFileFullyRead() const noexcept
 		{
 			return hasMetadataBeenFullyWritten() && bytesReadFromFile == fileSizeBytes;
 		}
@@ -168,16 +172,20 @@ namespace FileSendUtils
 			}
 		}
 
-		void openFile(std::ifstream& stream, const std::filesystem::path& path)
+		void openFile(std::ifstream& stream, size_t cursor, const std::filesystem::path& path)
 		{
 #ifdef WITH_TESTS
 			if (mocks.openFile)
 			{
-				mocks.openFile(stream, path);
+				mocks.openFile(stream, cursor, path);
 				return;
 			}
 #endif
 			stream.open(path, std::ios::binary | std::ios::in);
+			if (cursor > 0)
+			{
+				stream.seekg(cursor, std::ios::beg);
+			}
 		}
 
 		uint64_t getFileLength(std::ifstream& file) const
@@ -205,6 +213,18 @@ namespace FileSendUtils
 #endif
 
 			return stream.is_open();
+		}
+
+		void seek(std::ifstream& stream, size_t position) const
+		{
+#ifdef WITH_TESTS
+			if (mocks.seek)
+			{
+				return mocks.seek(stream, position);
+			}
+#endif
+
+			stream.seekg(position, std::ios::beg);
 		}
 
 		int calculateFileHash(std::ifstream& stream, size_t fileSize, Cryptography::HashResult& outHash) const
@@ -270,15 +290,16 @@ namespace FileSendUtils
 			return bytesToCopy;
 		}
 
-		void newFile(const std::filesystem::path& path, uint64_t size) noexcept
+		void newFile(const std::filesystem::path& path, uint64_t size, uint64_t startBytePos) noexcept
 		{
 			filePath = path.generic_string();
 			fileSizeBytes = size;
-			bytesReadFromFile = 0;
+			bytesReadFromFile = startBytePos;
 			fileMetadataWritten = 0;
 			filePathSize = static_cast<uint16_t>(filePath.size());
-			isHashed = size > MaxSizeWithoutHash ? true : false;
-			fileMetadataBytes = 8 + 2 + filePathSize + (isHashed ? Cryptography::HASHLEN : 0);
+			isPartial = startBytePos > 0;
+			isEndFileHashed = !isPartial && size > MaxSizeWithoutHash;
+			fileMetadataBytes = 8 + 2 + filePathSize + (isEndFileHashed ? Cryptography::HASHLEN : 0) + (isPartial ? Cryptography::HASHLEN + sizeof(uint64_t) : 0);
 			filesAwaitingConfirmation.push_back(path);
 			++fileIndex;
 			debugPrintState(DebugState::NewFile);
@@ -300,7 +321,8 @@ namespace FileSendUtils
 				writeData(0, 8, DebugState::FileSize, [this] {
 					std::array<std::byte, 8> data;
 					constexpr uint64_t hashedBit = static_cast<size_t>(0b1) << (sizeof(size_t) * 8 - 1);
-					Serialization::writeUint64(data, fileSizeBytes | (isHashed ? hashedBit : 0));
+					constexpr uint64_t partialBit = static_cast<size_t>(0b1) << (sizeof(size_t) * 8 - 2);
+					Serialization::writeUint64(data, fileSizeBytes | (isEndFileHashed ? hashedBit : 0) | (isPartial ? partialBit : 0));
 					return data;
 				});
 
@@ -314,9 +336,22 @@ namespace FileSendUtils
 					return std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize);
 				});
 
-				if (isHashed)
+				if (isEndFileHashed)
 				{
 					writeData(8 + 2 + filePathSize, Cryptography::HASHLEN, DebugState::FileHash, [this] {
+						return std::span<std::byte>(fileHash);
+					});
+				}
+
+				if (isPartial)
+				{
+					writeData(8 + 2 + filePathSize, 8, DebugState::FileAlreadySentSize, [this] {
+						std::array<std::byte, 8> data;
+						Serialization::writeUint64(data, bytesReadFromFile);
+						return data;
+					});
+
+					writeData(8 + 2 + filePathSize + 8, Cryptography::HASHLEN, DebugState::FileHash, [this] {
 						return std::span<std::byte>(fileHash);
 					});
 				}
@@ -373,7 +408,7 @@ namespace FileSendUtils
 
 		void recordAndClearConfirmations(const std::vector<size_t>& errorIndexes, const std::vector<size_t>& skipFileIndexes) noexcept
 		{
-			const bool shouldRecordLast = hasFileFinished();
+			const bool shouldRecordLast = isFileFullyRead();
 			const size_t count = filesAwaitingConfirmation.size() + (shouldRecordLast ? 0 : -1);
 			size_t indexPos = 0;
 			size_t skipFileIndexPos = 0;
@@ -393,16 +428,19 @@ namespace FileSendUtils
 					}
 				}
 
-				acceptedFilesCache.recordFile(filesAwaitingConfirmation[i]);
+				confirmedFilesCache.recordFile(filesAwaitingConfirmation[i]);
 			}
 
 			if (shouldRecordLast)
 			{
 				filesAwaitingConfirmation.clear();
+				firstAwaitingFileBytesConfirmed = 0;
 			}
 			else if (!filesAwaitingConfirmation.empty())
 			{
 				filesAwaitingConfirmation.erase(filesAwaitingConfirmation.begin(), filesAwaitingConfirmation.begin() + (filesAwaitingConfirmation.size() - 1));
+				// right now we read answers synchronously, so we can be sure that all the bytes we wrote are confirmed
+				firstAwaitingFileBytesConfirmed = bytesReadFromFile;
 			}
 		}
 
@@ -420,7 +458,7 @@ namespace FileSendUtils
 				return false;
 			}
 
-			const bool hasFileInProgress = !hasFileFinished();
+			const bool hasFileInProgress = !isFileFullyRead();
 
 			Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, AnswerChunkSize + Cryptography::CipherAuthDataSize> receivingBuffer;
 
@@ -529,7 +567,12 @@ namespace FileSendUtils
 					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::CorruptedFile):
 					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::CouldNotCreate):
 					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::CouldNotWriteToFile):
+					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::CouldNotRead):
 						// ToDo: log an error
+						break;
+					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::PartMissing):
+					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::PartCorrupted):
+						rejectedPartialFiles.push_back(filesAwaitingConfirmation[fileIdx]);
 						break;
 					case static_cast<uint8_t>(Protocol::FileExchange::FileReceiveStatus::AlreadyExists):
 						skipFileIndexes.push_back(fileIdx);
@@ -569,7 +612,63 @@ namespace FileSendUtils
 		}
 	};
 
-	std::vector<std::filesystem::path> sendDirectory(const std::filesystem::path& directoryPath, const std::filesystem::path& commonRoot, Network::RawSocket socket, ClientStorage& storage, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
+	static void concludeSendingFiles(FileSendingState& sendingState, ClientStorage& storage)
+	{
+		const uint64_t firstAwaitingFileBytesConfirmed = sendingState.firstAwaitingFileBytesConfirmed;
+		const std::string partiallySentFilePath = firstAwaitingFileBytesConfirmed > 0 ? std::move(sendingState.filePath) : std::string{};
+		std::vector<std::filesystem::path> confirmedFiles = sendingState.confirmedFilesCache.consumeAllFiles();
+		std::vector<std::filesystem::path> rejectedPartialFiles = std::move(sendingState.rejectedPartialFiles);
+
+		storage.mutate([&confirmedFiles, &rejectedPartialFiles, &partiallySentFilePath, firstAwaitingFileBytesConfirmed](ClientStorageData& storageData) {
+			if (!storageData.partiallySentFiles.empty())
+			{
+				for (std::filesystem::path& path : confirmedFiles)
+				{
+					if (storageData.partiallySentFiles.erase(path.string()) > 0)
+					{
+						if (storageData.partiallySentFiles.empty())
+						{
+							break;
+						}
+					}
+				}
+			}
+
+			for (std::filesystem::path& path : confirmedFiles)
+			{
+#if defined(_WIN32) || defined(_WIN64)
+				storageData.sentFiles.emplace(path.string());
+#else
+				storageData.sentFiles.emplace(std::move(path));
+#endif
+			}
+
+			for (auto it = storageData.partiallySentFiles.begin(); it != storageData.partiallySentFiles.end();)
+			{
+				if (std::find(confirmedFiles.begin(), confirmedFiles.end(), std::filesystem::path(it->first)) != confirmedFiles.end()
+					|| std::find(rejectedPartialFiles.begin(), rejectedPartialFiles.end(), std::filesystem::path(it->first)) != rejectedPartialFiles.end())
+				{
+					it = storageData.partiallySentFiles.erase(it); // previously this was something like m_map.erase(it++);
+				}
+				else
+				{
+					++it;
+				}
+			}
+
+			if (!partiallySentFilePath.empty() && firstAwaitingFileBytesConfirmed > 0)
+			{
+				storageData.partiallySentFiles.emplace(partiallySentFilePath, firstAwaitingFileBytesConfirmed);
+			}
+		});
+
+		if (!storage.save())
+		{
+			reportDebugError("Could not save client storage");
+		}
+	}
+
+	void sendDirectory(const std::filesystem::path& directoryPath, const std::filesystem::path& commonRoot, Network::RawSocket socket, ClientStorage& storage, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept
 	{
 		FileSendingState sendingState;
 
@@ -585,45 +684,65 @@ namespace FileSendUtils
 
 			sendingState.debugPrintState(FileSendingState::DebugState::StartChunk);
 
-			for (const auto& dirEntry : files)
-			{
-				bool hasFileBeenTransferred = false;
-				storage.read([&hasFileBeenTransferred, &dirEntry, &commonRoot](const ClientStorageData& storageData) {
+			std::vector<uint64_t> previouslySentBytes;
+			storage.read([&commonRoot, &files, &previouslySentBytes](const ClientStorageData& storageData) {
+				auto getRelativePath = [&commonRoot](const std::filesystem::path& path) -> auto {
 #if defined(_WIN32) || defined(_WIN64)
-					if (storageData.sentFiles.contains(dirEntry.lexically_relative(commonRoot).string()))
+					return path.lexically_relative(commonRoot).string();
 #else
-					if (storageData.sentFiles.contains(dirEntry.lexically_relative(commonRoot)))
+					return path.lexically_relative(commonRoot);
 #endif
+				};
 
-					{
-						hasFileBeenTransferred = true;
-					}
-				});
+				// remove already sent files
+				files.erase(
+					std::remove_if(files.begin(), files.end(), [&storageData, &getRelativePath](const std::filesystem::path& path) {
+						return storageData.sentFiles.contains(getRelativePath(path));
+					}),
+					files.end()
+				);
 
-				if (hasFileBeenTransferred)
+				for (auto it = storageData.partiallySentFiles.begin(); it != storageData.partiallySentFiles.end(); ++it)
 				{
-					continue;
+					auto filesIt = std::find(files.begin(), files.end(), commonRoot / it->first);
+					if (filesIt != files.end())
+					{
+						// place the element at the beginning
+						std::rotate(files.begin(), files.begin() + 1, filesIt + 1);
+						previouslySentBytes.insert(previouslySentBytes.begin(), it->second);
+					}
 				}
+			});
+
+			for (size_t fileIdx = 0; fileIdx < files.size(); ++fileIdx)
+			{
+				const std::filesystem::path& dirEntry = files[fileIdx];
+				const uint64_t partialSendStartByte = fileIdx < previouslySentBytes.size() ? previouslySentBytes[fileIdx] : 0;
 
 				std::ifstream file;
-				sendingState.openFile(file, dirEntry);
+				sendingState.openFile(file, 0, dirEntry);
 
 				if (!sendingState.isFileOpen(file)) [[unlikely]]
 				{
 					reportDebugError("Could not open file for reading: {}", dirEntry.string());
-					return sendingState.acceptedFilesCache.consumeAllFiles();
+					return concludeSendingFiles(sendingState, storage);
 				}
 
 				const uint64_t fileLength = sendingState.getFileLength(file);
-				sendingState.newFile(dirEntry.lexically_relative(commonRoot), fileLength);
+				sendingState.newFile(dirEntry.lexically_relative(commonRoot), fileLength, partialSendStartByte);
 
-				if (sendingState.isHashed)
+				if (sendingState.isEndFileHashed || sendingState.isPartial)
 				{
-					if (sendingState.calculateFileHash(file, fileLength, sendingState.fileHash) != 0)
+					const size_t fileSizeToHash = partialSendStartByte > 0 ? std::min(fileLength, partialSendStartByte) : fileLength;
+					if (sendingState.calculateFileHash(file, fileSizeToHash, sendingState.fileHash) != 0)
 					{
-						reportDebugError("Could not calculate hash for file: {}", dirEntry.string());
-						return sendingState.acceptedFilesCache.consumeAllFiles();
+						return concludeSendingFiles(sendingState, storage);
 					}
+				}
+
+				if (sendingState.isPartial)
+				{
+					sendingState.seek(file, partialSendStartByte);
 				}
 
 				while (true)
@@ -636,21 +755,21 @@ namespace FileSendUtils
 
 						if (!sendingState.sendChunk(socket, sendingCipherstate))
 						{
-							return sendingState.acceptedFilesCache.consumeAllFiles();
+							return concludeSendingFiles(sendingState, storage);
 						}
 
 						if (sendingState.shouldReadAnswer())
 						{
 							if (!sendingState.readAnswer(socket, receivingCipherState))
 							{
-								return sendingState.acceptedFilesCache.consumeAllFiles();
+								return concludeSendingFiles(sendingState, storage);
 							}
 						}
 
 						sendingState.debugPrintState(FileSendingState::DebugState::StartChunk);
 					}
 
-					if (sendingState.hasFileFinished())
+					if (sendingState.isFileFullyRead())
 					{
 						sendingState.debugPrintState(FileSendingState::DebugState::EndFile);
 						break;
@@ -672,14 +791,14 @@ namespace FileSendUtils
 					{
 						if (!sendingState.sendChunk(socket, sendingCipherstate))
 						{
-							return sendingState.acceptedFilesCache.consumeAllFiles();
+							return concludeSendingFiles(sendingState, storage);
 						}
 
 						if (sendingState.shouldReadAnswer())
 						{
 							if (!sendingState.readAnswer(socket, receivingCipherState, endingBytesWritten < endingBytes.size()))
 							{
-								return sendingState.acceptedFilesCache.consumeAllFiles();
+								return concludeSendingFiles(sendingState, storage);
 							}
 						}
 					}
@@ -696,7 +815,7 @@ namespace FileSendUtils
 
 				if (!sendingState.sendChunk(socket, sendingCipherstate))
 				{
-					return sendingState.acceptedFilesCache.consumeAllFiles();
+					return concludeSendingFiles(sendingState, storage);
 				}
 
 				sendingState.debugPrintState(FileSendingState::DebugState::EndChunk);
@@ -706,7 +825,7 @@ namespace FileSendUtils
 			{
 				if (!sendingState.readAnswer(socket, receivingCipherState))
 				{
-					return sendingState.acceptedFilesCache.consumeAllFiles();
+					return concludeSendingFiles(sendingState, storage);
 				}
 			}
 
@@ -715,14 +834,14 @@ namespace FileSendUtils
 		catch (std::exception& e)
 		{
 			reportDebugError("An exception caught when sending files: {}", e.what());
-			return sendingState.acceptedFilesCache.consumeAllFiles();
+			return concludeSendingFiles(sendingState, storage);
 		}
 		catch (...)
 		{
 			reportDebugError("An exception caught when sending files");
-			return sendingState.acceptedFilesCache.consumeAllFiles();
+			return concludeSendingFiles(sendingState, storage);
 		}
 
-		return sendingState.acceptedFilesCache.consumeAllFiles();
+		return concludeSendingFiles(sendingState, storage);
 	}
 } // namespace FileSendUtils
