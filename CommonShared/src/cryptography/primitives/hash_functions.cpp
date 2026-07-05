@@ -140,7 +140,7 @@ namespace Cryptography
 		HMAC_blake2b(tempKey, temp, *output3);
 	}
 
-	void hashSpan(std::span<const std::byte> span, HashResult& outHash)
+	void hashSpan(std::span<const std::byte> span, HashResult& outHash) noexcept
 	{
 		crypto_blake2b_ctx context{};
 		crypto_blake2b_init(&context, HASHLEN);
@@ -148,7 +148,7 @@ namespace Cryptography
 		hashFinal_blake2b<HASHLEN>(&context, outHash);
 	}
 
-	int hashFile(const std::filesystem::path& path, HashResult& outHash)
+	int hashFile(const std::filesystem::path& path, HashResult& outHash) noexcept
 	{
 		int errorCode = 0;
 		crypto_blake2b_ctx context{};
@@ -189,7 +189,7 @@ namespace Cryptography
 		return errorCode;
 	}
 
-	int hashFileBytes(std::ifstream& stream, size_t fileSize, HashResult& outHash)
+	int hashFileBytes(std::ifstream& stream, size_t fileSize, HashResult& outHash) noexcept
 	{
 		int errorCode = 0;
 		crypto_blake2b_ctx context{};
