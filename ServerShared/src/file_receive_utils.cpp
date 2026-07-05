@@ -74,6 +74,9 @@ namespace FileReceiveUtils
 				case DebugState::FileHash:
 					Debug::Log::printDebug("Receive:\t\t\t |    file hash     |");
 					break;
+				case DebugState::FileAlreadySentSize:
+					Debug::Log::printDebug("Receive:\t\t\t |  previous size   |");
+					break;
 				case DebugState::FileContent:
 					Debug::Log::printDebug("Receive:\t\t\t |   file content   |");
 					break;

@@ -76,6 +76,9 @@ namespace FileSendUtils
 				case DebugState::FileHash:
 					Debug::Log::printDebug("Send: |    file hash     |");
 					break;
+				case DebugState::FileAlreadySentSize:
+					Debug::Log::printDebug("Send: |  previous size   |");
+					break;
 				case DebugState::FileContent:
 					Debug::Log::printDebug("Send: |   file content   |");
 					break;
