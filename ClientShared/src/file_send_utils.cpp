@@ -729,7 +729,7 @@ namespace FileSendUtils
 			for (size_t fileIdx = 0; fileIdx < files.size(); ++fileIdx)
 			{
 				const std::filesystem::path& dirEntry = files[fileIdx];
-				const uint64_t partialSendStartByte = fileIdx < previouslySentBytes.size() ? previouslySentBytes[fileIdx] : 0;
+				uint64_t partialSendStartByte = fileIdx < previouslySentBytes.size() ? previouslySentBytes[fileIdx] : 0;
 
 				std::ifstream file;
 				sendingState.openFile(file, dirEntry);
@@ -740,6 +740,12 @@ namespace FileSendUtils
 					return concludeSendingFiles(sendingState, storage);
 				}
 				const uint64_t fileLength = sendingState.getFileLength(file);
+				// ToDo: should also save and check hash here, since the file may have changed since we started sending it
+				if (fileLength <= partialSendStartByte)
+				{
+					partialSendStartByte = 0;
+				}
+
 				sendingState.newFile(dirEntry.lexically_relative(commonRoot), fileLength, partialSendStartByte);
 
 				if (sendingState.isEndFileHashed || sendingState.isPartial)
