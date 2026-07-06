@@ -211,14 +211,14 @@ namespace FileReceiveUtils
 				std::filesystem::create_directories(parentDirectory);
 			}
 
-			if (cursor > 0)
+			if (cursor == 0)
 			{
-				stream.open(path, std::ios::binary | std::ios::app);
-				stream.seekp(cursor, std::ios::beg);
+				stream.open(path, std::ios::binary | std::ios::out);
 			}
 			else
 			{
-				stream.open(path, std::ios::binary | std::ios::out);
+				stream.open(path, std::ios::binary | std::ios::app);
+				stream.seekp(cursor, std::ios::beg);
 			}
 		}
 
