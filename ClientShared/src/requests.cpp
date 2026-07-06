@@ -16,7 +16,7 @@
 
 namespace Requests
 {
-	constexpr const int MessageTimeoutSeconds = 1;
+	constexpr const int MessageTimeoutSeconds = 2;
 	constexpr const int MessagesTimeoutMicroseconds = 0;
 
 	static Protocol::RequestId prepareRequest(Request&& request, std::span<std::byte> /*outData*/, size_t& outBytesWritten, bool& outExpectsAnswer)
