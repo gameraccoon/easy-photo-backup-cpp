@@ -130,7 +130,7 @@ namespace Requests
 
 	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::filesystem::path& localDataPath, const std::array<std::byte, 16>& serverId, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept
 	{
-		constexpr const int FileTransferMessagesTimeoutSeconds = 2;
+		constexpr const int FileTransferMessagesTimeoutSeconds = 20;
 		constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
 
 		std::vector<std::filesystem::path> files = FileSendUtils::collectFilesFromDirectory(folderPath);

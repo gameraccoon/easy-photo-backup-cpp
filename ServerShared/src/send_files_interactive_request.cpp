@@ -15,7 +15,7 @@ namespace Requests
 {
 	constexpr const int SubsequentMessagesTimeoutSeconds = 1;
 	constexpr const int SubsequentMessagesTimeoutMicroseconds = 0;
-	constexpr const int FileTransferMessagesTimeoutSeconds = 2;
+	constexpr const int FileTransferMessagesTimeoutSeconds = 20;
 	constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
 
 	bool processKkHandshake(const Cryptography::HashResult& connectionId, std::span<const std::byte> firstMessage, const Network::RawSocket socket, ServerStorage& storage, Noise::CipherStateSending& outSendingCipherState, Noise::CipherStateReceiving& outReceivingCipherState)
