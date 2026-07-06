@@ -644,7 +644,7 @@ namespace FileSendUtils
 
 			if (!partiallySentFilePath.empty() && firstAwaitingFileBytesConfirmed > 0)
 			{
-				storageData.partiallySentFiles.emplace(partiallySentFilePath, firstAwaitingFileBytesConfirmed);
+				storageData.partiallySentFiles[partiallySentFilePath] = firstAwaitingFileBytesConfirmed;
 			}
 		});
 
