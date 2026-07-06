@@ -162,20 +162,16 @@ namespace FileSendUtils
 			return !filesAwaitingConfirmation.empty();
 		}
 
-		void openFile(std::ifstream& stream, size_t cursor, const std::filesystem::path& path)
+		void openFile(std::ifstream& stream, const std::filesystem::path& path)
 		{
 #ifdef WITH_TESTS
 			if (mocks.openFile)
 			{
-				mocks.openFile(stream, cursor, path);
+				mocks.openFile(stream, path);
 				return;
 			}
 #endif
 			stream.open(path, std::ios::binary | std::ios::in);
-			if (cursor > 0)
-			{
-				stream.seekg(cursor, std::ios::beg);
-			}
 		}
 
 		uint64_t getFileLength(std::ifstream& file) const
@@ -736,7 +732,7 @@ namespace FileSendUtils
 				const uint64_t partialSendStartByte = fileIdx < previouslySentBytes.size() ? previouslySentBytes[fileIdx] : 0;
 
 				std::ifstream file;
-				sendingState.openFile(file, 0, dirEntry);
+				sendingState.openFile(file, dirEntry);
 
 				if (!sendingState.isFileOpen(file)) [[unlikely]]
 				{

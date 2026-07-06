@@ -22,7 +22,7 @@ namespace FileSendUtils
 #ifdef WITH_TESTS
 	struct Mocks
 	{
-		std::function<void(std::ifstream&, size_t, const std::filesystem::path&)> openFile;
+		std::function<void(std::ifstream&, const std::filesystem::path&)> openFile;
 		std::function<uint64_t(std::ifstream& file)> getFileLength;
 		std::function<bool(std::ifstream&)> isFileOpen;
 		std::function<void(std::ifstream&, size_t)> seek;

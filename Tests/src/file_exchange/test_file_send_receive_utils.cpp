@@ -203,7 +203,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 		size_t bytesWritten = 0;
 		size_t fileCursor = 0;
 		FileSendUtils::Mocks sendMocks{
-			.openFile = [&filesToSend, &fileToWriteIdx, &fileCursor](std::ifstream&, size_t cursor, const std::filesystem::path& path) {
+			.openFile = [&filesToSend, &fileToWriteIdx, &fileCursor](std::ifstream&, const std::filesystem::path& path) {
 				auto it = std::find_if(filesToSend.begin(), filesToSend.end(), [&path](const TestFileExchangeFile& file) {
 					return file.path == path;
 				});
@@ -214,7 +214,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				}
 
 				fileToWriteIdx = static_cast<int>(std::distance(filesToSend.begin(), it));
-				fileCursor = cursor;
+				fileCursor = 0;
 			},
 			.getFileLength = [&filesToSend, &fileToWriteIdx](std::ifstream&) -> uint64_t {
 				return static_cast<uint64_t>(filesToSend[fileToWriteIdx].data.size());
@@ -429,7 +429,7 @@ TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
 	bool getFileLengthCalled = false;
 	bool readAnswerCalled = false;
 	FileSendUtils::Mocks sendMocks{
-		.openFile = [](std::ifstream&, size_t, const std::filesystem::path&) {
+		.openFile = [](std::ifstream&, const std::filesystem::path&) {
 			FAIL();
 		},
 		.getFileLength = [&getFileLengthCalled](std::ifstream&) -> uint64_t {
