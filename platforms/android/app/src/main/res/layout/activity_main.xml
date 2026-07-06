@@ -19,7 +19,7 @@
             android:id="@+id/discoverButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Discover Servers" />
+            android:text="Start sync" />
 
         <TextView
         android:id="@+id/sample_text"
@@ -30,15 +30,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-
-    <EditText
-        android:id="@+id/folderPathText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:autofillHints=""
-        android:ems="10"
-        android:inputType="text"
-        android:text="DCIM" />
 
     <LinearLayout
         android:id="@+id/buttonContainer"
