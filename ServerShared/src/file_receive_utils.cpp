@@ -217,7 +217,7 @@ namespace FileReceiveUtils
 			}
 			else
 			{
-				stream.open(path, std::ios::binary | std::ios::app);
+				stream.open(path, std::ios::binary | std::ios::in | std::ios::out);
 				stream.seekp(cursor, std::ios::beg);
 			}
 		}
