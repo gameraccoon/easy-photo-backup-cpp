@@ -230,8 +230,8 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				{
 					return -1;
 				}
-				Cryptography::hashSpan(filesToSend[fileToWriteIdx].data, result);
-				Cryptography::hashSpan(std::span<const std::byte>(filesToSend[fileToWriteIdx].data.data(), size), result);
+				Cryptography::hash_blake2b(filesToSend[fileToWriteIdx].data, result);
+				Cryptography::hash_blake2b(std::span<const std::byte>(filesToSend[fileToWriteIdx].data.data(), size), result);
 				return 0;
 			},
 			.readFileStreamIntoSpan = [&filesToSend, &fileToWriteIdx, &fileCursor](std::ifstream&, std::span<std::byte> buffer) {
@@ -361,14 +361,14 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 
 			if (size == -1)
 			{
-				Cryptography::hashSpan(it->data, hashResult);
+				Cryptography::hash_blake2b(it->data, hashResult);
 			}
 			else
 			{
 				EXPECT_LT(static_cast<size_t>(size), it->data.size());
 				if (static_cast<size_t>(size) < it->data.size())
 				{
-					Cryptography::hashSpan(std::span<std::byte>(it->data.begin(), it->data.begin() + size), hashResult);
+					Cryptography::hash_blake2b(std::span<std::byte>(it->data.begin(), it->data.begin() + size), hashResult);
 				}
 			}
 			return 0;

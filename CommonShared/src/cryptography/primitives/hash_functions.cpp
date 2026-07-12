@@ -140,14 +140,6 @@ namespace Cryptography
 		HMAC_blake2b(tempKey, temp, *output3);
 	}
 
-	void hashSpan(std::span<const std::byte> span, HashResult& outHash) noexcept
-	{
-		crypto_blake2b_ctx context{};
-		crypto_blake2b_init(&context, HASHLEN);
-		hashUpdateDyn_blake2b(&context, span);
-		hashFinal_blake2b<HASHLEN>(&context, outHash);
-	}
-
 	int hashFile(const std::filesystem::path& path, HashResult& outHash) noexcept
 	{
 		int errorCode = 0;
