@@ -49,6 +49,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_SRC_DIR}/cryptography/utils/crypto_wipe.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/utils/erasable_data.cpp
 		${COMMON_SHARED_SRC_DIR}/cryptography/utils/random.cpp
+		${COMMON_SHARED_SRC_DIR}/cryptography/utils/short_authentification_string_utils.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/assert.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/log.cpp
 		${COMMON_SHARED_SRC_DIR}/debug/debug_print_helpers.cpp
@@ -84,6 +85,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/crypto_wipe.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/erasable_data.h
 		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/random.h
+		${COMMON_SHARED_INCLUDE_DIR}/cryptography/utils/short_authentification_string_utils.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/assert.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/log.h
 		${COMMON_SHARED_INCLUDE_DIR}/debug/debug_print_helpers.h
