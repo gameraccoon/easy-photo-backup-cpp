@@ -9,6 +9,7 @@
 #include <thread>
 
 #include "common_shared/cryptography/utils/connection_id_utils.h"
+#include "common_shared/cryptography/utils/short_authentification_string_utils.h"
 #include "common_shared/debug/assert.h"
 #include "common_shared/network/protocol.h"
 #include "common_shared/network/raw_sockets.h"
@@ -119,6 +120,8 @@ namespace TcpServer
 						{
 							return;
 						}
+
+						Debug::Log::printDebug(Cryptography::generateSas(pendingClientBinding->handshakeHash, 6));
 
 						storage.mutate([&pendingClientBinding](ServerStorageData& storage) {
 							storage.confirmedClientBindings.emplace(
