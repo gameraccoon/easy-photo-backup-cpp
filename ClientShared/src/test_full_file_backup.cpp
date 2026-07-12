@@ -15,6 +15,7 @@
 #include "client_shared/pairing_interactive_request.h"
 #include "client_shared/requests.h"
 #include "client_shared/send_files_interactive_request.h"
+#include <client_shared/file_send_utils.h>
 
 struct PendingServerBinding
 {
@@ -238,12 +239,22 @@ std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const TestSe
 
 std::optional<std::string> TestFullFileBackup::sendFiles(const TestServerInfo& serverInfo, const std::string& folderPath, const std::string& commonRoot)
 {
+	std::vector<std::filesystem::path> files = FileSendUtils::collectFilesFromDirectory(folderPath);
+
+	std::vector<uint64_t> previouslySentBytes;
+	FileSendUtils::filterOutSentFiles(commonRoot, mClientStorage, files, previouslySentBytes);
+
+	if (files.empty())
+	{
+		return "No new files to send";
+	}
+
 	RequestAnswers::RequestAnswer SendFilesAnswer = Requests::prepareConnectionAndProcess(
 		serverInfo.address.ip.data(),
 		serverInfo.address.addressType,
 		serverInfo.address.port,
-		[&storage = mClientStorage, &serverId = serverInfo.serverId, &folderPath, &commonRoot, localDataPath = mLocalDataPath](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
-			return Requests::sendAndProcessSendFilesInteractiveRequest(socket, storage, localDataPath, serverId, std::filesystem::path(folderPath), std::filesystem::path(commonRoot));
+		[&storage = mClientStorage, &serverId = serverInfo.serverId, &files, &previouslySentBytes, &commonRoot, localDataPath = mLocalDataPath](Network::RawSocket socket) -> RequestAnswers::RequestAnswer {
+			return Requests::sendAndProcessSendFilesInteractiveRequest(socket, storage, localDataPath, serverId, files, previouslySentBytes, std::filesystem::path(commonRoot));
 		}
 	);
 

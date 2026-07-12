@@ -286,7 +286,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 		}
 		std::vector<uint64_t> previouslySentBytes;
 		FileSendUtils::filterOutSentFiles("", clientStorage, filePathsToSend, previouslySentBytes);
-		FileSendUtils::sendDirectory(filePathsToSend, previouslySentBytes, "", 0, clientStorage, "", cipherStateSending, cipherStateReceiving, sendMocks);
+		FileSendUtils::sendFiles(filePathsToSend, previouslySentBytes, "", 0, clientStorage, "", cipherStateSending, cipherStateReceiving, sendMocks);
 	});
 
 	std::vector<TestFileExchangeFile> receivedFiles = cloneTestFiles(instructions.existingFiles);
@@ -473,7 +473,7 @@ TEST(FileSendReceiveUtils, SendNoFiles_SendsOneChunkOfZeros)
 	ClientStorage storage = ClientStorage::testCreateEmpty();
 	std::vector<std::filesystem::path> filePathsToSend;
 	std::vector<uint64_t> previouslySentBytes;
-	FileSendUtils::sendDirectory(filePathsToSend, previouslySentBytes, "", 0, storage, "", cipherStateSending, cipherStateReceiving, sendMocks);
+	FileSendUtils::sendFiles(filePathsToSend, previouslySentBytes, "", 0, storage, "", cipherStateSending, cipherStateReceiving, sendMocks);
 
 	storage.read([](const ClientStorageData& storageData) {
 		EXPECT_TRUE(storageData.sentFiles.empty());

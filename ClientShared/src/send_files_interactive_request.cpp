@@ -128,20 +128,10 @@ namespace Requests
 		return false;
 	}
 
-	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::filesystem::path& localDataPath, const std::array<std::byte, 16>& serverId, const std::filesystem::path& folderPath, const std::filesystem::path& commonRoot) noexcept
+	RequestAnswers::RequestAnswer sendAndProcessSendFilesInteractiveRequest(Network::RawSocket socket, ClientStorage& storage, const std::filesystem::path& localDataPath, const std::array<std::byte, 16>& serverId, const std::vector<std::filesystem::path>& files, const std::vector<uint64_t>& previouslySentBytes, const std::filesystem::path& commonRoot) noexcept
 	{
 		constexpr const int FileTransferMessagesTimeoutSeconds = 20;
 		constexpr const int FileTransferMessagesTimeoutMicroseconds = 0;
-
-		std::vector<std::filesystem::path> files = FileSendUtils::collectFilesFromDirectory(folderPath);
-
-		std::vector<uint64_t> previouslySentBytes;
-		FileSendUtils::filterOutSentFiles(commonRoot, storage, files, previouslySentBytes);
-
-		if (files.empty())
-		{
-			return Protocol::RequestAnswers::SendFiles{};
-		}
 
 		Noise::CipherStateSending sendingCipherState;
 		Noise::CipherStateReceiving receivingCipherState;
@@ -166,7 +156,7 @@ namespace Requests
 
 		Debug::Log::printDebug("Start sending files");
 
-		FileSendUtils::sendDirectory(files, previouslySentBytes, commonRoot, socket, storage, localDataPath, sendingCipherState, receivingCipherState);
+		FileSendUtils::sendFiles(files, previouslySentBytes, commonRoot, socket, storage, localDataPath, sendingCipherState, receivingCipherState);
 
 		return Protocol::RequestAnswers::SendFiles{};
 	}
