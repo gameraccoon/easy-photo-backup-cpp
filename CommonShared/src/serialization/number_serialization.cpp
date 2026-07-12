@@ -48,7 +48,7 @@ namespace Serialization
 		}
 	}
 
-	uint64_t readUint64(std::span<std::byte> serializedData)
+	uint64_t readUint64(std::span<const std::byte> serializedData)
 	{
 		if (serializedData.size() != 8)
 		{

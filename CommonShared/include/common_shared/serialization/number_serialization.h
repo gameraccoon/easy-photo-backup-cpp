@@ -15,5 +15,5 @@ namespace Serialization
 	void writeUint16(std::byte& outByte1, std::byte& outByte2, uint16_t value);
 	uint16_t readUint16(std::byte byte1, std::byte byte2);
 	void writeUint64(std::span<std::byte> outSerializedData, uint64_t value);
-	uint64_t readUint64(std::span<std::byte> serializedData);
+	uint64_t readUint64(std::span<const std::byte> serializedData);
 } // namespace Serialization
