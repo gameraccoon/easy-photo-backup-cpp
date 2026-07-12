@@ -84,7 +84,7 @@ namespace Requests
 			size_t readBytes = 0;
 			if (auto result = Network::recv(socket, buffer, SecondMessagePreludeSize, readBytes); result.has_value())
 			{
-				reportDebugError("Could not recv the second KK message: {}", *result);
+				reportDebugError("Could not recv the prelude of the second KK message: {}", *result);
 				return false;
 			}
 

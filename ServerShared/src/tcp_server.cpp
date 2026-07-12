@@ -50,6 +50,7 @@ namespace TcpServer
 		// we assume the first message is not fragmented, and if it is, we just skip it and let the client retry
 		if (auto result = Network::recv(socket, buffer, -1, readBytes); result.has_value())
 		{
+			Debug::Log::printDebug("Could not recv the first message from a client: {}", *result);
 			return;
 		}
 
