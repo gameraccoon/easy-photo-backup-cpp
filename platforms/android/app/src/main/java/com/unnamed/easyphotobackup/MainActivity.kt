@@ -1,5 +1,6 @@
 package com.unnamed.easyphotobackup
 
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +12,7 @@ import com.unnamed.easyphotobackup.databinding.ActivityMainBinding
 import androidx.core.net.toUri
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
@@ -27,25 +29,20 @@ class MainActivity : AppCompatActivity() {
 
         ensureAllFilesAccess()
 
-        binding.sampleText.text = "Waiting for worker thread to start"
+        val prefs = getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
+        binding.sampleText.text = "initialization..."
         WorkManager.getInstance(this)
             .getWorkInfosForUniqueWorkLiveData("file_backup")
             .observe(this) { workInfos ->
-                val info = workInfos.firstOrNull()
+                val info = workInfos.firstOrNull() ?: return@observe
 
-                if (info != null) {
-                    val progress = info.progress.getString("status")
-                    if (progress != null) {
-                        binding.sampleText.text = progress
-                    } else {
-                        binding.sampleText.text = "Waiting for worker to run"
-                    }
+                if (info.state == WorkInfo.State.RUNNING) {
+                    binding.sampleText.text = info.progress.getString("status") ?: "running without status"
                 } else {
-                    binding.sampleText.text = "Waiting for status from worker thread"
+                    val lastStatus = prefs.getString("last_status", "waiting for the worker thread to start")
+                    binding.sampleText.text = lastStatus
                 }
             }
-
-        val workManager = WorkManager.getInstance(this)
 
         binding.discoverButton.setOnClickListener {
             val request = PeriodicWorkRequestBuilder<FileSendBackgroundWorker>(

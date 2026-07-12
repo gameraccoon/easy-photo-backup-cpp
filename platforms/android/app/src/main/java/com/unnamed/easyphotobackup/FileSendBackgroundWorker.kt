@@ -7,7 +7,9 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Vector
 import kotlin.coroutines.cancellation.CancellationException
+import androidx.core.content.edit
 
 class FileSendBackgroundWorker(
     appContext: Context,
@@ -22,6 +24,8 @@ class FileSendBackgroundWorker(
 
         val root = Environment.getExternalStorageDirectory().absolutePath
 
+        val prefs = applicationContext.getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
+
         return try {
             setProgress(workDataOf(
                 "status" to "discovering"
@@ -29,10 +33,13 @@ class FileSendBackgroundWorker(
 
             testFullFileBackup.startDiscovery()
             withContext(Dispatchers.IO) {
-                Thread.sleep(5 * 1000)
+                Thread.sleep(3 * 1000)
             }
             val discoveryResults = testFullFileBackup.getDiscoveryResults()
             testFullFileBackup.stopDiscovery()
+
+            val statuses = Vector<String>()
+            val resultStatus: String
 
             if (!discoveryResults.isEmpty()) {
                 for (discoveryResult in discoveryResults) {
@@ -45,6 +52,7 @@ class FileSendBackgroundWorker(
                             // DANGER!
                             testFullFileBackup.pairAndApproveServer(discoveryResult)
                         } else {
+                            statuses.add("\nSkipped unknown server '$serverName'")
                             continue
                         }
                     }
@@ -55,31 +63,39 @@ class FileSendBackgroundWorker(
                         ))
 
                         val folderPath = "$root/$folder"
-                        testFullFileBackup.sendFiles(discoveryResult, folderPath, root)
+                        val sendStatus = testFullFileBackup.sendFiles(discoveryResult, folderPath, root)
+                        if (sendStatus != null)
+                        {
+                            statuses.add(sendStatus)
+                        }
                     }
                 }
 
-                setProgress(workDataOf(
-                    "status" to "completed"
-                ))
+                resultStatus = if (statuses.isEmpty()) {
+                    "completed"
+                } else {
+                    "completed with status: " + statuses.joinToString(", ")
+                }
             }
             else {
-                setProgress(workDataOf(
-                    "status" to "no servers"
-                ))
+                resultStatus = "no servers"
+            }
+
+            prefs.edit {
+                putString("last_status", resultStatus)
             }
 
             Result.success()
         } catch (e: CancellationException) {
             // ToDo: stop sending files here
-            setProgress(workDataOf(
-                "status" to "cancelled"
-            ))
+            prefs.edit {
+                putString("last_status", "cancelled")
+            }
             Result.retry()
         } catch (e: Exception) {
-            setProgress(workDataOf(
-                "status" to "exception caught $e"
-            ))
+            prefs.edit {
+                putString("last_status", "exception caught $e")
+            }
             Result.retry()
         }
     }
