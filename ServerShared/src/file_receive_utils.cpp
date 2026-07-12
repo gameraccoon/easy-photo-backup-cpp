@@ -406,7 +406,7 @@ namespace FileReceiveUtils
 					8 + 2, static_cast<size_t>(filePathSize),
 					DebugState::FilePath,
 					[this](auto readFn) {
-						readFn(std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize));
+						readFn(std::as_writable_bytes(std::span(filePath)));
 					},
 					[] {}
 				);

@@ -32,9 +32,10 @@ namespace Serialization
 		buffer[0] = static_cast<std::byte>(stringSize);
 
 		static_assert(sizeof(*string.data()) == sizeof(std::byte), "Expected string to be a byte array");
+		std::span<const std::byte> stringData = std::as_bytes(std::span(string));
 		std::copy(
-			reinterpret_cast<const std::byte*>(string.data()),
-			reinterpret_cast<const std::byte*>(string.data() + stringSize),
+			stringData.data(),
+			stringData.data() + stringSize,
 			buffer.data() + 1
 		);
 

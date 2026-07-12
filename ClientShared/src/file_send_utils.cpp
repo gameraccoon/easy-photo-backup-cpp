@@ -319,7 +319,7 @@ namespace FileSendUtils
 				});
 
 				writeData(8 + 2, filePathSize, DebugState::FilePath, [this] {
-					return std::span<std::byte>(reinterpret_cast<std::byte*>(filePath.data()), filePathSize);
+					return std::as_bytes(std::span(filePath));
 				});
 
 				if (isEndFileHashed)

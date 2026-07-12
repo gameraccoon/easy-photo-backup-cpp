@@ -20,18 +20,19 @@ namespace Noise::Utils
 	SymmetricState initializeSymmetric(const std::string_view protocolName) noexcept
 	{
 		HashResult h;
+		std::span<const std::byte> protocolNameData = std::as_bytes(std::span(protocolName));
 
 		// see https://noiseprotocol.org/noise.html#the-symmetricstate-object
 		if (protocolName.length() <= HASHLEN)
 		{
-			std::copy(reinterpret_cast<const std::byte*>(protocolName.data()), reinterpret_cast<const std::byte*>(protocolName.data() + protocolName.size()), h.raw.begin());
+			std::copy(protocolNameData.data(), protocolNameData.data() + protocolNameData.size(), h.raw.begin());
 			// this isn't technically needed because the memory should already be zeroed
 			std::fill(h.raw.begin() + protocolName.length(), h.raw.end(), static_cast<std::byte>(0));
 		}
 		else
 		{
 			static_assert(sizeof(*protocolName.data()) == sizeof(uint8_t), "String type should be UTF-8 string with 1 byte per character");
-			hash_blake2b(std::span<const std::byte>(reinterpret_cast<const std::byte*>(protocolName.data()), protocolName.size()), h);
+			hash_blake2b(protocolNameData, h);
 		}
 
 		return SymmetricState{
