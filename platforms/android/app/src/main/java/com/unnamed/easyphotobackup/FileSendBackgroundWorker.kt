@@ -49,8 +49,24 @@ class FileSendBackgroundWorker(
 
                         val liveDangerously = false
                         if (liveDangerously) {
+                            val pendingServerBinding = testFullFileBackup.exchangePairingInformationWithServer(discoveryResult)
+                            if (pendingServerBinding == null)
+                            {
+                                statuses.add("\nCould not pair to '$serverName'")
+                                continue
+                            }
+
+                            val shortAuthentificationString = pendingServerBinding.generateShortAuthentificationString();
+
+                            statuses.add("\nPairing code $shortAuthentificationString")
+
                             // DANGER!
-                            testFullFileBackup.pairAndApproveServer(discoveryResult)
+                            val result = testFullFileBackup.approveServer(discoveryResult, pendingServerBinding)
+                            if (result != null)
+                            {
+                                statuses.add("\nCould not pair to '$serverName': $result")
+                                continue
+                            }
                         } else {
                             statuses.add("\nSkipped unknown server '$serverName'")
                             continue

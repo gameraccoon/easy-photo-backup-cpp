@@ -14,15 +14,11 @@ namespace Cryptography
 {
 	void hash_blake2b(std::span<const std::byte> data, HashResult& outHash) noexcept;
 	void hashWithContext_blake2b(std::span<const std::byte> con, std::span<const std::byte> data, HashResult& outHash) noexcept;
-
-#ifdef WITH_TESTS
-	// it is only used for the HKDF implementations, but we still want to test it
 	void HMAC_blake2b(const HashResult& key, std::span<const std::byte> data, HashResult& outMac) noexcept;
-#endif
 
 	void HKDF_blake2b(
 		const HashResult& chainingKey,
-		const std::span<const std::byte> inputKeyMaterial,
+		std::span<const std::byte> inputKeyMaterial,
 		int numOutputs,
 		HashResult& output1,
 		HashResult* output2,

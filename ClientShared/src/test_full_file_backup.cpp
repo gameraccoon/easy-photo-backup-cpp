@@ -6,6 +6,7 @@
 #include <format>
 
 #include "common_shared/cryptography/utils/connection_id_utils.h"
+#include "common_shared/cryptography/utils/short_authentification_string_utils.h"
 #include "common_shared/debug/assert.h"
 #include "common_shared/debug/log.h"
 #include "common_shared/nsd/nsd_client.h"
@@ -15,22 +16,20 @@
 #include "client_shared/pairing_interactive_request.h"
 #include "client_shared/requests.h"
 #include "client_shared/send_files_interactive_request.h"
-#include <client_shared/file_send_utils.h>
+#include "client_shared/file_send_utils.h"
 
-struct PendingServerBinding
+std::string PendingServerBinding::generateShortAuthentificationString() const noexcept
 {
-	Cryptography::Keypair staticKeys;
-	Cryptography::PublicKey remoteStaticKey;
-	Cryptography::HashResult handshakeHash;
-};
+	return Cryptography::generateSas(this->handshakeHash, 6);
+}
 
-TestFullFileBackup::TestFullFileBackup(const std::filesystem::path& localDataPath)
+TestFullFileBackup::TestFullFileBackup(const std::filesystem::path& localDataPath) noexcept
 	: mClientStorage(ClientStorage::load(localDataPath))
 	, mLocalDataPath(localDataPath)
 {
 }
 
-void TestFullFileBackup::startDiscovery()
+void TestFullFileBackup::startDiscovery() noexcept
 {
 	mDiscoveryThread = std::thread([&servers = mDiscoveredServers, &mutex = mDataMutex, &nsdStopFlag = mNsdStopFlag] {
 		std::optional<std::string> result = NsdClient::processServiceDiscoveryThread(
@@ -51,13 +50,13 @@ void TestFullFileBackup::startDiscovery()
 					idString.reserve(event.extraData.size());
 					for (std::byte b : event.extraData)
 					{
-						idString.push_back(static_cast<int>(b) + '0');
+						idString.push_back(static_cast<char>(static_cast<int>(b) + '0'));
 					}
 
 					Debug::Log::printDebug("NSD: Server added v={}, id='{}', ip='{}', port='{}'", version, idString, event.address.ip, event.address.port);
 					{
 						std::unique_lock lock(mutex);
-						std::array<std::byte, 16> serverId;
+						std::array<std::byte, 16> serverId{};
 						if (event.extraData.size() >= 16 + 2)
 						{
 							std::copy(event.extraData.begin() + 2, event.extraData.end(), serverId.begin());
@@ -103,13 +102,13 @@ void TestFullFileBackup::startDiscovery()
 	});
 }
 
-std::vector<TestServerInfo> TestFullFileBackup::getDiscoveryResults()
+std::vector<TestServerInfo> TestFullFileBackup::getDiscoveryResults() noexcept
 {
 	std::unique_lock lock(mDataMutex);
 	return mDiscoveredServers;
 }
 
-void TestFullFileBackup::stopDiscovery()
+void TestFullFileBackup::stopDiscovery() noexcept
 {
 	mNsdStopFlag.store(true, std::memory_order::release);
 	mDiscoveredServers.clear();
@@ -117,7 +116,7 @@ void TestFullFileBackup::stopDiscovery()
 	mNsdStopFlag.store(false, std::memory_order::relaxed);
 }
 
-std::optional<std::string> TestFullFileBackup::requestServerName(const Network::NetworkAddress& address)
+std::optional<std::string> TestFullFileBackup::requestServerName(const Network::NetworkAddress& address) noexcept
 {
 	RequestAnswers::RequestAnswer nameAnswer = Requests::sendAndProcessRequest(address.ip.data(), address.addressType, address.port, Requests::GetServerName{});
 
@@ -147,7 +146,7 @@ std::optional<std::string> TestFullFileBackup::requestServerName(const Network::
 	return serverName;
 }
 
-std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const TestServerInfo& serverInfo)
+std::variant<std::string, PendingServerBinding> TestFullFileBackup::exchangePairInformationWithServer(const TestServerInfo& serverInfo) noexcept
 {
 	bool isPaired = false;
 	mClientStorage.read([&isPaired, &serverId = serverInfo.serverId](const ClientStorageData& storageData) {
@@ -171,73 +170,57 @@ std::optional<std::string> TestFullFileBackup::pairAndApproveServer(const TestSe
 		}
 	);
 
-	std::optional<PendingServerBinding> pendingServerBinding;
-
-	std::optional<std::string> result = std::visit(
+	return std::visit(
 		VisitLambda{
-			[&pendingServerBinding](RequestAnswers::Pair&& pair) -> std::optional<std::string> {
-				pendingServerBinding = PendingServerBinding{
+			[](RequestAnswers::Pair&& pair) -> std::variant<std::string, PendingServerBinding> {
+				return PendingServerBinding{
 					.staticKeys = std::move(pair.staticKeys),
 					.remoteStaticKey = std::move(pair.remoteStaticKey),
 					.handshakeHash = std::move(pair.handshakeHash),
 				};
-				Debug::Log::printDebug("Received pairing information");
-				return {};
 			},
-			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) -> std::optional<std::string> {
+			[](RequestAnswers::UnsupportedProtocolVersion&& unsupportedProtocolVersion) -> std::variant<std::string, PendingServerBinding> {
 				return std::format("The server rejected our protocol version, expected version {}", unsupportedProtocolVersion.firstSupportedProtocolVersion);
 			},
-			[](RequestAnswers::Error&& answerReadError) -> std::optional<std::string> {
+			[](RequestAnswers::Error&& answerReadError) -> std::variant<std::string, PendingServerBinding> {
 				return answerReadError.errorMessage;
 			},
-			[](RequestAnswers::LogicalError&& answerReadError) -> std::optional<std::string> {
+			[](RequestAnswers::LogicalError&& answerReadError) -> std::variant<std::string, PendingServerBinding> {
 				return answerReadError.errorMessage;
 			},
-			[](auto&&) -> std::optional<std::string> {
-				return "logical error, unexpected answer";
+			[](auto&&) -> std::variant<std::string, PendingServerBinding> {
+				return std::string("logical error, unexpected answer");
 			},
 		},
 		std::move(pairAnswer)
 	);
+}
 
-	if (result.has_value())
+std::optional<std::string> TestFullFileBackup::approveServer(const TestServerInfo& serverInfo, const PendingServerBinding& serverBindingInfo) noexcept
+{
+	mClientStorage.mutate([&serverId = serverInfo.serverId, &serverBindingInfo](ClientStorageData& storage) {
+		storage.confirmedServerBindings.emplace(
+			serverId,
+			ClientStorageData::ServerBinding{
+				.serverName = "test server",
+				.connectionId = Cryptography::generateConnectionId(serverBindingInfo.staticKeys.publicKey, serverBindingInfo.remoteStaticKey),
+				.remoteStaticKey = serverBindingInfo.remoteStaticKey.clone(),
+				.staticKeys = serverBindingInfo.staticKeys.clone(),
+			}
+		);
+	});
+
+	if (mClientStorage.save() == false)
 	{
-		return result;
+		reportDebugError("Could not save client data");
 	}
 
-	// approve automatically for now
-	{
-		if (!pendingServerBinding.has_value())
-		{
-			Debug::Log::printDebug("pendingServerBinding is not set, this is incorrect");
-		}
-
-		mClientStorage.mutate([&serverId = serverInfo.serverId, &pendingServerBinding](ClientStorageData& storage) {
-			storage.confirmedServerBindings.emplace(
-				serverId,
-				ClientStorageData::ServerBinding{
-					.serverName = "test server",
-					.connectionId = Cryptography::generateConnectionId(pendingServerBinding->staticKeys.publicKey, pendingServerBinding->remoteStaticKey),
-					.remoteStaticKey = std::move(pendingServerBinding->remoteStaticKey),
-					.staticKeys = std::move(pendingServerBinding->staticKeys),
-				}
-			);
-		});
-
-		pendingServerBinding = std::nullopt;
-
-		if (mClientStorage.save() == false)
-		{
-			reportDebugError("Could not save client data");
-		}
-
-		Debug::Log::printDebug("The server got automatically approved for testing purposes");
-	}
+	Debug::Log::printDebug("The server got automatically approved for testing purposes");
 
 	return std::nullopt;
 }
 
-std::optional<std::string> TestFullFileBackup::sendFiles(const TestServerInfo& serverInfo, const std::string& folderPath, const std::string& commonRoot)
+std::optional<std::string> TestFullFileBackup::sendFiles(const TestServerInfo& serverInfo, const std::string& folderPath, const std::string& commonRoot) noexcept
 {
 	std::vector<std::filesystem::path> files = FileSendUtils::collectFilesFromDirectory(folderPath);
 
@@ -280,7 +263,7 @@ std::optional<std::string> TestFullFileBackup::sendFiles(const TestServerInfo& s
 	);
 }
 
-std::optional<std::string> TestFullFileBackup::removeServer(const std::array<std::byte, 16>& serverId)
+std::optional<std::string> TestFullFileBackup::removeServer(const std::array<std::byte, 16>& serverId) noexcept
 {
 	std::optional<std::string> result;
 	mClientStorage.mutate([&serverId, &result](ClientStorageData& storage) {
@@ -303,7 +286,7 @@ std::optional<std::string> TestFullFileBackup::removeServer(const std::array<std
 	return result;
 }
 
-bool TestFullFileBackup::isServerPaired(const std::array<std::byte, 16>& serverId) const
+bool TestFullFileBackup::isServerPaired(const std::array<std::byte, 16>& serverId) const noexcept
 {
 	bool isPaired = false;
 	mClientStorage.read([&serverId, &isPaired](const ClientStorageData& storage) {

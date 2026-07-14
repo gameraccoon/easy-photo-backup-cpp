@@ -8,6 +8,7 @@
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <variant>
 #include <vector>
 
 #include "common_shared/network/utils.h"
@@ -24,25 +25,34 @@ struct TestServerInfo
 	std::array<std::byte, 16> serverId;
 };
 
+struct PendingServerBinding
+{
+	Cryptography::Keypair staticKeys;
+	Cryptography::PublicKey remoteStaticKey;
+	Cryptography::HashResult handshakeHash;
+
+	[[nodiscard]] std::string generateShortAuthentificationString() const noexcept;
+};
+
 class TestFullFileBackup
 {
 public:
-	TestFullFileBackup(const std::filesystem::path& localDataPath);
+	TestFullFileBackup(const std::filesystem::path& localDataPath) noexcept;
 
-	void startDiscovery();
-	std::vector<TestServerInfo> getDiscoveryResults();
-	void stopDiscovery();
+	void startDiscovery() noexcept;
+	[[nodiscard]] std::vector<TestServerInfo> getDiscoveryResults() noexcept;
+	void stopDiscovery() noexcept;
 
-	static std::optional<std::string> requestServerName(const Network::NetworkAddress& address);
+	[[nodiscard]] static std::optional<std::string> requestServerName(const Network::NetworkAddress& address) noexcept;
 
-	// this is the bad and dangerous part, should be removed altogether before the app can be used for real
-	std::optional<std::string> pairAndApproveServer(const TestServerInfo& serverInfo);
+	[[nodiscard]] std::variant<std::string, PendingServerBinding> exchangePairInformationWithServer(const TestServerInfo& serverInfo) noexcept;
+	[[nodiscard]] std::optional<std::string> approveServer(const TestServerInfo& serverInfo, const PendingServerBinding& serverBindingInfo) noexcept;
 
-	std::optional<std::string> sendFiles(const TestServerInfo& serverInfo, const std::string& folderPath, const std::string& commonRoot);
+	[[nodiscard]] std::optional<std::string> sendFiles(const TestServerInfo& serverInfo, const std::string& folderPath, const std::string& commonRoot) noexcept;
 
-	std::optional<std::string> removeServer(const std::array<std::byte, 16>& serverId);
+	[[nodiscard]] std::optional<std::string> removeServer(const std::array<std::byte, 16>& serverId) noexcept;
 
-	bool isServerPaired(const std::array<std::byte, 16>& serverName) const;
+	[[nodiscard]] bool isServerPaired(const std::array<std::byte, 16>& serverName) const noexcept;
 
 private:
 	std::mutex mDataMutex;

@@ -91,7 +91,7 @@ namespace Cryptography
 
 	void HKDF_blake2b(
 		const HashResult& chainingKey,
-		const std::span<const std::byte> inputKeyMaterial,
+		std::span<const std::byte> inputKeyMaterial,
 		int numOutputs,
 		HashResult& output1,
 		HashResult* output2,
