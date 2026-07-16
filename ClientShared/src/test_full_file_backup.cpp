@@ -13,10 +13,10 @@
 #include "common_shared/template_utils.h"
 
 #include "client_shared/client_storage.h"
+#include "client_shared/file_send_utils.h"
 #include "client_shared/pairing_interactive_request.h"
 #include "client_shared/requests.h"
 #include "client_shared/send_files_interactive_request.h"
-#include "client_shared/file_send_utils.h"
 
 std::string PendingServerBinding::generateShortAuthentificationString() const noexcept
 {

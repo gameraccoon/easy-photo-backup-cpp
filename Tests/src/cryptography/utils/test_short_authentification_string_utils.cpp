@@ -1,12 +1,10 @@
 // Copyright (C) Pavel Grebnev 2026
 // Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 
+#include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
-#include "tests/helper_utils.h"
-
 #include "common_shared/cryptography/utils/short_authentification_string_utils.h"
-
 
 TEST(PairingCodeUtils, Generate6DigitShortAuthentificationString)
 {
