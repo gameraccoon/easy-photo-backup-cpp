@@ -367,12 +367,9 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 					});
 					expectedFileIt != instructions.expectedOverriddenFiles.end())
 				{
-					if (expectedFileIt != instructions.expectedOverriddenFiles.end())
-					{
-						EXPECT_EQ(expectedFileIt->startByte, cursor);
-						overriddenFileIdx = static_cast<size_t>(std::distance(instructions.expectedOverriddenFiles.begin(), expectedFileIt));
-						overriddenFileFlags[std::distance(instructions.expectedOverriddenFiles.begin(), expectedFileIt)] = true;
-					}
+					EXPECT_EQ(expectedFileIt->startByte, cursor);
+					overriddenFileIdx = static_cast<size_t>(std::distance(instructions.expectedOverriddenFiles.begin(), expectedFileIt));
+					overriddenFileFlags[std::distance(instructions.expectedOverriddenFiles.begin(), expectedFileIt)] = true;
 				}
 				else
 				{
