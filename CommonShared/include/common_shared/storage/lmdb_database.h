@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <span>
 
 #include <zstring_view.hpp>

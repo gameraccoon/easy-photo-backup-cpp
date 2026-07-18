@@ -58,7 +58,7 @@ namespace Lmdb
 			return parseReturnCode(returnCode);
 		}
 
-		returnCode = mdb_env_set_maxdbs(mdbEnvironment, maxNamedDatabases);
+		returnCode = mdb_env_set_maxdbs(mdbEnvironment, static_cast<MDB_dbi>(maxNamedDatabases));
 		if (returnCode != 0)
 		{
 			reportDebugError("Could not set max number ({}) of named databases in LMDB environment: '{}'", maxNamedDatabases, mdb_strerror(returnCode));
@@ -79,8 +79,12 @@ namespace Lmdb
 			reportDebugError("Could not create LMDB environment directory '{}'", path.string());
 			return ReturnCode::CanNotCreateDirectory;
 		}
-
+#if defined(_WIN32) || defined(_WIN64)
+		const std::string pathStr = path.string();
+		returnCode = mdb_env_open(mdbEnvironment, pathStr.c_str(), 0, 0644);
+#else
 		returnCode = mdb_env_open(mdbEnvironment, path.c_str(), 0, 0644);
+#endif
 		if (returnCode != 0)
 		{
 			reportDebugError("Could not open LMDB environment: '{}'", mdb_strerror(returnCode));
