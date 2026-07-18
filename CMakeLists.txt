@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.22.1)
 set(CMAKE_CXX_STANDARD 20)
 set(MAIN_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
-project(EasyPhotoBackup)
+project(EasyPhotoBackup C CXX)
 
 option(DEBUG_CHECKS "Enable debug checks and assertions" ON)
 option(WITH_TESTS "Build tests" ON)
