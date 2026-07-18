@@ -183,4 +183,4 @@ namespace Lmdb
 
 		return ReadOnlyDatabase(dbHandler, transaction.getRaw());
 	}
-}
+} // namespace Lmdb

@@ -146,4 +146,4 @@ namespace Lmdb
 		std::optional<T> result;
 		ReturnCode errorCode = ReturnCode::Success;
 	};
-}
+} // namespace Lmdb
