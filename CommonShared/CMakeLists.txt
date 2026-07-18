@@ -15,6 +15,13 @@ add_library(Monocypher STATIC)
 target_sources(Monocypher PRIVATE ${MONOCYPHER_ROOT}/src/monocypher.c)
 target_include_directories(Monocypher PRIVATE ${MONOCYPHER_ROOT}/src)
 
+set(LMDB_ROOT ${COMMON_SHARED_ROOT}/deps/lmdb/libraries)
+add_library(LMDB STATIC)
+target_sources(LMDB PRIVATE
+	${LMDB_ROOT}/liblmdb/mdb.c
+	${LMDB_ROOT}/liblmdb/midl.c
+)
+
 add_library(CommonShared STATIC)
 
 if(MSVC)
@@ -27,6 +34,7 @@ target_include_directories(CommonShared
 	PRIVATE
 		${COMMON_SHARED_INCLUDE_BASE_DIR}
 		${MONOCYPHER_ROOT}/src
+		${LMDB_ROOT}
 
 	PUBLIC
 		${COMMON_SHARED_ROOT}/deps/zstring_view/include
@@ -61,6 +69,10 @@ target_sources(CommonShared
 		${COMMON_SHARED_SRC_DIR}/serialization/number_serialization.cpp
 		${COMMON_SHARED_SRC_DIR}/serialization/raw_data_serialization.cpp
 		${COMMON_SHARED_SRC_DIR}/serialization/string_serialization.cpp
+		${COMMON_SHARED_SRC_DIR}/storage/lmdb_database.cpp
+		${COMMON_SHARED_SRC_DIR}/storage/lmdb_environment.cpp
+		${COMMON_SHARED_SRC_DIR}/storage/lmdb_return_codes.cpp
+		${COMMON_SHARED_SRC_DIR}/storage/lmdb_transaction.cpp
 		${COMMON_SHARED_INCLUDE_DIR}/nsd/utils_internal.h
 		${COMMON_SHARED_SRC_DIR}/hash_utils.cpp
 
@@ -97,6 +109,10 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/number_serialization.h
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/raw_data_serialization.h
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/string_serialization.h
+		${COMMON_SHARED_INCLUDE_DIR}/storage/lmdb_database.h
+		${COMMON_SHARED_INCLUDE_DIR}/storage/lmdb_environment.h
+		${COMMON_SHARED_INCLUDE_DIR}/storage/lmdb_return_codes.h
+		${COMMON_SHARED_INCLUDE_DIR}/storage/lmdb_transaction.h
 		${COMMON_SHARED_INCLUDE_DIR}/hash_utils.h
 		${COMMON_SHARED_INCLUDE_DIR}/template_utils.h
 )
@@ -110,6 +126,7 @@ endif()
 target_link_libraries(CommonShared
 	PRIVATE
 		Monocypher
+		LMDB
 		${PLATFORM_LIBRARIES}
 
 )
