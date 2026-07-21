@@ -73,7 +73,7 @@ namespace Serialization
 			return std::format("Buffer offset is too big to fit anything bufferOffset {}, buffer size {}", bufferOffset, buffer.size());
 		}
 
-		if (data.size() >= buffer.size() - bufferOffset) [[unlikely]]
+		if (data.size() > buffer.size() - bufferOffset) [[unlikely]]
 		{
 			reportDebugError("Tried to fit the data into a buffer of smaller size. Data size {}, buffer size {}, bufferOffset {}", data.size(), buffer.size(), bufferOffset);
 			return std::format("Tried to fit the data into a buffer of smaller size. Data size {}, buffer size {}, bufferOffset {}", data.size(), buffer.size(), bufferOffset);
