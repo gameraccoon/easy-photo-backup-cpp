@@ -53,7 +53,7 @@ public:
 		return mTestState.removeServer(serverId);
 	}
 
-	[[nodiscard]] bool isServerPaired(const std::array<std::byte, 16>& serverId) const
+	[[nodiscard]] bool isServerPaired(const std::array<std::byte, 16>& serverId)
 	{
 		return mTestState.isServerPaired(serverId);
 	}
