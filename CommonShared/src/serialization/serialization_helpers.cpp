@@ -15,7 +15,7 @@ namespace Serialization
 		{
 			if (writeResult.has_value())
 			{
-				reportReleaseError("Could not serialize {}, error: '{}'", logName, std::move(*writeResult));
+				reportReleaseError("Could not deserialize {}, error: '{}'", logName, std::move(*writeResult));
 				return false;
 			}
 			return true;
@@ -25,7 +25,7 @@ namespace Serialization
 		{
 			if (readResult.has_value())
 			{
-				reportReleaseError("Could not deserialize {}, error: '{}'", logName, std::move(*readResult));
+				reportReleaseError("Could not serialize {}, error: '{}'", logName, std::move(*readResult));
 				return false;
 			}
 			return true;
