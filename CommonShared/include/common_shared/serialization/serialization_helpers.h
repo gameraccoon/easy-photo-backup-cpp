@@ -5,6 +5,7 @@
 
 #include <span>
 #include <string_view>
+#include <string>
 
 namespace Serialization
 {
