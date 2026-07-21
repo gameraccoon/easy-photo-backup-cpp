@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <span>
+#include <vector>
 
 #include <zstring_view.hpp>
 
@@ -25,7 +26,8 @@ namespace Lmdb
 		Database(Database&&) noexcept;
 		Database& operator=(Database&&) noexcept;
 
-		[[nodiscard]] ReturnCode getValue(std::span<const std::byte> key, std::span<std::byte> outBuffer, size_t& readBytes) noexcept;
+		[[nodiscard]] ReturnCode get(std::span<const std::byte> key, std::span<std::byte> outBuffer, size_t& readBytes) noexcept;
+		[[nodiscard]] ReturnCode getDynamic(std::span<const std::byte> key, std::vector<std::byte> outValue) noexcept;
 
 		// doesn't perform extra copy of the buffer, but need to be careful not to store pointers to the value data
 		[[nodiscard]] ReturnCode readValue(std::span<const std::byte> key, auto readFn) noexcept
@@ -41,6 +43,8 @@ namespace Lmdb
 		}
 
 		[[nodiscard]] bool isValid() const noexcept { return mMdbTransaction != nullptr; }
+
+		MDB_dbi getRaw() const noexcept { return mDbHandler; };
 
 	protected:
 		Database(MDB_dbi handler, MDB_txn* mdbTransaction) noexcept;
@@ -59,8 +63,8 @@ namespace Lmdb
 	public:
 		[[nodiscard]] static Result<ReadWriteDatabase> open(ReadWriteTransaction& transaction, std::zstring_view name) noexcept;
 
-		[[nodiscard]] ReturnCode putValue(std::span<const std::byte> key, std::span<const std::byte> value) noexcept;
-		[[nodiscard]] ReturnCode deleteValue(std::span<const std::byte> key) noexcept;
+		[[nodiscard]] ReturnCode put(std::span<const std::byte> key, std::span<const std::byte> value) noexcept;
+		[[nodiscard]] ReturnCode deleteKey(std::span<const std::byte> key) noexcept;
 
 		// removes all the data from the database and keeps it open
 		[[nodiscard]] ReturnCode emptyDatabase() noexcept;

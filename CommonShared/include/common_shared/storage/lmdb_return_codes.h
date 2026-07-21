@@ -142,6 +142,12 @@ namespace Lmdb
 			return &*result;
 		}
 
+		[[nodiscard]] const T* operator->() const noexcept
+		{
+			assertFatalRelease(result.has_value(), "Tried to dereference result on error Lmdb::Result");
+			return &*result;
+		}
+
 	private:
 		std::optional<T> result;
 		ReturnCode errorCode = ReturnCode::Success;

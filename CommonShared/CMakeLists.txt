@@ -69,6 +69,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_SRC_DIR}/serialization/number_serialization.cpp
 		${COMMON_SHARED_SRC_DIR}/serialization/raw_data_serialization.cpp
 		${COMMON_SHARED_SRC_DIR}/serialization/string_serialization.cpp
+		${COMMON_SHARED_SRC_DIR}/storage/lmdb_cursor.cpp
 		${COMMON_SHARED_SRC_DIR}/storage/lmdb_database.cpp
 		${COMMON_SHARED_SRC_DIR}/storage/lmdb_environment.cpp
 		${COMMON_SHARED_SRC_DIR}/storage/lmdb_return_codes.cpp
@@ -109,6 +110,7 @@ target_sources(CommonShared
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/number_serialization.h
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/raw_data_serialization.h
 		${COMMON_SHARED_INCLUDE_DIR}/serialization/string_serialization.h
+		${COMMON_SHARED_INCLUDE_DIR}/storage/lmdb_cursor.h
 		${COMMON_SHARED_INCLUDE_DIR}/storage/lmdb_database.h
 		${COMMON_SHARED_INCLUDE_DIR}/storage/lmdb_environment.h
 		${COMMON_SHARED_INCLUDE_DIR}/storage/lmdb_return_codes.h

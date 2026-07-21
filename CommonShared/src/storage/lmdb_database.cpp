@@ -46,7 +46,7 @@ namespace Lmdb
 	{
 	}
 
-	ReturnCode Database::getValue(std::span<const std::byte> key, std::span<std::byte> outBuffer, size_t& readBytes) noexcept
+	ReturnCode Database::get(std::span<const std::byte> key, std::span<std::byte> outBuffer, size_t& readBytes) noexcept
 	{
 		const void* valueData = nullptr;
 		if (ReturnCode returnCode = lmdbGetValueUnsafe(mMdbTransaction, mDbHandler, key, valueData, readBytes); returnCode != ReturnCode::Success)
@@ -68,6 +68,25 @@ namespace Lmdb
 		}
 
 		std::memcpy(outBuffer.data(), valueData, readBytes);
+		return ReturnCode::Success;
+	}
+
+	ReturnCode Database::getDynamic(std::span<const std::byte> key, std::vector<std::byte> outValue) noexcept
+	{
+		const void* valueData = nullptr;
+		size_t readBytes = 0;
+		if (ReturnCode returnCode = lmdbGetValueUnsafe(mMdbTransaction, mDbHandler, key, valueData, readBytes); returnCode != ReturnCode::Success)
+		{
+			return returnCode;
+		}
+
+		if (valueData == nullptr)
+		{
+			return ReturnCode::LogicalError;
+		}
+
+		outValue.resize(readBytes);
+		std::memcpy(outValue.data(), valueData, readBytes);
 		return ReturnCode::Success;
 	}
 
@@ -118,7 +137,7 @@ namespace Lmdb
 		return ReadWriteDatabase(dbHandler, transaction.getRaw());
 	}
 
-	ReturnCode ReadWriteDatabase::putValue(std::span<const std::byte> key, std::span<const std::byte> value) noexcept
+	ReturnCode ReadWriteDatabase::put(std::span<const std::byte> key, std::span<const std::byte> value) noexcept
 	{
 		MDB_val mdbKey{
 			.mv_size = key.size(),
@@ -135,7 +154,7 @@ namespace Lmdb
 		return parseReturnCode(returnCode);
 	}
 
-	ReturnCode ReadWriteDatabase::deleteValue(std::span<const std::byte> key) noexcept
+	ReturnCode ReadWriteDatabase::deleteKey(std::span<const std::byte> key) noexcept
 	{
 		MDB_val mdbKey{
 			.mv_size = key.size(),
@@ -143,7 +162,7 @@ namespace Lmdb
 		};
 
 		const int returnCode = mdb_del(mMdbTransaction, mDbHandler, &mdbKey, nullptr);
-		assertRelease(returnCode == 0 && returnCode != MDB_NOTFOUND, "Could not delete value from LMDB database: '{}'", mdb_strerror(returnCode));
+		assertRelease(returnCode == 0 || returnCode == MDB_NOTFOUND, "Could not delete value from LMDB database: '{}'", mdb_strerror(returnCode));
 		return parseReturnCode(returnCode);
 	}
 
