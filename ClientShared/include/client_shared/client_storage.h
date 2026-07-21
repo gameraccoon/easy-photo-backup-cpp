@@ -4,18 +4,20 @@
 #pragma once
 
 #include <filesystem>
-#include <functional>
-#include <mutex>
-#include <unordered_map>
-#include <unordered_set>
+#include <vector>
 
-#include "common_shared/bstorage/value.h"
 #include "common_shared/cryptography/types/dh_types.h"
 #include "common_shared/cryptography/types/hash_types.h"
-#include "common_shared/hash_utils.h"
+#include "common_shared/storage/lmdb_environment.h"
 
 struct ClientStorageData
 {
+	struct PartiallySentFile
+	{
+		std::string path;
+		uint64_t sentData;
+	};
+
 	struct ServerBinding
 	{
 		std::string serverName;
@@ -25,39 +27,27 @@ struct ClientStorageData
 	};
 
 	using ServerId = std::array<std::byte, 16>;
-	struct ServerIdHash
-	{
-		size_t operator()(const ServerId& id) const noexcept
-		{
-			return Hash::hashSpan(id);
-		}
-	};
-
-	using ConfirmedServerBindingsType = std::unordered_map<ServerId, ServerBinding, ServerIdHash>;
-
-	ConfirmedServerBindingsType confirmedServerBindings;
-	std::unordered_set<std::string> sentFiles;
-	std::unordered_map<std::string, uint64_t> partiallySentFiles;
 };
 
 class ClientStorage
 {
 public:
-#ifdef WITH_TESTS
-	static ClientStorage testCreateEmpty() noexcept;
-#endif // WITH_TESTS
+	ClientStorage(ClientStorage&&) noexcept = default;
+	ClientStorage& operator=(ClientStorage&&) noexcept = default;
 
-	[[nodiscard]] static ClientStorage load(const std::filesystem::path& storageDirectory) noexcept;
-	[[nodiscard]] bool save() const noexcept;
+	static std::optional<ClientStorage> openStorage(const std::filesystem::path& storageRootPath);
 
-	void read(const std::function<void(const ClientStorageData&)>& readFn) const noexcept;
-	void mutate(const std::function<void(ClientStorageData&)>& mutateFn) noexcept;
+	void addSentFiles(const std::vector<std::filesystem::path>& newSentFiles, std::string partiallySentPath, uint64_t partiallySentData, const std::vector<std::filesystem::path>& rejectedPartialFiles) noexcept;
+	void filterOutSentFiles(const std::filesystem::path& rootPath, std::vector<std::filesystem::path>& inOutPaths, std::vector<uint64_t>& outPreviouslySentBytes) noexcept;
+
+	void addConfirmedServerBinding(const ClientStorageData::ServerId& serverId, const ClientStorageData::ServerBinding& binding) noexcept;
+	bool removeConfirmedServerBinding(const ClientStorageData::ServerId& serverId) noexcept;
+	[[nodiscard]] std::optional<ClientStorageData::ServerBinding> getConfirmedServerBinding(const ClientStorageData::ServerId& serverId) noexcept;
+	[[nodiscard]] bool hasConfirmedServerBinding(const ClientStorageData::ServerId& serverId) noexcept;
 
 private:
-	explicit ClientStorage(std::filesystem::path&& storagePath, BStorage::Value&& value) noexcept;
+	explicit ClientStorage(Lmdb::Environment&& mEnvironment) noexcept;
 
 private:
-	std::filesystem::path mStoragePath;
-	ClientStorageData mStorageData;
-	mutable std::mutex mMutex;
+	Lmdb::Environment mEnvironment;
 };

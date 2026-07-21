@@ -22,21 +22,21 @@ namespace Requests
 		constexpr size_t FirstMessagePreludeSize = sizeof(Protocol::NetworkProtocolVersion) + sizeof(Protocol::RequestId) + DHLEN;
 		constexpr size_t SecondMessagePreludeSize = sizeof(Protocol::RequestAnswerId);
 
-		InitiatorHandshakeState handshakeState;
-		Cryptography::HashResult connectionId;
+		std::optional<ClientStorageData::ServerBinding> serverBinding = clientStorage.getConfirmedServerBinding(serverId);
 
-		clientStorage.read([&handshakeState, &connectionId, &serverId](const ClientStorageData& storageData) {
-			if (auto it = storageData.confirmedServerBindings.find(serverId); it != storageData.confirmedServerBindings.end())
-			{
-				handshakeState = NoiseKK::initializeInitiator(it->second.staticKeys, it->second.remoteStaticKey);
-				connectionId = it->second.connectionId.clone();
-			}
-		});
-
-		if (!handshakeState.staticKeys.has_value() || !handshakeState.remoteStaticKey.has_value())
+		if (!serverBinding.has_value())
 		{
 			return false;
 		}
+
+		InitiatorHandshakeState handshakeState{
+			.ephemeralKeys = {},
+			.staticKeys = serverBinding->staticKeys.clone(),
+			.remoteEphemeralKey = {},
+			.remoteStaticKey = serverBinding->remoteStaticKey.clone(),
+			.symmetricState = {},
+		};
+		Cryptography::HashResult connectionId;
 
 		constexpr size_t BufferSize = SecondMessagePreludeSize + DHLEN + DHLEN + DHLEN + CipherAuthDataSize;
 		Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, BufferSize> buffer;

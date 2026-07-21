@@ -24,7 +24,7 @@ std::string PendingServerBinding::generateShortAuthentificationString() const no
 }
 
 TestFullFileBackup::TestFullFileBackup(const std::filesystem::path& localDataPath) noexcept
-	: mClientStorage(ClientStorage::load(localDataPath))
+	: mClientStorage(*ClientStorage::openStorage(localDataPath))
 	, mLocalDataPath(localDataPath)
 {
 }
@@ -148,13 +148,7 @@ std::optional<std::string> TestFullFileBackup::requestServerName(const Network::
 
 std::variant<std::string, PendingServerBinding> TestFullFileBackup::exchangePairInformationWithServer(const TestServerInfo& serverInfo) noexcept
 {
-	bool isPaired = false;
-	mClientStorage.read([&isPaired, &serverId = serverInfo.serverId](const ClientStorageData& storageData) {
-		if (auto it = storageData.confirmedServerBindings.find(serverId); it != storageData.confirmedServerBindings.end())
-		{
-			isPaired = true;
-		}
-	});
+	const bool isPaired = mClientStorage.hasConfirmedServerBinding(serverInfo.serverId);
 
 	if (isPaired)
 	{
@@ -198,22 +192,15 @@ std::variant<std::string, PendingServerBinding> TestFullFileBackup::exchangePair
 
 std::optional<std::string> TestFullFileBackup::approveServer(const TestServerInfo& serverInfo, const PendingServerBinding& serverBindingInfo) noexcept
 {
-	mClientStorage.mutate([&serverId = serverInfo.serverId, &serverBindingInfo](ClientStorageData& storage) {
-		storage.confirmedServerBindings.emplace(
-			serverId,
-			ClientStorageData::ServerBinding{
-				.serverName = "test server",
-				.connectionId = Cryptography::generateConnectionId(serverBindingInfo.staticKeys.publicKey, serverBindingInfo.remoteStaticKey),
-				.remoteStaticKey = serverBindingInfo.remoteStaticKey.clone(),
-				.staticKeys = serverBindingInfo.staticKeys.clone(),
-			}
-		);
-	});
-
-	if (mClientStorage.save() == false)
-	{
-		reportDebugError("Could not save client data");
-	}
+	mClientStorage.addConfirmedServerBinding(
+		serverInfo.serverId,
+		ClientStorageData::ServerBinding{
+			.serverName = "test server",
+			.connectionId = Cryptography::generateConnectionId(serverBindingInfo.staticKeys.publicKey, serverBindingInfo.remoteStaticKey),
+			.remoteStaticKey = serverBindingInfo.remoteStaticKey.clone(),
+			.staticKeys = serverBindingInfo.staticKeys.clone(),
+		}
+	);
 
 	Debug::Log::printDebug("The server got automatically approved for testing purposes");
 
@@ -225,7 +212,7 @@ std::optional<std::string> TestFullFileBackup::sendFiles(const TestServerInfo& s
 	std::vector<std::filesystem::path> files = FileSendUtils::collectFilesFromDirectory(folderPath);
 
 	std::vector<uint64_t> previouslySentBytes;
-	FileSendUtils::filterOutSentFiles(commonRoot, mClientStorage, files, previouslySentBytes);
+	mClientStorage.filterOutSentFiles(commonRoot, files, previouslySentBytes);
 
 	if (files.empty())
 	{
@@ -265,33 +252,11 @@ std::optional<std::string> TestFullFileBackup::sendFiles(const TestServerInfo& s
 
 std::optional<std::string> TestFullFileBackup::removeServer(const std::array<std::byte, 16>& serverId) noexcept
 {
-	std::optional<std::string> result;
-	mClientStorage.mutate([&serverId, &result](ClientStorageData& storage) {
-		const size_t removed = storage.confirmedServerBindings.erase(serverId);
-		if (removed == 0)
-		{
-			result = "Server has not been paired";
-		}
-		if (removed > 1)
-		{
-			result = std::format("{} servers were removed", removed);
-		}
-	});
-
-	if (mClientStorage.save() == false)
-	{
-		reportDebugError("Could not save client data");
-	}
-
-	return result;
+	mClientStorage.removeConfirmedServerBinding(serverId);
+	return std::nullopt;
 }
 
-bool TestFullFileBackup::isServerPaired(const std::array<std::byte, 16>& serverId) const noexcept
+bool TestFullFileBackup::isServerPaired(const std::array<std::byte, 16>& serverId) noexcept
 {
-	bool isPaired = false;
-	mClientStorage.read([&serverId, &isPaired](const ClientStorageData& storage) {
-		isPaired = storage.confirmedServerBindings.contains(serverId);
-	});
-
-	return isPaired;
+	return mClientStorage.hasConfirmedServerBinding(serverId);
 }

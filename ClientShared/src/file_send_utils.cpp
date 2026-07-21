@@ -605,53 +605,7 @@ namespace FileSendUtils
 		std::vector<std::filesystem::path> confirmedFiles = sendingState.confirmedFilesCache.consumeAllFiles();
 		std::vector<std::filesystem::path> rejectedPartialFiles = std::move(sendingState.rejectedPartialFiles);
 
-		storage.mutate([&confirmedFiles, &rejectedPartialFiles, &partiallySentFilePath, firstAwaitingFileBytesConfirmed](ClientStorageData& storageData) {
-			if (!storageData.partiallySentFiles.empty())
-			{
-				for (std::filesystem::path& path : confirmedFiles)
-				{
-					if (storageData.partiallySentFiles.erase(path.string()) > 0)
-					{
-						if (storageData.partiallySentFiles.empty())
-						{
-							break;
-						}
-					}
-				}
-			}
-
-			for (std::filesystem::path& path : confirmedFiles)
-			{
-#if defined(_WIN32) || defined(_WIN64)
-				storageData.sentFiles.emplace(path.string());
-#else
-				storageData.sentFiles.emplace(std::move(path));
-#endif
-			}
-
-			for (auto it = storageData.partiallySentFiles.begin(); it != storageData.partiallySentFiles.end();)
-			{
-				if (std::find(confirmedFiles.begin(), confirmedFiles.end(), std::filesystem::path(it->first)) != confirmedFiles.end()
-					|| std::find(rejectedPartialFiles.begin(), rejectedPartialFiles.end(), std::filesystem::path(it->first)) != rejectedPartialFiles.end())
-				{
-					it = storageData.partiallySentFiles.erase(it); // previously this was something like m_map.erase(it++);
-				}
-				else
-				{
-					++it;
-				}
-			}
-
-			if (!partiallySentFilePath.empty() && firstAwaitingFileBytesConfirmed > 0)
-			{
-				storageData.partiallySentFiles[partiallySentFilePath] = firstAwaitingFileBytesConfirmed;
-			}
-		});
-
-		if (!storage.save())
-		{
-			reportDebugError("Could not save client storage");
-		}
+		storage.addSentFiles(confirmedFiles, partiallySentFilePath, firstAwaitingFileBytesConfirmed, rejectedPartialFiles);
 	}
 
 	std::vector<std::filesystem::path> collectFilesFromDirectory(std::filesystem::path folderPath) noexcept
@@ -678,41 +632,6 @@ namespace FileSendUtils
 		}
 
 		return result;
-	}
-
-	void filterOutSentFiles(const std::filesystem::path& commonRoot, ClientStorage& storage, std::vector<std::filesystem::path>& inOutFiles, std::vector<uint64_t>& outPreviouslySentBytes) noexcept
-	{
-		storage.read([&commonRoot, &inOutFiles, &outPreviouslySentBytes](
-						 const ClientStorageData& storageData
-					 ) {
-			auto getRelativePath = [&commonRoot](const std::filesystem::path& path) -> auto {
-#if defined(_WIN32) || defined(_WIN64)
-				return path.lexically_relative(commonRoot).string();
-#else
-				return path.lexically_relative(commonRoot);
-#endif
-			};
-
-			// remove already sent files
-			inOutFiles.erase(
-				std::remove_if(inOutFiles.begin(), inOutFiles.end(), [&storageData, &getRelativePath](const std::filesystem::path& path) {
-					return storageData.sentFiles.contains(getRelativePath(path));
-				}),
-				inOutFiles.end()
-			);
-
-			for (auto it = storageData.partiallySentFiles.begin();
-				 it != storageData.partiallySentFiles.end(); ++it)
-			{
-				auto filesIt = std::find(inOutFiles.begin(), inOutFiles.end(), commonRoot / it->first);
-				if (filesIt != inOutFiles.end())
-				{
-					// place the element at the beginning
-					std::rotate(inOutFiles.begin(), inOutFiles.begin() + 1, filesIt + 1);
-					outPreviouslySentBytes.insert(outPreviouslySentBytes.begin(), it->second);
-				}
-			}
-		});
 	}
 
 	void sendFiles(const std::vector<std::filesystem::path>& files, const std::vector<uint64_t>& previouslySentBytes, const std::filesystem::path& commonRoot, Network::RawSocket socket, ClientStorage& storage, const std::filesystem::path& localDataPath, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, [[maybe_unused]] Mocks mocks) noexcept

@@ -3,268 +3,282 @@
 
 #include "client_shared/client_storage.h"
 
+#include <algorithm>
 #include <string_view>
 
-#include "common_shared/bstorage/storage.h"
+#include "common_shared/debug/assert.h"
+#include "common_shared/serialization/number_serialization.h"
+#include "common_shared/serialization/serialization_helpers.h"
+#include "common_shared/storage/lmdb_helpers.h"
 
 namespace ClientStorageInternal
 {
-	static constexpr uint16_t ClientStorageVersion = 0;
-	static constexpr std::string_view ClientStorageFileName = "client_storage.bin";
-	static constexpr std::string_view ConfirmedField = "confirmed";
-	static constexpr std::string_view SentFilesField = "sent_files";
-	static constexpr std::string_view PartiallySentFilesField = "part_sent";
-	static constexpr std::string_view ServerIdField = "server_id";
-	static constexpr std::string_view NameField = "name";
-	static constexpr std::string_view ConnectionIdField = "id";
-	static constexpr std::string_view RemoteStaticKeyField = "rs";
-	static constexpr std::string_view StaticPublicKeyField = "s_pub";
-	static constexpr std::string_view StaticSecretKeyField = "s_secret";
-	static constexpr std::string_view FilePathField = "path";
-	static constexpr std::string_view SentBytesField = "bytes";
-
-	template<size_t N>
-	static void tryConsumeObjectFieldArray(BStorage::Value::ObjectMap& record, const std::string_view name, std::array<std::byte, N>& result)
-	{
-		if (auto it = record.find(name); it != record.end())
-		{
-			if (std::vector<std::byte>* v = it->second.asByteArray())
-			{
-				if (v->size() == N)
-				{
-					std::copy(v->begin(), v->end(), result.begin());
-				}
-			}
-		}
-	}
-
-	template<typename T>
-	static void tryConsumeObjectField(BStorage::Value::ObjectMap& record, const std::string_view name, T& result)
-	{
-		constexpr auto getT = [](BStorage::Value& v) -> T* {
-			if constexpr (std::is_same_v<T, std::string>)
-			{
-				return v.asString();
-			}
-			else if constexpr (std::is_same_v<T, std::vector<std::byte>>)
-			{
-				return v.asByteArray();
-			}
-			else if constexpr (std::is_same_v<T, uint64_t>)
-			{
-				return v.asU64();
-			}
-			else
-			{
-				static_assert(false, "Unknown type");
-			}
-		};
-
-		if (auto it = record.find(name); it != record.end())
-		{
-			if (T* v = getT(it->second))
-			{
-				result = std::move(*v);
-			}
-		}
-	}
-
-	static BStorage::Value WriteConfirmedServerBindingsToValue(const ClientStorageData::ConfirmedServerBindingsType& confirmedServerBindings)
-	{
-		std::vector<BStorage::Value> vec;
-		vec.reserve(confirmedServerBindings.size());
-		for (auto& pair : confirmedServerBindings)
-		{
-			BStorage::Value::ObjectMap record;
-			record.reserve(4);
-			record.emplace(ConnectionIdField, BStorage::Value::makeByteArray(pair.second.connectionId));
-			record.emplace(ServerIdField, BStorage::Value::makeByteArray(pair.first));
-			record.emplace(NameField, BStorage::Value::makeString(pair.second.serverName));
-			record.emplace(StaticPublicKeyField, BStorage::Value::makeByteArray(pair.second.staticKeys.publicKey));
-			record.emplace(StaticSecretKeyField, BStorage::Value::makeByteArray(pair.second.staticKeys.secretKey.raw));
-			record.emplace(RemoteStaticKeyField, BStorage::Value::makeByteArray(pair.second.remoteStaticKey.raw));
-			vec.push_back(BStorage::Value::makeObject(std::move(record)));
-		}
-
-		return BStorage::Value::makeArray(std::move(vec));
-	}
-
-	static void ReadConfirmedServerBindingsFromValue(BStorage::Value&& value, ClientStorageData::ConfirmedServerBindingsType& confirmedServerBindings)
-	{
-		if (std::vector<BStorage::Value>* vec = value.asArray())
-		{
-			confirmedServerBindings.reserve(vec->size());
-			for (BStorage::Value& val : *vec)
-			{
-				if (BStorage::Value::ObjectMap* record = val.asObject())
-				{
-					ClientStorageData::ServerBinding newItem{};
-					ClientStorageData::ServerId serverId{};
-					tryConsumeObjectFieldArray(*record, ServerIdField, serverId);
-					tryConsumeObjectFieldArray(*record, ConnectionIdField, newItem.connectionId.raw);
-					tryConsumeObjectField<std::string>(*record, NameField, newItem.serverName);
-					tryConsumeObjectFieldArray(*record, StaticPublicKeyField, newItem.staticKeys.publicKey.raw);
-					tryConsumeObjectFieldArray(*record, StaticSecretKeyField, newItem.staticKeys.secretKey.raw);
-					tryConsumeObjectFieldArray(*record, RemoteStaticKeyField, newItem.remoteStaticKey.raw);
-					confirmedServerBindings.emplace(std::move(serverId), std::move(newItem));
-				}
-			}
-		}
-	}
-
-	static BStorage::Value WriteSentFilesToValue(const std::unordered_set<std::string>& sentFiles)
-	{
-		std::vector<BStorage::Value> vec;
-		vec.reserve(sentFiles.size());
-		for (const std::string& pair : sentFiles)
-		{
-			vec.push_back(BStorage::Value::makeString(pair));
-		}
-
-		return BStorage::Value::makeArray(std::move(vec));
-	}
-
-	static void ReadSentFilesFromValue(BStorage::Value&& value, std::unordered_set<std::string>& sentFiles)
-	{
-		if (std::vector<BStorage::Value>* vec = value.asArray())
-		{
-			sentFiles.reserve(vec->size());
-			for (BStorage::Value& val : *vec)
-			{
-				if (std::string* record = val.asString())
-				{
-					sentFiles.emplace(std::move(*record));
-				}
-			}
-		}
-	}
-
-	static BStorage::Value WritePartiallySentFilesToValue(const std::unordered_map<std::string, uint64_t>& partiallySentFiles)
-	{
-		std::vector<BStorage::Value> vec;
-		vec.reserve(partiallySentFiles.size());
-		for (auto it = partiallySentFiles.begin(); it != partiallySentFiles.end(); ++it)
-		{
-			BStorage::Value::ObjectMap partiallySentFileObject;
-			partiallySentFileObject.emplace(FilePathField, BStorage::Value::makeString(it->first));
-			partiallySentFileObject.emplace(SentBytesField, BStorage::Value::makeU64(it->second));
-			vec.push_back(BStorage::Value::makeObject(std::move(partiallySentFileObject)));
-		}
-
-		return BStorage::Value::makeArray(std::move(vec));
-	}
-
-	static void ReadPartiallySentFilesFromValue(BStorage::Value&& value, std::unordered_map<std::string, uint64_t>& partiallySentFiles)
-	{
-		if (std::vector<BStorage::Value>* vec = value.asArray())
-		{
-			partiallySentFiles.reserve(vec->size());
-			for (BStorage::Value& val : *vec)
-			{
-				if (BStorage::Value::ObjectMap* record = val.asObject())
-				{
-					std::string path;
-					uint64_t bytesSent = 0;
-					tryConsumeObjectField<std::string>(*record, FilePathField, path);
-					tryConsumeObjectField<uint64_t>(*record, SentBytesField, bytesSent);
-					partiallySentFiles.emplace(std::move(path), bytesSent);
-				}
-			}
-		}
-	}
-
-	static BStorage::Value WriteClientStorageDataToValue(const ClientStorageData& storageData)
-	{
-		BStorage::Value::ObjectMap clientStorageDataObject;
-		clientStorageDataObject.reserve(2);
-		clientStorageDataObject.emplace(
-			ConfirmedField,
-			WriteConfirmedServerBindingsToValue(storageData.confirmedServerBindings)
-		);
-		clientStorageDataObject.emplace(
-			SentFilesField,
-			WriteSentFilesToValue(storageData.sentFiles)
-		);
-		clientStorageDataObject.emplace(
-			PartiallySentFilesField,
-			WritePartiallySentFilesToValue(storageData.partiallySentFiles)
-		);
-		return BStorage::Value::makeObject(std::move(clientStorageDataObject));
-	}
-
-	static ClientStorageData ReadClientStorageDataFromValue(BStorage::Value&& value)
-	{
-		ClientStorageData result{};
-		BStorage::Value::ObjectMap* object = value.asObject();
-		if (object != nullptr)
-		{
-			if (auto it = object->find(ConfirmedField); it != object->end())
-			{
-				ReadConfirmedServerBindingsFromValue(std::move(it->second), result.confirmedServerBindings);
-			}
-			if (auto it = object->find(SentFilesField); it != object->end())
-			{
-				ReadSentFilesFromValue(std::move(it->second), result.sentFiles);
-			}
-			if (auto it = object->find(PartiallySentFilesField); it != object->end())
-			{
-				ReadPartiallySentFilesFromValue(std::move(it->second), result.partiallySentFiles);
-			}
-		}
-		return result;
-	}
-} // namespace ClientStorageInternal
-
-#ifdef WITH_TESTS
-ClientStorage ClientStorage::testCreateEmpty() noexcept
-{
-	return ClientStorage("test_client_storage.bin", BStorage::Value::makeObject({}));
+	static constexpr std::string_view ClientStorageEnviromentName = "client_storage";
+	static constexpr std::zstring_view ConfirmedDatabaseName = "confirmed";
+	static constexpr std::zstring_view SentFilesDatabaseName = "sent_files";
+	static constexpr std::zstring_view PartiallySentDatabaseName = "part_sent";
 }
-#endif // WITH_TESTS
 
-ClientStorage ClientStorage::load(const std::filesystem::path& storageDirectory) noexcept
+std::optional<ClientStorage> ClientStorage::openStorage(const std::filesystem::path& storageRootPath)
 {
-	std::filesystem::path storagePath = storageDirectory / ClientStorageInternal::ClientStorageFileName;
-	std::optional<std::tuple<BStorage::Value, uint16_t>> loaded = BStorage::loadStorage(storagePath);
+	static constexpr size_t maxNamedDatabases = 5;
 
-	if (loaded.has_value())
+	std::filesystem::path dbPath = storageRootPath / ClientStorageInternal::ClientStorageEnviromentName;
+	Lmdb::Result<Lmdb::Environment> envResult = Lmdb::Environment::open(dbPath, maxNamedDatabases);
+
+	if (envResult.isError())
 	{
-		if (std::get<1>(*loaded) != ClientStorageInternal::ClientStorageVersion)
+		switch (envResult.getError())
 		{
-			// here we need to have an update path
-			return ClientStorage(std::move(storagePath), BStorage::Value::makeObject({}));
+		case Lmdb::ReturnCode::Corrupted:
+		case Lmdb::ReturnCode::InvalidFile:
+		case Lmdb::ReturnCode::Panic:
+		case Lmdb::ReturnCode::Problem:
+			// on fatal problems just recreate the DB
+			std::filesystem::remove_all(dbPath);
+			envResult = Lmdb::Environment::open(dbPath, maxNamedDatabases);
+			break;
+		default:
+			break;
 		}
-
-		return ClientStorage(std::move(storagePath), std::get<0>(std::move(*loaded)));
 	}
-	else
+
+	// ToDo: on non-fatal problems wait and try again
+
+	if (envResult.isError())
 	{
-		return ClientStorage(std::move(storagePath), BStorage::Value::makeObject({}));
+		return std::nullopt;
+	}
+
+	return ClientStorage(envResult.consumeResult());
+}
+
+void ClientStorage::addSentFiles(const std::vector<std::filesystem::path>& newSentFiles, std::string partiallySentPath, uint64_t partiallySentData, const std::vector<std::filesystem::path>& rejectedPartialFiles) noexcept
+{
+	Lmdb::Result<Lmdb::ReadWriteTransaction> transaction = Lmdb::ReadWriteTransaction::create(mEnvironment);
+	if (transaction.isError())
+	{
+		return;
+	}
+
+	Lmdb::Result<Lmdb::ReadWriteDatabase> sentFilesDb = Lmdb::ReadWriteDatabase::open(*transaction, ClientStorageInternal::SentFilesDatabaseName);
+	if (sentFilesDb.isError())
+	{
+		return;
+	}
+
+	for (const std::filesystem::path& path : newSentFiles)
+	{
+		const Lmdb::ReturnCode returnCode = sentFilesDb->put(std::as_bytes(std::span<const char>(path.string())), std::array<std::byte, 1>{ std::byte(0x00) });
+		if (returnCode != Lmdb::ReturnCode::Success)
+		{
+			return;
+		}
+	}
+
+	Lmdb::Result<Lmdb::ReadWriteDatabase> partiallySentDb = Lmdb::ReadWriteDatabase::open(*transaction, ClientStorageInternal::PartiallySentDatabaseName);
+	if (partiallySentDb.isError())
+	{
+		return;
+	}
+
+	if (partiallySentData > 0 && !partiallySentPath.empty())
+	{
+		std::array<std::byte, 8> sentDataBytes;
+		Serialization::writeUint64(sentDataBytes, partiallySentData);
+		Lmdb::ReturnCode returnCode = partiallySentDb->put(std::as_bytes(std::span(partiallySentPath)), sentDataBytes);
+		if (returnCode != Lmdb::ReturnCode::Success && returnCode != Lmdb::ReturnCode::NotFound)
+		{
+			return;
+		}
+	}
+
+	for (const std::filesystem::path& rejectedFilePath : rejectedPartialFiles)
+	{
+		std::string pathString = rejectedFilePath.string();
+		Lmdb::ReturnCode returnCode = partiallySentDb->deleteKey(std::as_bytes(std::span(pathString)));
+		if (returnCode != Lmdb::ReturnCode::Success)
+		{
+			return;
+		}
+	}
+
+	const Lmdb::ReturnCode returnCode = transaction->commit();
+	if (returnCode != Lmdb::ReturnCode::Success)
+	{
+		return;
 	}
 }
 
-bool ClientStorage::save() const noexcept
+void ClientStorage::filterOutSentFiles(const std::filesystem::path& rootPath, std::vector<std::filesystem::path>& inOutPaths, std::vector<uint64_t>& outPreviouslySentBytes) noexcept
 {
-	using namespace ClientStorageInternal;
+	Lmdb::Result<Lmdb::ReadOnlyTransaction> transaction = Lmdb::ReadOnlyTransaction::create(mEnvironment);
+	if (transaction.isError())
+	{
+		return;
+	}
 
-	std::lock_guard g(mMutex);
-	return BStorage::saveStorage(mStoragePath, WriteClientStorageDataToValue(mStorageData), ClientStorageVersion);
+	Lmdb::Result<Lmdb::ReadOnlyDatabase> sentFilesDb = Lmdb::ReadOnlyDatabase::open(*transaction, ClientStorageInternal::SentFilesDatabaseName);
+	if (sentFilesDb.isError())
+	{
+		return;
+	}
+
+	// it may be theoretically more efficient to load the list and cache it into a better search structure
+	inOutPaths.erase(
+		std::remove_if(inOutPaths.begin(), inOutPaths.end(), [&sentFilesDb, &rootPath](const std::filesystem::path& path) -> bool {
+			bool hasMatched = false;
+			auto result = sentFilesDb->readValue(std::as_bytes(std::span<const char>(path.lexically_relative(rootPath).string())), [&hasMatched](std::span<const std::byte>) {
+				hasMatched = true;
+			});
+			return hasMatched && result == Lmdb::ReturnCode::Success;
+		}),
+		inOutPaths.end()
+	);
+
+	Lmdb::Result<Lmdb::ReadOnlyDatabase> partiallySentDb = Lmdb::ReadOnlyDatabase::open(*transaction, ClientStorageInternal::PartiallySentDatabaseName);
+	if (partiallySentDb.isError())
+	{
+		return;
+	}
+
+	std::vector<ClientStorageData::PartiallySentFile> partiallySent;
+	Lmdb::ReturnCode returnCode = Lmdb::readAllDbRecords(*transaction, *partiallySentDb, [&partiallySent](std::span<const std::byte> key, std::span<const std::byte> value) {
+		uint64_t readBytes = Serialization::readUint64(value);
+		partiallySent.emplace_back(std::string(reinterpret_cast<const char*>(key.data()), key.size()), readBytes);
+	});
+	debugAssert(returnCode == Lmdb::ReturnCode::Success, "Unexpected result from cursor iteration");
+
+	for (auto& file : partiallySent)
+	{
+		auto it = std::find(inOutPaths.begin(), inOutPaths.end(), file.path);
+		if (it == inOutPaths.end())
+		{
+			inOutPaths.emplace(inOutPaths.begin(), file.path);
+		}
+		else if (it != inOutPaths.begin())
+		{
+			std::rotate(inOutPaths.begin(), it, it + 1);
+		}
+		outPreviouslySentBytes.emplace(outPreviouslySentBytes.begin(), file.sentData);
+	}
 }
 
-void ClientStorage::read(const std::function<void(const ClientStorageData&)>& readFn) const noexcept
+void ClientStorage::addConfirmedServerBinding(const ClientStorageData::ServerId& serverId, const ClientStorageData::ServerBinding& binding) noexcept
 {
-	std::lock_guard g(mMutex);
-	readFn(mStorageData);
+	if (serverId.size() > 255)
+	{
+		reportReleaseError("Too long server ID to serialize {}", serverId.size());
+		return;
+	}
+
+	Lmdb::Result<Lmdb::ReadWriteSingleDbWrapper> wrapper = Lmdb::openReadWriteSingleDbTransaction(mEnvironment, ClientStorageInternal::ConfirmedDatabaseName);
+	if (wrapper.isError())
+	{
+		return;
+	}
+
+	std::vector<std::byte> value;
+	value.resize(1 + binding.serverName.size() + binding.connectionId.size() + binding.remoteStaticKey.size() + binding.staticKeys.publicKey.size() + binding.staticKeys.secretKey.size());
+	Serialization::GenericSerializationWrapper serializer{ value };
+
+	if (!serializer.writeShortString(binding.serverName, "serverName")) { return; }
+	if (!serializer.writeFixedData(binding.connectionId, "connectionId")) { return; }
+	if (!serializer.writeFixedData(binding.remoteStaticKey, "remoteStaticKey")) { return; }
+	if (!serializer.writeFixedData(binding.staticKeys.publicKey, "publicKey")) { return; }
+	if (!serializer.writeFixedData(binding.staticKeys.secretKey, "secretKey")) { return; }
+	assertFatalRelease(serializer.getBytesWritten() == value.size(), "Logical error, serialization of confirmed binding leaves not filled bytes, buffer size: {} written: {}", value.size(), serializer.getBytesWritten());
+
+	Lmdb::ReturnCode returnCode = wrapper->database.put(serverId, value);
+	if (returnCode != Lmdb::ReturnCode::Success)
+	{
+		return;
+	}
+
+	returnCode = wrapper->transaction.commit();
+	if (returnCode != Lmdb::ReturnCode::Success)
+	{
+		return;
+	}
 }
 
-void ClientStorage::mutate(const std::function<void(ClientStorageData&)>& mutateFn) noexcept
+bool ClientStorage::removeConfirmedServerBinding(const ClientStorageData::ServerId& serverId) noexcept
 {
-	std::lock_guard g(mMutex);
-	mutateFn(mStorageData);
+	Lmdb::Result<Lmdb::ReadWriteSingleDbWrapper> wrapper = Lmdb::openReadWriteSingleDbTransaction(mEnvironment, ClientStorageInternal::ConfirmedDatabaseName);
+	if (wrapper.isError())
+	{
+		return false;
+	}
+
+	Lmdb::ReturnCode returnCode = wrapper->database.deleteKey(serverId);
+	if (returnCode != Lmdb::ReturnCode::Success)
+	{
+		return false;
+	}
+
+	returnCode = wrapper->transaction.commit();
+	if (returnCode != Lmdb::ReturnCode::Success)
+	{
+		return false;
+	}
+
+	return true;
 }
 
-ClientStorage::ClientStorage(std::filesystem::path&& storagePath, BStorage::Value&& value) noexcept
-	: mStoragePath(std::move(storagePath))
-	, mStorageData(ClientStorageInternal::ReadClientStorageDataFromValue(std::move(value)))
+std::optional<ClientStorageData::ServerBinding> ClientStorage::getConfirmedServerBinding(const ClientStorageData::ServerId& serverId) noexcept
+{
+	Lmdb::Result<Lmdb::ReadOnlySingleDbWrapper> wrapper = Lmdb::openReadOnlySingleDbTransaction(mEnvironment, ClientStorageInternal::ConfirmedDatabaseName);
+	if (wrapper.isError())
+	{
+		return std::nullopt;
+	}
+
+	std::vector<std::byte> value;
+	Lmdb::ReturnCode returnCode = wrapper->database.getDynamic(serverId, value);
+	if (returnCode != Lmdb::ReturnCode::Success)
+	{
+		return std::nullopt;
+	}
+
+	ClientStorageData::ServerBinding result{};
+	Serialization::GenericDeserializationWrapper deserializer{ value };
+
+	if (!deserializer.readShortString(result.serverName, "serverName")) { return std::nullopt; }
+	if (!deserializer.readFixedData(result.connectionId, "connectionId")) { return std::nullopt; }
+	if (!deserializer.readFixedData(result.remoteStaticKey, "remoteStaticKey")) { return std::nullopt; }
+	if (!deserializer.readFixedData(result.staticKeys.publicKey, "publicKey")) { return std::nullopt; }
+	if (!deserializer.readFixedData(result.staticKeys.secretKey, "secretKey")) { return std::nullopt; }
+
+	if (deserializer.getBytesRead() != value.size())
+	{
+		reportReleaseError("Deserialization of server binding read incorrect number of bytes: got {}, read {}", value.size(), deserializer.getBytesRead());
+		return std::nullopt;
+	}
+
+	return result;
+}
+
+bool ClientStorage::hasConfirmedServerBinding(const ClientStorageData::ServerId& serverId) noexcept
+{
+	Lmdb::Result<Lmdb::ReadOnlySingleDbWrapper> wrapper = Lmdb::openReadOnlySingleDbTransaction(mEnvironment, ClientStorageInternal::ConfirmedDatabaseName);
+	if (wrapper.isError())
+	{
+		return false;
+	}
+
+	std::vector<std::byte> value;
+	bool isFound = false;
+	Lmdb::ReturnCode returnCode = wrapper->database.readValue(serverId, [&isFound](std::span<const std::byte>) {
+		isFound = true;
+	});
+	if (returnCode != Lmdb::ReturnCode::Success)
+	{
+		return false;
+	}
+	return isFound;
+}
+
+ClientStorage::ClientStorage(Lmdb::Environment&& environment) noexcept
+	: mEnvironment(std::move(environment))
 {
 }

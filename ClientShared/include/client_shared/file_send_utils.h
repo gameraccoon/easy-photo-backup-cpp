@@ -38,6 +38,5 @@ namespace FileSendUtils
 #endif
 
 	std::vector<std::filesystem::path> collectFilesFromDirectory(std::filesystem::path folderPath) noexcept;
-	void filterOutSentFiles(const std::filesystem::path& commonRoot, ClientStorage& storage, std::vector<std::filesystem::path>& inOutFiles, std::vector<uint64_t>& outPreviouslySentBytes) noexcept;
 	void sendFiles(const std::vector<std::filesystem::path>& files, const std::vector<uint64_t>& previouslySentBytes, const std::filesystem::path& commonRoot, Network::RawSocket socket, ClientStorage& storage, const std::filesystem::path& localDataPath, Noise::CipherStateSending& sendingCipherstate, Noise::CipherStateReceiving& receivingCipherState, Mocks mocks = {}) noexcept;
 } // namespace FileSendUtils

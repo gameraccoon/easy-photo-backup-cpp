@@ -11,6 +11,6 @@
 
 namespace Serialization
 {
-	std::optional<std::string> writeShortString(std::span<std::byte> buffer, std::string_view string, size_t& outBytesWritten);
-	std::optional<std::string> readShortString(const std::span<const std::byte> buffer, std::string& outString, size_t maxStringLength);
+	[[nodiscard]] std::optional<std::string> writeShortString(std::span<std::byte> buffer, std::string_view string, size_t& outBytesWritten) noexcept;
+	[[nodiscard]] std::optional<std::string> readShortString(const std::span<const std::byte> buffer, std::string& outString, size_t maxStringLength) noexcept;
 } // namespace Serialization
