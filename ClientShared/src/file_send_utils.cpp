@@ -239,30 +239,6 @@ namespace FileSendUtils
 			stream.read(reinterpret_cast<char*>(bufferSpan.data()), bufferSpan.size());
 		}
 
-		std::optional<std::string> sendBuffer(Network::RawSocket socket, std::span<std::byte> bufferSpan, size_t bytesFilledInBuffer, Noise::CipherStateSending& sendingCipherstate)
-		{
-#ifdef WITH_TESTS
-			if (mocks.sendBuffer)
-			{
-				return mocks.sendBuffer(socket, bufferSpan, bytesFilledInBuffer, sendingCipherstate);
-			}
-#endif
-
-			return Network::sendEncrypted(socket, bufferSpan, bytesFilledInBuffer, sendingCipherstate);
-		}
-
-		std::optional<std::string> recvAnswerBuffer(Network::RawSocket socket, std::span<std::byte> bufferSpan, size_t& bytesFilledInBuffer, Noise::CipherStateReceiving& receivingCipherstate)
-		{
-#ifdef WITH_TESTS
-			if (mocks.recvAnswerBuffer)
-			{
-				return mocks.recvAnswerBuffer(socket, bufferSpan, bytesFilledInBuffer, receivingCipherstate);
-			}
-#endif
-
-			return Network::recvEncrypted(socket, bufferSpan, bytesFilledInBuffer, receivingCipherstate);
-		}
-
 		[[nodiscard]] size_t partiallyWriteDataToChunk(std::span<const std::byte> data, size_t alreadyWrittenBytes) noexcept
 		{
 			assertFatalRelease(bytesFilledInChunk < ChunkSize && alreadyWrittenBytes < data.size(), "logical error, precondition failed, some of the sizes in partiallyWriteDataToChunk don't make sense");
@@ -365,7 +341,7 @@ namespace FileSendUtils
 				return false;
 			}
 
-			auto sendResult = sendBuffer(socket, buffer, bytesFilledInChunk, sendingCipherstate);
+			auto sendResult = Network::sendEncrypted(socket, buffer, bytesFilledInChunk, sendingCipherstate);
 			if (sendResult.has_value()) [[unlikely]]
 			{
 				reportDebugError("Could not send file part: {}", *sendResult);
@@ -449,9 +425,9 @@ namespace FileSendUtils
 			Cryptography::ByteSequence<Cryptography::ByteSequenceTag::TempInternalBuffer, AnswerChunkSize + Cryptography::CipherAuthDataSize> receivingBuffer;
 
 			size_t posInChunk = 0;
-			auto readChunk = [this, socket, &receivingBuffer, &receivingCipherstate, &posInChunk] {
+			auto readChunk = [socket, &receivingBuffer, &receivingCipherstate, &posInChunk] {
 				size_t bytesReceived = 0;
-				if (auto result = recvAnswerBuffer(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value()) [[unlikely]]
+				if (auto result = Network::recvEncrypted(socket, receivingBuffer, bytesReceived, receivingCipherstate); result.has_value()) [[unlikely]]
 				{
 					reportDebugError("Could not recv answer chunk: {}", *result);
 					return false;

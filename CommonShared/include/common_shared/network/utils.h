@@ -15,12 +15,21 @@
 #include <basetsd.h>
 #endif
 
+#ifdef WITH_TESTS
+#include <functional>
+#endif
+
 namespace Network
 {
 #if _WIN32
 	using RawSocket = UINT_PTR;
 #else
 	using RawSocket = int;
+#endif
+
+#ifdef WITH_TESTS
+	extern std::function<int(RawSocket, const char*, int, int)> gSendTestMock;
+	extern std::function<int(RawSocket, char*, int, int)> gRecvTestMock;
 #endif
 
 	enum class AddressType : uint8_t

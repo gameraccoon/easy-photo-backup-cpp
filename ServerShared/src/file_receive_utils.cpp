@@ -171,18 +171,6 @@ namespace FileReceiveUtils
 			}
 		}
 
-		std::optional<std::string> recvBuffer(Network::RawSocket socket, std::span<std::byte> bufferSpan, size_t& bytesReceived, Noise::CipherStateReceiving& receivingCipherstate)
-		{
-#ifdef WITH_TESTS
-			if (mocks.recvBuffer)
-			{
-				return mocks.recvBuffer(socket, bufferSpan, bytesReceived, receivingCipherstate);
-			}
-#endif
-
-			return Network::recvEncrypted(socket, bufferSpan, bytesReceived, receivingCipherstate);
-		}
-
 		bool isFileExist(const std::filesystem::path& path) const
 		{
 #ifdef WITH_TESTS
@@ -281,18 +269,6 @@ namespace FileReceiveUtils
 #endif
 
 			stream.write(reinterpret_cast<const char*>(bufferSpan.data()), bufferSpan.size());
-		}
-
-		std::optional<std::string> sendAnswerBuffer(Network::RawSocket socket, std::span<std::byte> bufferToSend, size_t bytesToSend, Noise::CipherStateSending& sendingCipherstate)
-		{
-#ifdef WITH_TESTS
-			if (mocks.sendAnswerBuffer)
-			{
-				return mocks.sendAnswerBuffer(socket, bufferToSend, bytesToSend, sendingCipherstate);
-			}
-#endif
-
-			return Network::sendEncrypted(socket, bufferToSend, bytesToSend, sendingCipherstate);
 		}
 
 		[[nodiscard]] size_t partiallyReadDataFromChunk(std::span<std::byte> data, size_t alreadyReadBytes) noexcept
@@ -552,7 +528,7 @@ namespace FileReceiveUtils
 			}
 
 			size_t bytesReceived = 0;
-			auto readResult = recvBuffer(socket, buffer, bytesReceived, receivingCipherstate);
+			auto readResult = Network::recvEncrypted(socket, buffer, bytesReceived, receivingCipherstate);
 			if (readResult.has_value())
 			{
 				reportDebugError("Could not recv file part: {}", *readResult);
@@ -606,8 +582,8 @@ namespace FileReceiveUtils
 			const size_t bitsetChunks = (BitsetOffset + bytesInBitset + AnswerChunkSize - 1) / AnswerChunkSize;
 
 			size_t posInChunk = BitsetOffset;
-			auto sendChunk = [this, socket, &sendingBuffer, &sendingCipherstate, &posInChunk] {
-				if (auto result = sendAnswerBuffer(socket, sendingBuffer, AnswerChunkSize, sendingCipherstate))
+			auto sendChunk = [socket, &sendingBuffer, &sendingCipherstate, &posInChunk] {
+				if (auto result = Network::sendEncrypted(socket, sendingBuffer, AnswerChunkSize, sendingCipherstate))
 				{
 					reportDebugError("Could not send answer bitset chunk: {}", *result);
 					return false;

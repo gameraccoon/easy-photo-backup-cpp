@@ -21,6 +21,17 @@ namespace Network
 	constexpr bool debugPrintBuffers = false;
 #endif // DEBUG_CHECKS
 
+#if _WIN32
+	using PlatformResultSize = int;
+#else
+	using PlatformResultSize = ssize_t;
+#endif
+
+#ifdef WITH_TESTS
+	std::function<int(RawSocket, const char*, int, int)> gSendTestMock;
+	std::function<int(RawSocket, char*, int, int)> gRecvTestMock;
+#endif
+
 	[[noreturn]] static void unreachable()
 	{
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
@@ -415,6 +426,18 @@ namespace Network
 		}
 	}
 
+	static PlatformResultSize platformSend(RawSocket socket, const char* buffer, int dataSize, int flags)
+	{
+#ifdef WITH_TESTS
+		if (gSendTestMock != nullptr)
+		{
+			return gSendTestMock(socket, buffer, dataSize, flags);
+		}
+#endif
+
+		return ::send(socket, buffer, dataSize, flags);
+	}
+
 	std::optional<std::string> send(const RawSocket socket, std::span<const std::byte> data)
 	{
 #if defined(__linux__) || defined(__ANDROID__)
@@ -423,7 +446,7 @@ namespace Network
 		const int flags = 0;
 #endif
 
-		const auto sentSize = ::send(socket, reinterpret_cast<const char*>(data.data()), static_cast<int>(data.size()), flags);
+		const PlatformResultSize sentSize = platformSend(socket, reinterpret_cast<const char*>(data.data()), static_cast<int>(data.size()), flags);
 		if (sentSize == -1) [[unlikely]]
 		{
 			return std::format("Failed to send data to socket, error code {}.", getLastSocketError());
@@ -435,9 +458,9 @@ namespace Network
 			return std::string("Sent size was zero, this is unexpected");
 		}
 
-		assertFatalRelease(sentSize <= static_cast<int>(data.size()), "send wrote more bytes than the size of the buffer. This should never happen and may signal about a vulnerability. We have to crash so signal about the severity of this.");
+		assertFatalRelease(sentSize <= static_cast<PlatformResultSize>(data.size()), "send wrote more bytes than the size of the buffer. This should never happen and may signal about a vulnerability. We have to crash so signal about the severity of this.");
 
-		if (sentSize != static_cast<int>(data.size())) [[unlikely]]
+		if (sentSize != static_cast<PlatformResultSize>(data.size())) [[unlikely]]
 		{
 			reportDebugError("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
 			return std::format("Sent size was different from the message size, this is not expected. Expected: {}, sent: {}", data.size(), sentSize);
@@ -453,6 +476,18 @@ namespace Network
 		return std::nullopt;
 	}
 
+	static PlatformResultSize platformRecv(RawSocket socket, char* buffer, int dataSize, int flags) noexcept
+	{
+#ifdef WITH_TESTS
+		if (gRecvTestMock != nullptr)
+		{
+			return gRecvTestMock(socket, buffer, dataSize, flags);
+		}
+#endif
+
+		return ::recv(socket, buffer, dataSize, flags);
+	}
+
 	std::optional<std::string> recv(const RawSocket socket, std::span<std::byte> outData, int bytesToRead, size_t& receivedBytes)
 	{
 		// -1 is a special value meaning "read once up to the buffer size"
@@ -464,7 +499,7 @@ namespace Network
 		receivedBytes = 0;
 		while ((receivedBytes == 0 && bytesToRead == -1) || (static_cast<int>(receivedBytes) < bytesToRead))
 		{
-			const int messageSize = ::recv(socket, reinterpret_cast<char*>(outData.data() + receivedBytes), bytesToRead > 0 ? static_cast<int>(bytesToRead - receivedBytes) : static_cast<int>(outData.size() - receivedBytes), 0);
+			const PlatformResultSize messageSize = platformRecv(socket, reinterpret_cast<char*>(outData.data() + receivedBytes), bytesToRead > 0 ? static_cast<int>(bytesToRead - receivedBytes) : static_cast<int>(outData.size() - receivedBytes), 0);
 			if (messageSize == -1) [[unlikely]]
 			{
 				return std::format("Failed to recv data from TCP socket, error code {}.", getLastSocketError());

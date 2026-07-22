@@ -14,7 +14,6 @@
 #include "tests/helper_utils.h"
 #include <gtest/gtest.h>
 
-#include "common_shared/cryptography/noise/cipher_utils.h"
 #include "common_shared/cryptography/primitives/hash_functions.h"
 #include "common_shared/cryptography/utils/random.h"
 #include "common_shared/network/protocol.h"
@@ -23,7 +22,9 @@
 #include "server_shared/file_receive_utils.h"
 
 static constexpr size_t ChunkSize = Protocol::FileExchange::ChunkSize;
-static constexpr size_t BytesBetweenAnswers = Protocol::FileExchange::ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers;
+static constexpr size_t TransportChunkSize = ChunkSize + Cryptography::CipherAuthDataSize;
+static constexpr size_t BytesBetweenAnswers = ChunkSize * Protocol::FileExchange::ChunksBetweenAnswers;
+static constexpr size_t TransportBytesBetweenAnswers = TransportChunkSize * Protocol::FileExchange::ChunksBetweenAnswers;
 static constexpr size_t StaticHeaderSize = 2 + 8;
 static constexpr size_t StaticHeaderSizeBigFile = StaticHeaderSize + Cryptography::HASHLEN;
 static constexpr size_t StaticHeaderSizePartial = StaticHeaderSize + Cryptography::HASHLEN + sizeof(uint64_t);
@@ -50,8 +51,14 @@ public:
 	{
 		const auto timeStart = std::chrono::steady_clock::now();
 		// one second timeout
-		while (std::chrono::steady_clock::now() - timeStart < std::chrono::seconds(1))
+		while (true)
 		{
+			if (std::chrono::steady_clock::now() - timeStart >= std::chrono::seconds(1)) [[unlikely]]
+			{
+				EXPECT_TRUE(false) << "Message pipe timeout";
+				return std::nullopt;
+			}
+
 			std::unique_lock l(mMessagesMutex);
 			if (mMessages.empty())
 			{
@@ -225,9 +232,79 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 	TestMessagePipe<Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize> fileMessages;
 	TestMessagePipe<Protocol::FileExchange::AnswerChunkSize + Cryptography::CipherAuthDataSize> answerMessages;
 
-	auto sendingThread = std::thread([&filesToSend, &fileMessages, &answerMessages, &cipherKeyFromSenderToReceiver, &cipherKeyFromReceiverToSender, &clientStorage, &instructions]() {
+	constexpr Network::RawSocket senderSocket = 1;
+	constexpr Network::RawSocket receiverSocket = 2;
+
+	size_t bytesWritten = 0;
+	Network::gSendTestMock = [&instructions, &bytesWritten, &fileMessages, &answerMessages](Network::RawSocket socket, const char* buffer, int dataSize, int /*flags*/) -> int {
+		if (socket == senderSocket)
+		{
+			bytesWritten += dataSize;
+			if (bytesWritten > instructions.breakFileSendPipeAfterBytes)
+			{
+				return -1;
+			}
+
+			fileMessages.push(std::span<const std::byte>(reinterpret_cast<const std::byte*>(buffer), dataSize));
+		}
+		else if (socket == receiverSocket)
+		{
+			answerMessages.push(std::span<const std::byte>(reinterpret_cast<const std::byte*>(buffer), dataSize));
+		}
+		else
+		{
+			EXPECT_FALSE(true) << "Unexpected send caller";
+		}
+
+		return dataSize;
+	};
+
+	size_t bytesRead = 0;
+	Network::gRecvTestMock = [&instructions, &bytesRead, &fileMessages, &answerMessages](Network::RawSocket socket, char* buffer, int dataSize, int /*flags*/) -> int {
+		if (socket == senderSocket)
+		{
+			auto receivedBytes = answerMessages.pop();
+			if (!receivedBytes.has_value())
+			{
+				return -1;
+			}
+			EXPECT_EQ(static_cast<int>(receivedBytes->size()), dataSize);
+			if (dataSize >= static_cast<int>(receivedBytes->size()))
+			{
+				std::memcpy(buffer, reinterpret_cast<const char*>(receivedBytes->data()), receivedBytes->size());
+				return receivedBytes->size();
+			}
+		}
+		else if (socket == receiverSocket)
+		{
+			bytesRead += dataSize;
+			if (bytesRead > instructions.breakFileSendPipeAfterBytes)
+			{
+				// we know that the pipe is broken, so no need to wait until the timeout
+				return -1;
+			}
+
+			auto receivedBytes = fileMessages.pop();
+			if (!receivedBytes.has_value())
+			{
+				return -1;
+			}
+			EXPECT_EQ(static_cast<int>(receivedBytes->size()), dataSize);
+			if (dataSize >= static_cast<int>(receivedBytes->size()))
+			{
+				std::memcpy(buffer, reinterpret_cast<const char*>(receivedBytes->data()), receivedBytes->size());
+				return receivedBytes->size();
+			}
+		}
+		else
+		{
+			EXPECT_FALSE(true) << "Unexpected recv caller";
+		}
+		return -1;
+	};
+
+	auto sendingThread = std::thread([&filesToSend, &cipherKeyFromSenderToReceiver, &cipherKeyFromReceiverToSender, &clientStorage]() {
 		int fileToWriteIdx = -1;
-		size_t bytesWritten = 0;
 		size_t fileCursor = 0;
 		FileSendUtils::Mocks sendMocks{
 			.openFile = [&filesToSend, &fileToWriteIdx, &fileCursor](std::ifstream&, const std::filesystem::path& path) {
@@ -257,7 +334,6 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				{
 					return -1;
 				}
-				Cryptography::hash_blake2b(filesToSend[fileToWriteIdx].data, result);
 				Cryptography::hash_blake2b(std::span<const std::byte>(filesToSend[fileToWriteIdx].data.data(), size), result);
 				return 0;
 			},
@@ -266,38 +342,6 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				std::copy(filesToSend[fileToWriteIdx].data.data() + fileCursor, filesToSend[fileToWriteIdx].data.data() + fileCursor + buffer.size(), buffer.data());
 				fileCursor += buffer.size();
 			},
-			.sendBuffer = [&fileMessages, &bytesWritten, &instructions](Network::RawSocket, std::span<std::byte> buffer, size_t bytesToWrite, Noise::CipherStateSending& sendingState) -> std::optional<std::string> {
-				EXPECT_EQ(buffer.size(), Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize);
-				EXPECT_EQ(bytesToWrite, Protocol::FileExchange::ChunkSize);
-				EXPECT_EQ(Noise::Utils::encryptTransportMessageInplace(sendingState, buffer), Cryptography::EncryptResult::Success);
-				fileMessages.push(buffer);
-
-				bytesWritten += bytesToWrite;
-				if (bytesWritten > instructions.breakFileSendPipeAfterBytes)
-				{
-					return "Pipe is broken as per test request";
-				}
-				return std::nullopt;
-			},
-			.recvAnswerBuffer = [&answerMessages](Network::RawSocket, std::span<std::byte> buffer, size_t& bytesReceived, Noise::CipherStateReceiving& receivingState) -> std::optional<std::string> {
-				constexpr const size_t BytesToRead = Protocol::FileExchange::AnswerChunkSize + Cryptography::CipherAuthDataSize;
-				constexpr const size_t BytesToReturn = Protocol::FileExchange::AnswerChunkSize;
-				EXPECT_EQ(buffer.size(), BytesToRead);
-				std::optional<std::array<std::byte, BytesToRead>> receivedBytes = answerMessages.pop();
-				if (!receivedBytes.has_value())
-				{
-					return "Timeout on reading from stream";
-				}
-				EXPECT_EQ(receivedBytes->size(), buffer.size());
-				std::copy(receivedBytes->begin(), receivedBytes->end(), buffer.begin());
-				if (auto result = Noise::Utils::decryptTransportMessageInplace(receivingState, std::span<std::byte>(buffer.data(), BytesToRead)); result != Cryptography::DecryptResult::Success)
-				{
-					return std::format("Could not decode the message from the stream: {}", static_cast<int>(result));
-				}
-
-				bytesReceived = BytesToReturn;
-				return std::nullopt;
-			}
 		};
 
 		Noise::CipherStateSending cipherStateSending;
@@ -313,41 +357,16 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 		}
 		std::vector<uint64_t> previouslySentBytes;
 		clientStorage.filterOutSentFiles("", filePathsToSend, previouslySentBytes);
-		FileSendUtils::sendFiles(filePathsToSend, previouslySentBytes, "", 0, clientStorage, "", cipherStateSending, cipherStateReceiving, sendMocks);
+		FileSendUtils::sendFiles(filePathsToSend, previouslySentBytes, "", senderSocket, clientStorage, "", cipherStateSending, cipherStateReceiving, sendMocks);
 	});
 
 	std::vector<TestFileExchangeFile> receivedFiles = cloneTestFiles(instructions.existingFiles);
 	receivedFiles.reserve(receivedFiles.size() + filesToSend.size());
-	size_t bytesRead = 0;
 	size_t overriddenFileIdx = std::numeric_limits<size_t>::max();
 	std::vector<bool> overriddenFileFlags;
 	overriddenFileFlags.resize(instructions.expectedOverriddenFiles.size(), false);
 
 	FileReceiveUtils::Mocks receiveMocks{
-		.recvBuffer = [&fileMessages, &instructions, &bytesRead](Network::RawSocket, std::span<std::byte> buffer, size_t& bytesReceived, Noise::CipherStateReceiving& receivingState) -> std::optional<std::string> {
-			constexpr const size_t BytesToRead = Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize;
-			constexpr const size_t BytesToReturn = Protocol::FileExchange::ChunkSize;
-			EXPECT_EQ(buffer.size(), BytesToRead);
-			std::optional<std::array<std::byte, BytesToRead>> receivedBytes = fileMessages.pop();
-			if (!receivedBytes.has_value())
-			{
-				return "Timeout on reading from stream";
-			}
-			std::copy(receivedBytes->begin(), receivedBytes->end(), buffer.begin());
-			if (auto result = Noise::Utils::decryptTransportMessageInplace(receivingState, std::span<std::byte>(buffer.data(), BytesToRead)); result != Cryptography::DecryptResult::Success)
-			{
-				return std::format("Could not decode the message from the stream: {}", static_cast<int>(result));
-			}
-
-			bytesRead += BytesToReturn;
-			if (bytesRead > instructions.breakFileSendPipeAfterBytes)
-			{
-				return "Pipe is broken as per test request";
-			}
-
-			bytesReceived = BytesToReturn;
-			return std::nullopt;
-		},
 		.isFileExists = [&receivedFiles](const std::filesystem::path& path) {
 			return std::find_if(receivedFiles.begin(), receivedFiles.end(), [&path](const TestFileExchangeFile& file) {
 					   return file.path == path;
@@ -446,13 +465,6 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				expectBuffersEqual(buffer, std::span<const std::byte>(fileRange.data.data() + expectedStartPos, buffer.size()));
 			}
 		},
-		.sendAnswerBuffer = [&answerMessages](Network::RawSocket, std::span<std::byte> buffer, size_t bytesToWrite, Noise::CipherStateSending& sendingState) -> std::optional<std::string> {
-			EXPECT_EQ(buffer.size(), Protocol::FileExchange::AnswerChunkSize + Cryptography::CipherAuthDataSize);
-			EXPECT_EQ(bytesToWrite, Protocol::FileExchange::AnswerChunkSize);
-			EXPECT_EQ(Noise::Utils::encryptTransportMessageInplace(sendingState, buffer), Cryptography::EncryptResult::Success);
-			answerMessages.push(buffer);
-			return std::nullopt;
-		},
 	};
 
 	Noise::CipherStateSending cipherStateSending;
@@ -460,7 +472,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 	Noise::CipherStateReceiving cipherStateReceiving;
 	cipherStateReceiving.cipherKey = cipherKeyFromSenderToReceiver.clone();
 
-	FileReceiveUtils::receiveFiles("", 0, cipherStateSending, cipherStateReceiving, receiveMocks);
+	FileReceiveUtils::receiveFiles("", receiverSocket, cipherStateSending, cipherStateReceiving, receiveMocks);
 	sendingThread.join();
 
 	EXPECT_EQ(size_t(0), fileMessages.size());
@@ -496,11 +508,17 @@ class FileSendReceiveTest : public testing::Test
 protected:
 	void SetUp() override
 	{
+		// clean after a potential crash
+		std::filesystem::remove_all("test_storage");
+		// create root for the save file
 		std::filesystem::create_directories("test_storage");
 	}
 
 	void TearDown() override
 	{
+		Network::gSendTestMock = nullptr;
+		Network::gRecvTestMock = nullptr;
+
 		{
 			auto env = Lmdb::Environment::open("test_storage", 10);
 			ASSERT_TRUE(env.isValid());
@@ -513,109 +531,6 @@ protected:
 		std::filesystem::remove_all("test_storage");
 	}
 };
-
-TEST_F(FileSendReceiveTest, SendNoFiles_SendsOneChunkOfZeros)
-{
-	bool sendBufferCalled = false;
-	bool isFileOpenCalled = false;
-	bool getFileLengthCalled = false;
-	bool readAnswerCalled = false;
-	FileSendUtils::Mocks sendMocks{
-		.openFile = [](std::ifstream&, const std::filesystem::path&) {
-			FAIL();
-		},
-		.getFileLength = [&getFileLengthCalled](std::ifstream&) -> uint64_t {
-			getFileLengthCalled = true;
-			return 0;
-		},
-		.isFileOpen = [&isFileOpenCalled](std::ifstream&) -> bool {
-			isFileOpenCalled = true;
-			return false;
-		},
-		.seek = [](std::ifstream&, size_t) -> void {
-		},
-		.calculateFileHash = [](std::ifstream&, size_t, Cryptography::HashResult& outHash) -> int {
-			outHash = {};
-			return 0;
-		},
-		.readFileStreamIntoSpan = [](std::ifstream&, std::span<std::byte>) {
-			FAIL();
-		},
-		.sendBuffer = [&sendBufferCalled](Network::RawSocket socket, std::span<std::byte> buffer, size_t size, Noise::CipherStateSending&) -> std::optional<std::string> {
-			EXPECT_EQ(socket, Network::RawSocket(0));
-			EXPECT_TRUE(std::all_of(buffer.begin(), buffer.end(), [](std::byte v) {
-				return v == std::byte(0);
-			}));
-			EXPECT_EQ(buffer.size(), Protocol::FileExchange::ChunkSize + Cryptography::CipherAuthDataSize);
-			EXPECT_EQ(size, Protocol::FileExchange::ChunkSize);
-			sendBufferCalled = true;
-			return std::nullopt;
-		},
-		.recvAnswerBuffer = [&readAnswerCalled](Network::RawSocket, std::span<std::byte>, size_t&, Noise::CipherStateReceiving&) -> std::optional<std::string> {
-			readAnswerCalled = true;
-			return std::nullopt;
-		},
-	};
-
-	Noise::CipherStateSending cipherStateSending;
-	vectorToArray(hexToBytes("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), cipherStateSending.cipherKey.raw);
-	Noise::CipherStateReceiving cipherStateReceiving;
-	cipherStateReceiving.cipherKey = cipherStateSending.cipherKey.clone();
-
-	ClientStorage clientStorage = *ClientStorage::openStorage("test_storage");
-	std::vector<std::filesystem::path> filePathsToSend;
-	std::vector<uint64_t> previouslySentBytes;
-	FileSendUtils::sendFiles(filePathsToSend, previouslySentBytes, "", 0, clientStorage, "", cipherStateSending, cipherStateReceiving, sendMocks);
-
-	EXPECT_TRUE(sendBufferCalled);
-	EXPECT_FALSE(isFileOpenCalled);
-	EXPECT_FALSE(getFileLengthCalled);
-	EXPECT_FALSE(readAnswerCalled);
-}
-
-TEST_F(FileSendReceiveTest, ReceiveChunkOfZeros_SavedNoFiles)
-{
-	bool recvBufferCalled = false;
-	bool sendAnswerCalled = false;
-	FileReceiveUtils::Mocks receiveMocks{
-		.recvBuffer = [&recvBufferCalled](Network::RawSocket, std::span<std::byte> buffer, size_t& bytesReceived, Noise::CipherStateReceiving&) -> std::optional<std::string> {
-			buffer = {};
-			bytesReceived = Protocol::FileExchange::ChunkSize;
-			recvBufferCalled = true;
-			return std::nullopt;
-		},
-		.isFileExists = [](const std::filesystem::path&) {
-			return false;
-		},
-		.openFile = [](std::ofstream&, size_t, const std::filesystem::path&) {
-			FAIL();
-		},
-		.isFileOpen = [](std::ofstream&) -> bool {
-			return false;
-		},
-		.calculateFileHash = [](const std::filesystem::path&, size_t, Cryptography::HashResult& outHash) -> int {
-			outHash = {};
-			return 0;
-		},
-		.writeSpanIntoStream = [](std::ofstream&, std::span<const std::byte>) {
-			FAIL();
-		},
-		.sendAnswerBuffer = [&sendAnswerCalled](Network::RawSocket, std::span<std::byte>, size_t, Noise::CipherStateSending&) -> std::optional<std::string> {
-			sendAnswerCalled = true;
-			return std::nullopt;
-		},
-	};
-
-	Noise::CipherStateSending cipherStateSending;
-	vectorToArray(hexToBytes("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), cipherStateSending.cipherKey.raw);
-	Noise::CipherStateReceiving cipherStateReceiving;
-	cipherStateReceiving.cipherKey = cipherStateSending.cipherKey.clone();
-
-	FileReceiveUtils::receiveFiles("", 0, cipherStateSending, cipherStateReceiving, receiveMocks);
-
-	EXPECT_TRUE(recvBufferCalled);
-	EXPECT_FALSE(sendAnswerCalled);
-}
 
 TEST_F(FileSendReceiveTest, Roundtrip_SendAndReceiveOneEmptyFile_SuccessfullyReceived)
 {
@@ -964,7 +879,7 @@ TEST_F(FileSendReceiveTest, Roundtrip_BigFilesPartiallySentAndThenContinued_Only
 		filesToConfirmFirstChunk,
 		FileExchangeTestInstructions{
 			// break right after we received an answer, so we have some files fully received and one file in partiallly confirmed state
-			.breakFileSendPipeAfterBytes = BytesBetweenAnswers + 2048,
+			.breakFileSendPipeAfterBytes = TransportBytesBetweenAnswers + TransportChunkSize * 2,
 		}
 	);
 	AssertHelper::enableAsserts();
@@ -1034,7 +949,7 @@ TEST_F(FileSendReceiveTest, Roundtrip_BigFilesPartiallySentAndThenDiscoveredCorr
 		filesToConfirmFirstChunk,
 		FileExchangeTestInstructions{
 			// break right after we received an answer, so we have some files fully received and one file in partiallly confirmed state
-			.breakFileSendPipeAfterBytes = BytesBetweenAnswers + 2048,
+			.breakFileSendPipeAfterBytes = TransportBytesBetweenAnswers + TransportChunkSize * 2,
 		}
 	);
 	AssertHelper::enableAsserts();
@@ -1081,7 +996,7 @@ TEST_F(FileSendReceiveTest, Roundtrip_BigFilePartiallySentFourTimesAndThenSentFu
 	constexpr size_t FileHeaderSizePartial = StaticHeaderSizePartial + 4;
 
 	// send one between-answer chunks worth of file
-	constexpr size_t FirstMessageBreakPoint = BytesBetweenAnswers + ChunkSize + 10;
+	constexpr size_t FirstMessageBreakPoint = TransportBytesBetweenAnswers + TransportChunkSize + 10;
 	constexpr size_t FirstMessageFileWrittenBytes = BytesBetweenAnswers + ChunkSize - FileHeaderSizeStart;
 	constexpr size_t FirstMessageFileApprovedBytes = BytesBetweenAnswers - FileHeaderSizeStart;
 	TestFileExchangeFile fileToReceiveFirstChunk = fileToSend;
@@ -1099,7 +1014,7 @@ TEST_F(FileSendReceiveTest, Roundtrip_BigFilePartiallySentFourTimesAndThenSentFu
 	AssertHelper::enableAsserts();
 
 	// send one more between-answer chunks worth of file
-	constexpr size_t SecondMessageBreakPoint = BytesBetweenAnswers * 2 + ChunkSize * 2 + 6;
+	constexpr size_t SecondMessageBreakPoint = TransportBytesBetweenAnswers * 2 + TransportChunkSize * 2 + 6;
 	constexpr size_t SecondMessageFileWrittenBytes = FirstMessageFileApprovedBytes + BytesBetweenAnswers * 2 + ChunkSize * 2 - FileHeaderSizePartial;
 	constexpr size_t SecondMessageFileApprovedBytes = FirstMessageFileApprovedBytes + BytesBetweenAnswers * 2 - FileHeaderSizePartial;
 	TestFileExchangeFile fileToReceiveSecondChunk = fileToSend;
@@ -1123,7 +1038,7 @@ TEST_F(FileSendReceiveTest, Roundtrip_BigFilePartiallySentFourTimesAndThenSentFu
 	AssertHelper::enableAsserts();
 
 	// send less than one asnwer-chunk worth of tile
-	constexpr size_t ThirdMessageBreakPoint = ChunkSize * 3 + 90;
+	constexpr size_t ThirdMessageBreakPoint = TransportChunkSize * 3 + 90;
 	constexpr size_t ThirdMessageFileWrittenBytes = SecondMessageFileApprovedBytes + ChunkSize * 3 - FileHeaderSizePartial;
 	constexpr size_t ThirdMessageFileApprovedBytes = SecondMessageFileApprovedBytes;
 	TestFileExchangeFile fileToReceiveThirdChunk = fileToSend;
@@ -1147,7 +1062,7 @@ TEST_F(FileSendReceiveTest, Roundtrip_BigFilePartiallySentFourTimesAndThenSentFu
 	AssertHelper::enableAsserts();
 
 	// send one more between-answer chunks worth of file
-	constexpr size_t FourthMessageBreakPoint = BytesBetweenAnswers + ChunkSize + 12;
+	constexpr size_t FourthMessageBreakPoint = TransportBytesBetweenAnswers + TransportChunkSize + 12;
 	constexpr size_t FourthMessageFileWrittenBytes = ThirdMessageFileApprovedBytes + BytesBetweenAnswers + ChunkSize - FileHeaderSizePartial;
 	constexpr size_t FourthMessageFileApprovedBytes = ThirdMessageFileApprovedBytes + BytesBetweenAnswers - FileHeaderSizePartial;
 	TestFileExchangeFile fileToReceiveFourthChunk = fileToSend.clone();

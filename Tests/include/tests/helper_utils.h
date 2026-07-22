@@ -23,10 +23,7 @@ template<size_t Size>
 void vectorToArray(const std::span<const std::byte> inVector, std::array<std::byte, Size>& outArray)
 {
 	ASSERT_EQ(inVector.size(), outArray.size());
-	for (size_t i = 0; i < outArray.size(); ++i)
-	{
-		outArray[i] = inVector[i];
-	}
+	std::copy(inVector.begin(), inVector.end(), outArray.begin());
 }
 
 template<size_t Size>
