@@ -674,11 +674,11 @@ TEST_F(FileSendReceiveTest, Roundtrip_SendAndReceiveFilesWithWrongPath_AllReject
 	runFileExchangeTest(clientStorage, filesToSend, {}, {});
 }
 
-TEST_F(FileSendReceiveTest, Roundtrip_2000EmptyFiles_SuccessfullyReceived)
+TEST_F(FileSendReceiveTest, Roundtrip_10000EmptyFiles_SuccessfullyReceived)
 {
 	ClientStorage clientStorage = *ClientStorage::openStorage("test_storage");
 	std::vector<TestFileExchangeFile> filesToSend;
-	constexpr size_t FilesCount = 2000;
+	constexpr size_t FilesCount = 10000;
 	filesToSend.reserve(FilesCount);
 	for (size_t i = 0; i < FilesCount; ++i)
 	{
