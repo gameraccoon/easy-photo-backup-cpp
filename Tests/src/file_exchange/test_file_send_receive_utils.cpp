@@ -244,7 +244,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 			if (dataSize >= static_cast<int>(receivedBytes->size()))
 			{
 				std::memcpy(buffer, reinterpret_cast<const char*>(receivedBytes->data()), receivedBytes->size());
-				return receivedBytes->size();
+				return static_cast<int>(receivedBytes->size());
 			}
 		}
 		else if (socket == receiverSocket)
@@ -265,7 +265,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 			if (dataSize >= static_cast<int>(receivedBytes->size()))
 			{
 				std::memcpy(buffer, reinterpret_cast<const char*>(receivedBytes->data()), receivedBytes->size());
-				return receivedBytes->size();
+				return static_cast<int>(receivedBytes->size());
 			}
 		}
 		else
