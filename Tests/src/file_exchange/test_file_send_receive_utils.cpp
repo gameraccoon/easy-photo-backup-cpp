@@ -332,23 +332,18 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 
 	std::vector<TestFileExchangeFile> receivedFiles = instructions.existingFiles;
 	receivedFiles.reserve(receivedFiles.size() + filesToSend.size());
+	std::unordered_map<std::filesystem::path, size_t> receivedFilesIndex = collectIndex(receivedFiles);
 	size_t overriddenFileIdx = std::numeric_limits<size_t>::max();
 	std::vector<bool> overriddenFileFlags;
 	overriddenFileFlags.resize(instructions.expectedOverriddenFiles.size(), false);
 
 	FileReceiveUtils::Mocks receiveMocks{
-		.isFileExists = [&receivedFiles](const std::filesystem::path& path) {
-			return std::find_if(receivedFiles.begin(), receivedFiles.end(), [&path](const TestFileExchangeFile& file) {
-					   return file.path == path;
-				   })
-				!= receivedFiles.end();
+		.isFileExists = [&receivedFilesIndex](const std::filesystem::path& path) {
+			return receivedFilesIndex.contains(path);
 		},
-		.openFile = [&receivedFiles, &instructions, &overriddenFileIdx, &overriddenFileFlags](std::ofstream&, size_t cursor, const std::filesystem::path& path) {
+		.openFile = [&receivedFiles, &receivedFilesIndex, &instructions, &overriddenFileIdx, &overriddenFileFlags](std::ofstream&, size_t cursor, const std::filesystem::path& path) {
 			overriddenFileIdx = std::numeric_limits<size_t>::max();
-			if (auto it = std::find_if(receivedFiles.begin(), receivedFiles.end(), [path](const TestFileExchangeFile& file) {
-					return file.path == path;
-				});
-				it != receivedFiles.end())
+			if (auto it = receivedFilesIndex.find(path); it != receivedFilesIndex.end())
 			{
 				if (auto expectedFileIt = std::find_if(instructions.expectedOverriddenFiles.begin(), instructions.expectedOverriddenFiles.end(), [&path](auto& element) {
 						return element.path == path;
@@ -363,7 +358,10 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 				{
 					FAIL() << std::format("File {} is being overridden, which is not expected", path.string());
 				}
-				std::swap(receivedFiles.back(), *it);
+				size_t position = it->second;
+				std::swap(receivedFiles.back(), receivedFiles[position]);
+				it->second = receivedFiles.size() - 1;
+				receivedFilesIndex[receivedFiles[position].path] = position;
 			}
 			else
 			{
@@ -379,6 +377,7 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 					.path = path,
 					.data = {},
 				});
+				receivedFilesIndex.emplace(path, receivedFiles.size() - 1);
 			}
 
 			ASSERT_LE(cursor, receivedFiles.back().data.size());
@@ -388,26 +387,26 @@ static FileExchangeTestResult runFileExchangeTest(ClientStorage& clientStorage, 
 		.isFileOpen = [](std::ofstream&) -> bool {
 			return true;
 		},
-		.calculateFileHash = [&receivedFiles](const std::filesystem::path& path, int64_t size, Cryptography::HashResult& hashResult) -> int {
-			auto it = std::find_if(receivedFiles.begin(), receivedFiles.end(), [&path](const TestFileExchangeFile& file) {
-				return file.path == path;
-			});
+		.calculateFileHash = [&receivedFiles, &receivedFilesIndex](const std::filesystem::path& path, int64_t size, Cryptography::HashResult& hashResult) -> int {
+			auto it = receivedFilesIndex.find(path);
 
-			if (it == receivedFiles.end())
+			if (it == receivedFilesIndex.end())
 			{
 				return -1;
 			}
 
+			const auto& data = receivedFiles[it->second].data;
+
 			if (size == -1)
 			{
-				Cryptography::hash_blake2b(it->data, hashResult);
+				Cryptography::hash_blake2b(data, hashResult);
 			}
 			else
 			{
-				EXPECT_LT(static_cast<size_t>(size), it->data.size());
-				if (static_cast<size_t>(size) < it->data.size())
+				EXPECT_LT(static_cast<size_t>(size), data.size());
+				if (static_cast<size_t>(size) < data.size())
 				{
-					Cryptography::hash_blake2b(std::span<std::byte>(it->data.begin(), it->data.begin() + size), hashResult);
+					Cryptography::hash_blake2b(std::span<const std::byte>(data.begin(), data.begin() + size), hashResult);
 				}
 			}
 			return 0;
