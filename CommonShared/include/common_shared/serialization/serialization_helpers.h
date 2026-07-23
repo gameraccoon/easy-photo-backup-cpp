@@ -4,8 +4,8 @@
 #pragma once
 
 #include <span>
-#include <string_view>
 #include <string>
+#include <string_view>
 
 namespace Serialization
 {
